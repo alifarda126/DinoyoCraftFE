@@ -1,36 +1,92 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DinoyoCraft
 
-## Getting Started
+Platform reservasi dan penjualan keramik kampung Dinoyo, Malang.
 
-First, run the development server:
+## Stack
+- **Frontend**: Next.js 16 (App Router, Turbopack) + React 19 + TypeScript
+- **Styling**: Tailwind CSS v4
+- **Backend**: Supabase (Postgres + Auth + Storage)
+- **Payment**: Midtrans Snap (Transfer Bank, VA, E-Wallet, QRIS)
+- **PWA**: Native service worker + manifest
+- **Icons**: Phosphor Icons
+- **Date**: date-fns
+- **Toast**: sonner
+- **QR Code**: qrcode.react
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Cara Menjalankan
+
+### 1. Setup Supabase
+1. Buat project baru di [supabase.com](https://supabase.com)
+2. Copy URL dan Anon Key
+3. Jalankan `supabase/schema.sql` di SQL Editor Supabase
+5. Buat Admin User: update role di tabel profiles
+
+### 2. Setup Midtrans
+1. Daftar di [midtrans.com](https://midtrans.com)
+2. Dapatkan Server Key dan Client Key (sandbox untuk development)
+3. Set webhook URL: `https://yourdomain.com/api/midtrans/webhook`
+
+### 3. Konfigurasi Environment
+Isi `.env.local`:
+```
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+NEXT_PUBLIC_MIDTRANS_CLIENT_KEY=your-client-key
+MIDTRANS_SERVER_KEY=your-server-key
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 4. Install dan Jalankan
+```bash
+npm install
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Akses `http://localhost:3000`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Struktur Aplikasi
 
-## Learn More
+### Untuk Pengguna (Website & Mobile App sama)
+- `/` — Landing page
+- `/auth` — Login / Register
+- `/dashboard` — Dashboard utama
+- `/dashboard/reservasi` — Reservasi kelas rombongan
+- `/dashboard/katalog` — Katalog keramik
+- `/dashboard/katalog/[id]` — Detail karya + ajukan pesanan kustom
+- `/dashboard/pembayaran/[id]` — Pembayaran Midtrans
+- `/dashboard/peta` — Peta gang keramik
+- `/dashboard/bantuan` — Chatbot AI + Live chat admin
+- `/dashboard/profil` — Profil + riwayat pesanan + QR kode booking
 
-To learn more about Next.js, take a look at the following resources:
+### Untuk Admin
+- `/admin` — Dashboard admin
+- `/admin/jadwal` — Smart scheduling + kunci jadwal otomatis saat penuh
+- `/admin/manifes` — Manifes kehadiran digital + validasi tamu
+- `/admin/katalog` — Manajemen karya (CRUD)
+- `/admin/inbox` — Inbox live chat
+- `/admin/laporan` — Laporan keuangan + export CSV
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Fitur Unggulan
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Reservasi Rombongan**: Satu akun untuk banyak peserta, kode booking unik
+2. **Smart Scheduling**: Sistem otomatis mengunci jadwal saat kapasitas penuh
+3. **Manifes Digital**: Validasi tamu hari-H via QR / kode booking
+4. **Multi Payment**: Transfer bank, Virtual Account, E-Wallet, QRIS via Midtrans
+5. **Pesanan Kustom**: Pengajuan desain langsung ke pengrajin
+6. **Peta Gang**: Navigasi interaktif ke bengkel pengrajin
+7. **Bantuan Terpadu**: Chatbot AI untuk FAQ, Live chat untuk kendala spesifik
+8. **Laporan Otomatis**: Pembukuan otomatis, omzet, arus kas, bagi hasil
+9. **PWA**: Installable di HP sebagai aplikasi native
 
-## Deploy on Vercel
+## Build Production
+```bash
+npm run build
+npm run start
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Catatan Teknis
+- Next.js 16 dengan Turbopack
+- React 19 dengan Server Components
+- Tailwind v4 (utilities only, no plugin di postcss)
+- Service worker di `public/sw.js` (cache-first strategy)
+- Real-time chat menggunakan Supabase Realtime
