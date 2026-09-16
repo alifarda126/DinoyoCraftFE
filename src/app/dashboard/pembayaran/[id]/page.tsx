@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft } from "@phosphor-icons/react";
 import Link from "next/link";
 
 type Booking = {
@@ -30,11 +29,7 @@ export default function PembayaranPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    loadBooking();
-  }, []);
-
-  async function loadBooking() {
+  const loadBooking = async () => {
     const { data } = await supabase
       .from("bookings")
       .select(`
@@ -48,10 +43,14 @@ export default function PembayaranPage() {
       .eq("id", bookingId)
       .single();
 
-    if (data) setBooking(data as any);
-  }
+    if (data) setBooking(data as Booking);
+  };
 
-  async function handlePayment() {
+  useEffect(() => {
+    loadBooking();
+  }, []);
+
+  const handlePayment = async () => {
     if (!booking) return;
     setLoading(true);
 
@@ -75,7 +74,8 @@ export default function PembayaranPage() {
       const data = await res.json();
 
       if (data.token) {
-        (window as any).snap.pay(data.token, {
+        const snap = (window as typeof window & { snap?: { pay: (token: string, options: { onSuccess?: () => void; onPending?: () => void; onError?: () => void }) => void } }).snap;
+        snap?.pay(data.token, {
           onSuccess: () => {
             toast.success("Pembayaran berhasil");
             router.push("/dashboard/profil");
@@ -89,12 +89,13 @@ export default function PembayaranPage() {
           },
         });
       }
-    } catch (error: any) {
-      toast.error(error.message || "Terjadi kesalahan");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Terjadi kesalahan";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   if (!booking) {
     return (
@@ -109,15 +110,16 @@ export default function PembayaranPage() {
   return (
     <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-900">
       <script
+        async
         src={`https://app.${process.env.NODE_ENV === "production" ? "" : "sandbox."}midtrans.com/snap/snap.js`}
         data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
       />
 
-      <header className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link href="/dashboard" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-            <ArrowLeft className="w-6 h-6" />
-          </Link>
+       <header className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
+         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
+           <Link href="/dashboard" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+             <span>←</span>
+           </Link>
           <h1 className="text-xl font-semibold">Pembayaran</h1>
         </div>
       </header>

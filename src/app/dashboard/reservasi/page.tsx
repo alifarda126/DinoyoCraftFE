@@ -29,11 +29,7 @@ export default function ReservasiPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    loadSchedules();
-  }, []);
-
-  async function loadSchedules() {
+  const loadSchedules = async () => {
     const { data } = await supabase
       .from("schedules")
       .select("*")
@@ -42,9 +38,13 @@ export default function ReservasiPage() {
       .limit(30);
     
     if (data) setSchedules(data);
-  }
+  };
 
-  async function handleSubmit(e: React.FormEvent) {
+  useEffect(() => {
+    loadSchedules();
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedSchedule) return;
 
@@ -80,12 +80,13 @@ export default function ReservasiPage() {
 
       toast.success("Reservasi berhasil dibuat");
       router.push(`/dashboard/pembayaran/${booking.id}`);
-    } catch (error: any) {
-      toast.error(error.message || "Terjadi kesalahan");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Terjadi kesalahan";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-900">

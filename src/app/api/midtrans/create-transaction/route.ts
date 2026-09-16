@@ -56,9 +56,10 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ token: transaction.token });
-  } catch (error: any) {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Internal error";
     return NextResponse.json(
-      { error: error.message || "Internal error" },
+      { error: message },
       { status: 500 }
     );
   }

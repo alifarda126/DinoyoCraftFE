@@ -3,8 +3,6 @@
 import { createClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { format } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { ArrowLeft, ChatCircle, PaperPlaneTilt } from "@phosphor-icons/react";
 import Link from "next/link";
 
@@ -32,6 +30,68 @@ export default function AdminInboxPage() {
   const router = useRouter();
   const supabase = createClient();
 
+  const checkAdmin = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push("/auth");
+      return;
+    }
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    if (profile?.role !== "admin") {
+      router.push("/dashboard");
+    }
+  };
+
+  const loadConversations = async () => {
+    const { data } = await supabase
+      .from("chat_messages")
+      .select("sender_id, recipient_id, message, read, created_at, sender:profiles!chat_messages_sender_id_fkey (email)")
+      .order("created_at", { ascending: false });
+
+    if (!data) return;
+
+    const map = new Map<string, Conversation>();
+    data.forEach((msg: unknown) => {
+      const record = msg as { sender_id: string; recipient_id: string; message: string; read: boolean; is_from_admin?: boolean; sender?: { email?: string } };
+      const otherId = record.is_from_admin ? record.recipient_id : record.sender_id;
+      if (!map.has(otherId)) {
+        map.set(otherId, {
+          user_id: otherId,
+          user_email: record.sender?.email || otherId,
+          last_message: record.message,
+          unread_count: record.is_from_admin || record.read ? 0 : 1,
+        });
+      } else {
+        const conv = map.get(otherId)!;
+        if (!record.is_from_admin && !record.read) {
+          conv.unread_count += 1;
+        }
+      }
+    });
+
+    setConversations(Array.from(map.values()));
+  };
+
+  const loadMessages = async (userId: string) => {
+    const { data } = await supabase
+      .from("chat_messages")
+      .select("*")
+      .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
+      .order("created_at", { ascending: true });
+
+    if (data) setMessages(data);
+
+    await supabase
+      .from("chat_messages")
+      .update({ read: true })
+      .eq("sender_id", userId)
+      .eq("read", false);
+  };
+
   useEffect(() => {
     checkAdmin();
     loadConversations();
@@ -54,68 +114,7 @@ export default function AdminInboxPage() {
     return () => { supabase.removeChannel(channel); };
   }, [selectedUser]);
 
-  async function checkAdmin() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push("/auth");
-      return;
-    }
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (profile?.role !== "admin") {
-      router.push("/dashboard");
-    }
-  }
-
-  async function loadConversations() {
-    const { data } = await supabase
-      .from("chat_messages")
-      .select("sender_id, recipient_id, message, read, created_at, sender:profiles!chat_messages_sender_id_fkey (email)")
-      .order("created_at", { ascending: false });
-
-    if (!data) return;
-
-    const map = new Map<string, Conversation>();
-    data.forEach((msg: any) => {
-      const otherId = msg.is_from_admin ? msg.recipient_id : msg.sender_id;
-      if (!map.has(otherId)) {
-        map.set(otherId, {
-          user_id: otherId,
-          user_email: msg.sender?.email || otherId,
-          last_message: msg.message,
-          unread_count: msg.is_from_admin || msg.read ? 0 : 1,
-        });
-      } else {
-        const conv = map.get(otherId)!;
-        if (!msg.is_from_admin && !msg.read) {
-          conv.unread_count += 1;
-        }
-      }
-    });
-
-    setConversations(Array.from(map.values()));
-  }
-
-  async function loadMessages(userId: string) {
-    const { data } = await supabase
-      .from("chat_messages")
-      .select("*")
-      .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
-      .order("created_at", { ascending: true });
-
-    if (data) setMessages(data);
-
-    await supabase
-      .from("chat_messages")
-      .update({ read: true })
-      .eq("sender_id", userId)
-      .eq("read", false);
-  }
-
-  async function handleSend(e: React.FormEvent) {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || !selectedUser) return;
 
@@ -131,7 +130,7 @@ export default function AdminInboxPage() {
     });
 
     setInput("");
-  }
+  };
 
   return (
     <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-900">

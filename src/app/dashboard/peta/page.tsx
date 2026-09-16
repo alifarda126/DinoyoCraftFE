@@ -17,12 +17,7 @@ export default function PetaPage() {
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [selected, setSelected] = useState<Marker | null>(null);
 
-  useEffect(() => {
-    fetchMarkers();
-  }, []);
-
-  async function fetchMarkers() {
-    // Dinoyo alley markers (hardcoded default positions)
+  const fetchMarkers = async () => {
     setMarkers([
       {
         id: "1",
@@ -49,7 +44,11 @@ export default function PetaPage() {
         artisan_count: 3,
       },
     ]);
-  }
+  };
+
+  useEffect(() => {
+    fetchMarkers();
+  }, []);
 
   return (
     <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-900">

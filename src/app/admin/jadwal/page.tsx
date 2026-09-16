@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { format, addDays } from "date-fns";
+import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { toast } from "sonner";
 import {
@@ -38,12 +38,7 @@ export default function AdminSchedulesPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    checkAdmin();
-    loadSchedules();
-  }, []);
-
-  async function checkAdmin() {
+  const checkAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.push("/auth");
@@ -57,9 +52,9 @@ export default function AdminSchedulesPage() {
     if (profile?.role !== "admin") {
       router.push("/dashboard");
     }
-  }
+  };
 
-  async function loadSchedules() {
+  const loadSchedules = async () => {
     const { data } = await supabase
       .from("schedules")
       .select("*")
@@ -67,8 +62,13 @@ export default function AdminSchedulesPage() {
       .order("date", { ascending: true })
       .limit(30);
 
-    if (data) setSchedules(data);
-  }
+    if (data) setSchedules(data as Schedule[]);
+  };
+
+  useEffect(() => {
+    checkAdmin();
+    loadSchedules();
+  }, []);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -86,8 +86,8 @@ export default function AdminSchedulesPage() {
       toast.success("Jadwal berhasil ditambahkan");
       setShowForm(false);
       loadSchedules();
-    } catch (error: any) {
-      toast.error(error.message || "Terjadi kesalahan");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
     } finally {
       setLoading(false);
     }

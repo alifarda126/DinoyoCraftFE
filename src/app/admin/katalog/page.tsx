@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Image as ImageIcon, Plus, Trash } from "@phosphor-icons/react";
+import { Plus, Trash } from "@phosphor-icons/react";
 import Link from "next/link";
 
 type Artwork = {
@@ -31,12 +31,7 @@ export default function AdminCatalogPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    checkAdmin();
-    loadArtworks();
-  }, []);
-
-  async function checkAdmin() {
+  const checkAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.push("/auth");
@@ -50,9 +45,9 @@ export default function AdminCatalogPage() {
     if (profile?.role !== "admin") {
       router.push("/dashboard");
     }
-  }
+  };
 
-  async function loadArtworks() {
+  const loadArtworks = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     const { data } = await supabase
       .from("artworks")
@@ -62,8 +57,13 @@ export default function AdminCatalogPage() {
       `)
       .eq("artisan_id", user?.id)
       .order("created_at", { ascending: false });
-    if (data) setArtworks(data as any);
-  }
+    if (data) setArtworks(data as Artwork[]);
+  };
+
+  useEffect(() => {
+    checkAdmin();
+    loadArtworks();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -85,8 +85,8 @@ export default function AdminCatalogPage() {
       toast.success("Karya berhasil ditambahkan");
       setShowForm(false);
       loadArtworks();
-    } catch (error: any) {
-      toast.error(error.message || "Terjadi kesalahan");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
     } finally {
       setLoading(false);
     }

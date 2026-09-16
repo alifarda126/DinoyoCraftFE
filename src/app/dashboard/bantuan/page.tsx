@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase";
-import { ArrowLeft, PaperPlaneTilt } from "@phosphor-icons/react";
+import { PaperPlaneTilt } from "@phosphor-icons/react";
 import Link from "next/link";
 
 type Message = {
@@ -20,6 +20,19 @@ export default function BantuanPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const supabase = createClient();
 
+  const loadMessages = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from("chat_messages")
+      .select("*")
+      .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+      .order("created_at", { ascending: true });
+
+    if (data) setMessages(data);
+  };
+
   useEffect(() => {
     if (!isChatbot) {
       loadMessages();
@@ -32,19 +45,6 @@ export default function BantuanPage() {
       return () => { supabase.removeChannel(channel); };
     }
   }, [isChatbot]);
-
-  async function loadMessages() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("chat_messages")
-      .select("*")
-      .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-      .order("created_at", { ascending: true });
-
-    if (data) setMessages(data);
-  }
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
@@ -112,7 +112,7 @@ export default function BantuanPage() {
       <header className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
           <Link href="/dashboard" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-            <ArrowLeft className="w-6 h-6" />
+            <span>←</span>
           </Link>
           <h1 className="text-xl font-semibold">Bantuan</h1>
           <div className="ml-auto flex gap-2">

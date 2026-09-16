@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, CheckCircle, MagnifyingGlass, UserCheck } from "@phosphor-icons/react";
+import { ArrowLeft, MagnifyingGlass, UserCheck } from "@phosphor-icons/react";
 import Link from "next/link";
 
 type BookingWithParticipants = {

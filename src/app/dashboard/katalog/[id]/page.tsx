@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ArrowLeft, Heart, ShoppingBag } from "@phosphor-icons/react";
 import Link from "next/link";
 
 type ArtworkDetail = {
@@ -28,11 +27,7 @@ export default function ArtworkDetailPage() {
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
 
-  useEffect(() => {
-    loadArtwork();
-  }, []);
-
-  async function loadArtwork() {
+  const loadArtwork = async () => {
     const { data } = await supabase
       .from("artworks")
       .select(`
@@ -44,10 +39,14 @@ export default function ArtworkDetailPage() {
       .eq("id", artworkId)
       .single();
 
-    if (data) setArtwork(data as any);
-  }
+    if (data) setArtwork(data as ArtworkDetail);
+  };
 
-  async function handleSubmitCustom(e: React.FormEvent) {
+  useEffect(() => {
+    loadArtwork();
+  }, []);
+
+  const handleSubmitCustom = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -66,12 +65,13 @@ export default function ArtworkDetailPage() {
       if (error) throw error;
       toast.success("Pesanan kustom berhasil dikirim");
       setShowCustomForm(false);
-    } catch (error: any) {
-      toast.error(error.message || "Terjadi kesalahan");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Terjadi kesalahan";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   if (!artwork) {
     return (
@@ -83,11 +83,11 @@ export default function ArtworkDetailPage() {
 
   return (
     <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-900">
-      <header className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link href="/dashboard/katalog" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-            <ArrowLeft className="w-6 h-6" />
-          </Link>
+       <header className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
+         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
+           <Link href="/dashboard/katalog" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+             <span>←</span>
+           </Link>
           <h1 className="text-xl font-semibold">{artwork.title}</h1>
         </div>
       </header>

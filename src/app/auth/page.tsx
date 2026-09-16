@@ -37,8 +37,9 @@ export default function AuthPage() {
         toast.success("Login berhasil");
         router.push("/dashboard");
       }
-    } catch (error: any) {
-      toast.error(error.message || "Terjadi kesalahan");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Terjadi kesalahan";
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -53,8 +54,9 @@ export default function AuthPage() {
         },
       });
       if (error) throw error;
-    } catch (error: any) {
-      toast.error(error.message || "Terjadi kesalahan");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Terjadi kesalahan";
+      toast.error(message);
     }
   }
 

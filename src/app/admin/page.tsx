@@ -13,17 +13,18 @@ import {
 } from "@phosphor-icons/react";
 import Link from "next/link";
 
+type UserProfile = {
+  email?: string;
+  id: string;
+};
+
 export default function AdminPage() {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    checkAdmin();
-  }, []);
-
-  async function checkAdmin() {
+  const checkAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.push("/auth");
@@ -38,9 +39,13 @@ export default function AdminPage() {
       router.push("/dashboard");
       return;
     }
-    setUser(user);
+    setUser({ email: user.email, id: user.id });
     setLoading(false);
-  }
+  };
+
+  useEffect(() => {
+    checkAdmin();
+  }, []);
 
   async function handleSignOut() {
     await supabase.auth.signOut();

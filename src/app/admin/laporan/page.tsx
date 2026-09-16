@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import { ArrowLeft, TrendUp, Bank, Calculator, Download } from "@phosphor-icons/react";
+import { TrendUp, Bank, Calculator, Download } from "@phosphor-icons/react";
 import Link from "next/link";
 
 type Report = {

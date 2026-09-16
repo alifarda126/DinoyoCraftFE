@@ -4,10 +4,17 @@ import { createClient } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
-import { ArrowLeft, Copy, Eye } from "@phosphor-icons/react";
+import { Copy, Eye } from "@phosphor-icons/react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { QRCodeSVG } from "qrcode.react";
+
+type Profile = {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+};
 
 type Booking = {
   id: string;
@@ -39,17 +46,13 @@ type CustomOrder = {
 };
 
 export default function ProfilPage() {
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [customOrders, setCustomOrders] = useState<CustomOrder[]>([]);
   const [showQr, setShowQr] = useState<string | null>(null);
   const supabase = createClient();
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  async function loadData() {
+  const loadData = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
@@ -69,7 +72,7 @@ export default function ProfilPage() {
       `)
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
-    if (bks) setBookings(bks as any);
+    if (bks) setBookings(bks as Booking[]);
 
     const { data: co } = await supabase
       .from("custom_orders")
@@ -77,7 +80,11 @@ export default function ProfilPage() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
     if (co) setCustomOrders(co);
-  }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
 
   const statusLabel: Record<string, string> = {
     pending: "Menunggu",
@@ -106,7 +113,7 @@ export default function ProfilPage() {
       <header className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
           <Link href="/dashboard" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-            <ArrowLeft className="w-6 h-6" />
+            <span>←</span>
           </Link>
           <h1 className="text-xl font-semibold">Profil & Riwayat</h1>
         </div>

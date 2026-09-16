@@ -3,7 +3,6 @@
 import { createClient } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "@phosphor-icons/react";
 
 type Artwork = {
   id: string;
@@ -22,11 +21,7 @@ export default function KatalogPage() {
   const [filter, setFilter] = useState("all");
   const supabase = createClient();
 
-  useEffect(() => {
-    loadArtworks();
-  }, []);
-
-  async function loadArtworks() {
+  const loadArtworks = async () => {
     const { data } = await supabase
       .from("artworks")
       .select(`
@@ -37,8 +32,12 @@ export default function KatalogPage() {
       `)
       .order("created_at", { ascending: false });
 
-    if (data) setArtworks(data as any);
-  }
+    if (data) setArtworks(data as Artwork[]);
+  };
+
+  useEffect(() => {
+    loadArtworks();
+  }, []);
 
   const categories = Array.from(
     new Set(artworks.map((a) => a.category))
@@ -50,14 +49,14 @@ export default function KatalogPage() {
 
   return (
     <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-900">
-      <header className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link href="/dashboard" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-            <ArrowLeft className="w-6 h-6" />
-          </Link>
-          <h1 className="text-xl font-semibold">Katalog Keramik</h1>
-        </div>
-      </header>
+       <header className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
+         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
+           <Link href="/dashboard" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+             <span>←</span>
+           </Link>
+           <h1 className="text-xl font-semibold">Katalog Keramik</h1>
+         </div>
+       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
         {categories.length > 0 && (
