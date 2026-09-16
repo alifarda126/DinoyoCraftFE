@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight, HandsClapping, MapPin, Quotes } from "@phosphor-icons/react";
 import {
   Chats,
@@ -86,46 +87,51 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="relative">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-4">
-                <figure className="rounded-2xl overflow-hidden aspect-[4/5]">
-                  <img
-                    src="https://picsum.photos/seed/dinoyo-potter-wheel-hands/600/750"
-                    alt="Pengrajin membentuk tanah liat di roda pemutar"
-                    className="w-full h-full object-cover"
-                    loading="eager"
-                  />
-                </figure>
-                <figure className="rounded-2xl overflow-hidden aspect-square">
-                  <img
-                    src="https://picsum.photos/seed/dinoyo-ceramic-vase-glow/600/600"
-                    alt="Vas keramik hasil bengkel Dinoyo"
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                </figure>
-              </div>
-              <div className="space-y-4 pt-12">
-                <figure className="rounded-2xl overflow-hidden aspect-square">
-                  <img
-                    src="https://picsum.photos/seed/dinoyo-alley-kiln-smoke/600/600"
-                    alt="Lorong gang keramik Dinoyo"
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                </figure>
-                <figure className="rounded-2xl overflow-hidden aspect-[4/5]">
-                  <img
-                    src="https://picsum.photos/seed/dinoyo-paint-glaze-table/600/750"
-                    alt="Meja glasir dan pewarna keramik"
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                </figure>
-              </div>
-            </div>
-          </div>
+           <div className="relative">
+             <div className="grid grid-cols-2 gap-4">
+               <div className="space-y-4">
+                 <figure className="rounded-2xl overflow-hidden aspect-[4/5]">
+                   <Image
+                     src="https://picsum.photos/seed/dinoyo-potter-hands-clay-wheel/600/750"
+                     alt="Pengrajin Dinoyo membentuk tanah liat dengan tangan di roda pemutar"
+                     width={600}
+                     height={750}
+                     priority
+                     className="w-full h-full object-cover"
+                   />
+                 </figure>
+                 <figure className="rounded-2xl overflow-hidden aspect-square">
+                   <Image
+                     src="https://picsum.photos/seed/dinoyo-fired-pottery-kiln-glaze/600/600"
+                     alt="Keramik hasil pembakaran kiln tradisional Dinoyo dengan glasir matang"
+                     width={600}
+                     height={600}
+                     className="w-full h-full object-cover"
+                   />
+                 </figure>
+               </div>
+               <div className="space-y-4 pt-12">
+                 <figure className="rounded-2xl overflow-hidden aspect-square">
+                   <Image
+                     src="https://picsum.photos/seed/dinoyo-narrow-alley-pottery-workshop/600/600"
+                     alt="Lorong sempit gang keramik Dinoyo dengan bengkel di kiri kanan"
+                     width={600}
+                     height={600}
+                     className="w-full h-full object-cover"
+                   />
+                 </figure>
+                 <figure className="rounded-2xl overflow-hidden aspect-[4/5]">
+                   <Image
+                     src="https://picsum.photos/seed/dinoyo-clay-preparation-mud-workshop/600/750"
+                     alt="Meja persiapan tanah liat dan alat-alat keramik di bengkel Dinoyo"
+                     width={600}
+                     height={750}
+                     className="w-full h-full object-cover"
+                   />
+                 </figure>
+               </div>
+             </div>
+           </div>
         </div>
       </section>
 
@@ -135,21 +141,25 @@ export default function Home() {
             Semua yang kamu butuhkan untuk hari yang penuh tanah liat.
           </h2>
 
-          <div className="mt-14 grid grid-cols-1 md:grid-cols-2 gap-px bg-line rounded-2xl overflow-hidden border border-line">
-            {features.map((f) => (
-              <div
-                key={f.title}
-                className="reveal bg-surface-elevated p-8 lg:p-10 hover:bg-surface-raised transition-colors"
-              >
-                <f.icon className="w-7 h-7 text-amber-brand" />
-                <h3 className="mt-5 text-xl font-semibold tracking-tight">
-                  {f.title}
-                </h3>
-                <p className="mt-2.5 text-bone-muted leading-relaxed max-w-[50ch]">
-                  {f.desc}
-                </p>
-              </div>
-            ))}
+          <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-max">
+            {features.map((f, i) => {
+              const Icon = f.icon;
+              const isWide = i === 0 || i === 3;
+              return (
+                <div
+                  key={f.title}
+                  className={`reveal bg-surface-elevated border border-line rounded-2xl p-8 lg:p-10 hover:bg-surface-raised transition-colors ${isWide ? 'md:col-span-2' : ''}`}
+                >
+                  <Icon className="w-7 h-7 text-amber-brand" />
+                  <h3 className="mt-5 text-xl font-semibold tracking-tight">
+                    {f.title}
+                  </h3>
+                  <p className="mt-2.5 text-bone-muted leading-relaxed max-w-[50ch]">
+                    {f.desc}
+                  </p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
@@ -213,43 +223,45 @@ export default function Home() {
             Suara dari lorong keramik.
           </h2>
 
-          <div className="mt-14 grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                quote:
-                  "Rombongan kantor kami 12 orang, satu transaksi selesai. Kode booking tinggal ditunjukkan di gang.",
-                name: "Ratna Puspitasari",
-                role: "HR Manager, Malang",
-              },
-              {
-                quote:
-                  "Pesan 40 mug custom untuk tamu undangan. Pengrajinnya langsung yang mengirim progress fotonya.",
-                name: "Bagas Anindito",
-                role: "Pemilik kafe, Lowokwaru",
-              },
-              {
-                quote:
-                  "Anak-anak sekolah ramai di roda pemutar, data rombongan sudah rapi di manifes admin.",
-                name: "Sri Wahyuni",
-                role: "Guru SD, Kota Malang",
-              },
-            ].map((t) => (
-              <figure
-                key={t.name}
-                className="reveal bg-surface-elevated border border-line rounded-2xl p-8 flex flex-col"
-              >
-                <Quotes className="w-6 h-6 text-amber-brand" />
-                <blockquote className="mt-4 leading-relaxed flex-1">
-                  {t.quote}
-                </blockquote>
-                <figcaption className="mt-6">
-                  <span className="font-medium">{t.name}</span>
-                  <span className="block text-sm text-bone-muted mt-0.5">
-                    {t.role}
-                  </span>
-                </figcaption>
-              </figure>
-            ))}
+          <div className="mt-14 grid grid-cols-1 md:grid-cols-5 gap-6 auto-rows-max">
+            <figure className="reveal md:col-span-3 bg-surface-elevated border border-line rounded-2xl p-8 lg:p-10 flex flex-col">
+              <Quotes className="w-6 h-6 text-amber-brand" />
+              <blockquote className="mt-6 text-lg leading-relaxed flex-1">
+                Rombongan kantor kami 12 orang, satu transaksi selesai. Kode booking tinggal ditunjukkan di gang.
+              </blockquote>
+              <figcaption className="mt-8">
+                <span className="font-medium">Ratna Puspitasari</span>
+                <span className="block text-sm text-bone-muted mt-1">
+                  HR Manager, Malang
+                </span>
+              </figcaption>
+            </figure>
+
+            <figure className="reveal md:col-span-2 bg-surface-elevated border border-line rounded-2xl p-8 flex flex-col">
+              <Quotes className="w-5 h-5 text-amber-brand" />
+              <blockquote className="mt-4 text-sm leading-relaxed flex-1">
+                Pesan 40 mug custom untuk tamu undangan. Pengrajinnya langsung mengirim progress fotonya.
+              </blockquote>
+              <figcaption className="mt-6">
+                <span className="font-medium text-sm">Bagas Anindito</span>
+                <span className="block text-xs text-bone-muted mt-1">
+                  Pemilik kafe, Lowokwaru
+                </span>
+              </figcaption>
+            </figure>
+
+            <figure className="reveal md:col-span-2 bg-surface-elevated border border-line rounded-2xl p-8 flex flex-col">
+              <Quotes className="w-5 h-5 text-amber-brand" />
+              <blockquote className="mt-4 text-sm leading-relaxed flex-1">
+                Anak-anak sekolah ramai di roda pemutar, data rombongan sudah rapi di manifes admin.
+              </blockquote>
+              <figcaption className="mt-6">
+                <span className="font-medium text-sm">Sri Wahyuni</span>
+                <span className="block text-xs text-bone-muted mt-1">
+                  Guru SD, Kota Malang
+                </span>
+              </figcaption>
+            </figure>
           </div>
         </div>
       </section>

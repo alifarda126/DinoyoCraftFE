@@ -36,12 +36,7 @@ export default function ManifesPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    checkAdmin();
-    loadManifes();
-  }, []);
-
-  async function checkAdmin() {
+  const checkAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.push("/auth");
@@ -55,9 +50,9 @@ export default function ManifesPage() {
     if (profile?.role !== "admin") {
       router.push("/dashboard");
     }
-  }
+  };
 
-  async function loadManifes() {
+  const loadManifes = async () => {
     const today = new Date().toISOString().split("T")[0];
     setSelectedDate(today);
 
@@ -71,8 +66,13 @@ export default function ManifesPage() {
       .eq("status", "confirmed")
       .order("created_at", { ascending: false });
 
-    if (data) setBookings(data as any);
-  }
+    if (data) setBookings(data as BookingWithParticipants[]);
+  };
+
+  useEffect(() => {
+    checkAdmin();
+    loadManifes();
+  }, []);
 
   async function markAttended(participantId: string) {
     const { error } = await supabase

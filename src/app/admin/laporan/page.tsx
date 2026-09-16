@@ -24,12 +24,7 @@ export default function AdminReportsPage() {
   const router = useRouter();
   const supabase = createClient();
 
-  useEffect(() => {
-    checkAdmin();
-    loadReports();
-  }, [period]);
-
-  async function checkAdmin() {
+  const checkAdmin = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.push("/auth");
@@ -43,9 +38,9 @@ export default function AdminReportsPage() {
     if (profile?.role !== "admin") {
       router.push("/dashboard");
     }
-  }
+  };
 
-  async function loadReports() {
+  const loadReports = async () => {
     const { data } = await supabase
       .from("financial_reports")
       .select("*")
@@ -53,7 +48,12 @@ export default function AdminReportsPage() {
       .limit(30);
 
     if (data) setReports(data);
-  }
+  };
+
+  useEffect(() => {
+    checkAdmin();
+    loadReports();
+  }, [period]);
 
   function aggregateByPeriod(reps: Report[]) {
     if (period === "daily") return reps;
