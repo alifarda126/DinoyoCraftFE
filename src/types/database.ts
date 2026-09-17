@@ -52,6 +52,7 @@ export type Database = {
           name: string;
           phone: string;
           email: string;
+          attended: boolean;
           created_at: string;
         };
         Insert: Omit<Database["public"]["Tables"]["participants"]["Row"], "id" | "created_at">;
@@ -140,6 +141,12 @@ export type Database = {
         };
         Insert: Omit<Database["public"]["Tables"]["financial_reports"]["Row"], "id" | "created_at">;
         Update: Partial<Database["public"]["Tables"]["financial_reports"]["Row"]>;
+      };
+    };
+    Functions: {
+      increment_bookings: {
+        Args: { schedule_id: string; increment_by: number };
+        Returns: void;
       };
     };
   };

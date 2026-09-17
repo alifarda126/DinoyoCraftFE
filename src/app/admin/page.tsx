@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase";
+import { getDemoSession, clearDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -25,6 +26,17 @@ export default function AdminPage() {
   const supabase = createClient();
 
   const checkAdmin = async () => {
+    // Check demo session first
+    const demo = getDemoSession();
+    if (demo) {
+      if (demo.role !== "admin") {
+        router.push("/dashboard");
+        return;
+      }
+      setUser({ email: demo.user.email, id: demo.user.id });
+      setLoading(false);
+      return;
+    }
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.push("/auth");
@@ -48,6 +60,7 @@ export default function AdminPage() {
   }, []);
 
   async function handleSignOut() {
+    clearDemoSession();
     await supabase.auth.signOut();
     router.push("/");
   }

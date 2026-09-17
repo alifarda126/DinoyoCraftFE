@@ -48,6 +48,15 @@ export default function PembayaranPage() {
 
   useEffect(() => {
     loadBooking();
+    // Load Midtrans Snap.js safely via useEffect (works in Next.js App Router)
+    const snapSrc = `https://app.${process.env.NODE_ENV === "production" ? "" : "sandbox."}midtrans.com/snap/snap.js`;
+    if (!document.querySelector(`script[src="${snapSrc}"]`)) {
+      const script = document.createElement("script");
+      script.src = snapSrc;
+      script.setAttribute("data-client-key", process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "");
+      script.async = true;
+      document.head.appendChild(script);
+    }
   }, []);
 
   const handlePayment = async () => {
@@ -74,8 +83,25 @@ export default function PembayaranPage() {
       const data = await res.json();
 
       if (data.token) {
-        const snap = (window as typeof window & { snap?: { pay: (token: string, options: { onSuccess?: () => void; onPending?: () => void; onError?: () => void }) => void } }).snap;
-        snap?.pay(data.token, {
+        const snapWindow = window as typeof window & {
+          snap?: {
+            pay: (
+              token: string,
+              options: {
+                onSuccess?: () => void;
+                onPending?: () => void;
+                onError?: () => void;
+              }
+            ) => void;
+          };
+        };
+
+        if (!snapWindow.snap) {
+          toast.error("Snap.js belum siap. Coba lagi dalam beberapa detik.");
+          return;
+        }
+
+        snapWindow.snap.pay(data.token, {
           onSuccess: () => {
             toast.success("Pembayaran berhasil");
             router.push("/dashboard/profil");
@@ -88,6 +114,8 @@ export default function PembayaranPage() {
             toast.error("Pembayaran gagal");
           },
         });
+      } else if (data.error) {
+        toast.error(data.error);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Terjadi kesalahan";
@@ -109,12 +137,6 @@ export default function PembayaranPage() {
 
   return (
     <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-900">
-      <script
-        async
-        src={`https://app.${process.env.NODE_ENV === "production" ? "" : "sandbox."}midtrans.com/snap/snap.js`}
-        data-client-key={process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY}
-      />
-
        <header className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
          <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
            <Link href="/dashboard" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">

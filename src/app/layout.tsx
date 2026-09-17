@@ -35,6 +35,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="theme-color" content="#0a1410" />
       </head>
       <body className="min-h-full flex flex-col">
+        {/* Grain noise texture — gives ceramic/earth surface depth on every page */}
+        <div className="grain-overlay" aria-hidden="true" />
         {children}
         <Toaster />
         <ServiceWorkerRegister />

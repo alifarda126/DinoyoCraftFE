@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase";
+import { getDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -37,6 +38,11 @@ export default function ManifesPage() {
   const supabase = createClient();
 
   const checkAdmin = async () => {
+    const demo = getDemoSession();
+    if (demo) {
+      if (demo.role !== "admin") router.push("/dashboard");
+      return;
+    }
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       router.push("/auth");

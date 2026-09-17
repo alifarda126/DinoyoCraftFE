@@ -32,6 +32,41 @@ const features = [
   },
 ];
 
+const testimonials = [
+  {
+    quote: "Rombongan kantor kami 12 orang, satu transaksi selesai. Kode booking tinggal ditunjukkan di gang.",
+    name: "Ratna Puspitasari",
+    role: "HR Manager, Malang",
+    initials: "RP",
+    span: 3,
+    large: true,
+  },
+  {
+    quote: "Pesan 40 mug custom untuk tamu undangan. Pengrajinnya langsung mengirim progress fotonya.",
+    name: "Bagas Anindito",
+    role: "Pemilik kafe, Lowokwaru",
+    initials: "BA",
+    span: 2,
+    large: false,
+  },
+  {
+    quote: "Anak-anak sekolah ramai di roda pemutar, data rombongan sudah rapi di manifes admin.",
+    name: "Sri Wahyuni",
+    role: "Guru SD, Kota Malang",
+    initials: "SW",
+    span: 2,
+    large: false,
+  },
+  {
+    quote: "Dari sketsa di WhatsApp, keramiknya jadi persis bayangan kami. Studio sangat responsif dan ramah.",
+    name: "Dewi Wulandari",
+    role: "Dekorator interior, Surabaya",
+    initials: "DW",
+    span: 3,
+    large: false,
+  },
+];
+
 export default function Home() {
   return (
     <div className="bg-surface text-bone">
@@ -60,7 +95,15 @@ export default function Home() {
         </div>
       </nav>
 
-      <section className="border-b border-line">
+      {/* ── HERO ───────────────────────────────────────────────────────────── */}
+      <section className="border-b border-line relative overflow-hidden">
+        {/* Ambient glow blobs */}
+        <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-60 -left-32 w-[700px] h-[700px] rounded-full bg-amber-brand opacity-[0.07] blur-[110px]" />
+          <div className="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full bg-amber-brand opacity-[0.04] blur-[130px]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full bg-amber-brand opacity-[0.03] blur-[80px]" />
+        </div>
+
         <div className="max-w-[1400px] mx-auto px-5 lg:px-8 grid lg:grid-cols-2 gap-12 items-center min-h-[92dvh] pt-16 pb-20">
           <div>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tighter leading-[1.05] max-w-xl">
@@ -87,55 +130,66 @@ export default function Home() {
             </div>
           </div>
 
-           <div className="relative">
-             <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-4">
-                 <figure className="rounded-2xl overflow-hidden aspect-[4/5]">
-                   <Image
-                     src="https://picsum.photos/seed/dinoyo-potter-hands-clay-wheel/600/750"
-                     alt="Pengrajin Dinoyo membentuk tanah liat dengan tangan di roda pemutar"
-                     width={600}
-                     height={750}
-                     priority
-                     className="w-full h-full object-cover"
-                   />
-                 </figure>
-                 <figure className="rounded-2xl overflow-hidden aspect-square">
-                   <Image
-                     src="https://picsum.photos/seed/dinoyo-fired-pottery-kiln-glaze/600/600"
-                     alt="Keramik hasil pembakaran kiln tradisional Dinoyo dengan glasir matang"
-                     width={600}
-                     height={600}
-                     className="w-full h-full object-cover"
-                   />
-                 </figure>
-               </div>
-               <div className="space-y-4 pt-12">
-                 <figure className="rounded-2xl overflow-hidden aspect-square">
-                   <Image
-                     src="https://picsum.photos/seed/dinoyo-narrow-alley-pottery-workshop/600/600"
-                     alt="Lorong sempit gang keramik Dinoyo dengan bengkel di kiri kanan"
-                     width={600}
-                     height={600}
-                     className="w-full h-full object-cover"
-                   />
-                 </figure>
-                 <figure className="rounded-2xl overflow-hidden aspect-[4/5]">
-                   <Image
-                     src="https://picsum.photos/seed/dinoyo-clay-preparation-mud-workshop/600/750"
-                     alt="Meja persiapan tanah liat dan alat-alat keramik di bengkel Dinoyo"
-                     width={600}
-                     height={750}
-                     className="w-full h-full object-cover"
-                   />
-                 </figure>
-               </div>
-             </div>
-           </div>
+          <div className="relative">
+            {/* Subtle inner glow behind the image grid */}
+            <div aria-hidden className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-amber-brand opacity-[0.09] blur-[80px]" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <figure className="rounded-2xl overflow-hidden aspect-[4/5] ring-1 ring-white/5">
+                  <Image
+                    src="https://picsum.photos/seed/dinoyo-potter-hands-clay-wheel/600/750"
+                    alt="Pengrajin Dinoyo membentuk tanah liat dengan tangan di roda pemutar"
+                    width={600}
+                    height={750}
+                    priority
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                  />
+                </figure>
+                <figure className="rounded-2xl overflow-hidden aspect-square ring-1 ring-white/5">
+                  <Image
+                    src="https://picsum.photos/seed/dinoyo-fired-pottery-kiln-glaze/600/600"
+                    alt="Keramik hasil pembakaran kiln tradisional Dinoyo dengan glasir matang"
+                    width={600}
+                    height={600}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                  />
+                </figure>
+              </div>
+              <div className="space-y-4 pt-12">
+                <figure className="rounded-2xl overflow-hidden aspect-square ring-1 ring-white/5">
+                  <Image
+                    src="https://picsum.photos/seed/dinoyo-narrow-alley-pottery-workshop/600/600"
+                    alt="Lorong sempit gang keramik Dinoyo dengan bengkel di kiri kanan"
+                    width={600}
+                    height={600}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                  />
+                </figure>
+                <figure className="rounded-2xl overflow-hidden aspect-[4/5] ring-1 ring-white/5">
+                  <Image
+                    src="https://picsum.photos/seed/dinoyo-clay-preparation-mud-workshop/600/750"
+                    alt="Meja persiapan tanah liat dan alat-alat keramik di bengkel Dinoyo"
+                    width={600}
+                    height={750}
+                    className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
+                  />
+                </figure>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section id="fitur" className="border-b border-line">
+      {/* ── FITUR ──────────────────────────────────────────────────────────── */}
+      <section id="fitur" className="border-b border-line relative overflow-hidden">
+        {/* Centered warm glow behind cards */}
+        <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] rounded-full bg-amber-brand opacity-[0.05] blur-[140px]" />
+          <div className="absolute -bottom-20 right-1/4 w-[400px] h-[400px] rounded-full bg-amber-brand opacity-[0.03] blur-[100px]" />
+        </div>
+
         <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-32">
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tighter leading-[1.1] max-w-2xl">
             Semua yang kamu butuhkan untuk hari yang penuh tanah liat.
@@ -148,8 +202,10 @@ export default function Home() {
               return (
                 <div
                   key={f.title}
-                  className={`reveal bg-surface-elevated border border-line rounded-2xl p-8 lg:p-10 hover:bg-surface-raised transition-colors ${isWide ? 'md:col-span-2' : ''}`}
+                  className={`reveal card-hover-glow bg-surface-elevated border border-line rounded-2xl p-8 lg:p-10 hover:bg-surface-raised transition-colors relative overflow-hidden ${isWide ? "md:col-span-2" : ""}`}
                 >
+                  {/* Corner accent glow */}
+                  <div aria-hidden className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-amber-brand opacity-[0.07] blur-[40px] pointer-events-none" />
                   <Icon className="w-7 h-7 text-amber-brand" />
                   <h3 className="mt-5 text-xl font-semibold tracking-tight">
                     {f.title}
@@ -164,7 +220,14 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="cara" className="border-b border-line">
+      {/* ── CARA BERKUNJUNG ────────────────────────────────────────────────── */}
+      <section id="cara" className="border-b border-line relative overflow-hidden">
+        {/* Side glow */}
+        <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-0 left-0 w-[400px] h-[400px] rounded-full bg-amber-brand opacity-[0.04] blur-[120px]" />
+          <div className="absolute bottom-0 right-0 w-[300px] h-[300px] rounded-full bg-amber-brand opacity-[0.04] blur-[100px]" />
+        </div>
+
         <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-32">
           <div className="grid lg:grid-cols-[2fr_1fr] gap-12">
             <div>
@@ -195,7 +258,9 @@ export default function Home() {
             </div>
 
             <aside className="lg:justify-self-end">
-              <div className="bg-surface-elevated border border-line rounded-2xl p-8 lg:sticky lg:top-24">
+              <div className="card-hover-glow bg-surface-elevated border border-amber-brand/20 rounded-2xl p-8 lg:sticky lg:top-24 relative overflow-hidden">
+                {/* Glow inside the aside card */}
+                <div aria-hidden className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-amber-brand opacity-[0.1] blur-[50px] pointer-events-none" />
                 <HandsClapping className="w-8 h-8 text-amber-brand" />
                 <h3 className="mt-5 font-semibold tracking-tight text-lg">
                   Kelas keramik instan
@@ -217,56 +282,58 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="suara" className="border-b border-line">
+      {/* ── TESTIMONIALS ───────────────────────────────────────────────────── */}
+      <section id="suara" className="border-b border-line relative overflow-hidden">
+        {/* Decorative background quote watermark */}
+        <div aria-hidden className="absolute top-0 right-10 select-none pointer-events-none overflow-hidden">
+          <span className="text-[28rem] font-serif leading-none text-amber-brand opacity-[0.025]">&ldquo;</span>
+        </div>
+        {/* Bottom glow */}
+        <div aria-hidden className="absolute bottom-0 left-1/3 w-[500px] h-[300px] rounded-full bg-amber-brand opacity-[0.04] blur-[120px] pointer-events-none" />
+
         <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-32">
           <h2 className="text-3xl md:text-4xl font-semibold tracking-tighter leading-[1.1]">
             Suara dari lorong keramik.
           </h2>
 
           <div className="mt-14 grid grid-cols-1 md:grid-cols-5 gap-6 auto-rows-max">
-            <figure className="reveal md:col-span-3 bg-surface-elevated border border-line rounded-2xl p-8 lg:p-10 flex flex-col">
-              <Quotes className="w-6 h-6 text-amber-brand" />
-              <blockquote className="mt-6 text-lg leading-relaxed flex-1">
-                Rombongan kantor kami 12 orang, satu transaksi selesai. Kode booking tinggal ditunjukkan di gang.
-              </blockquote>
-              <figcaption className="mt-8">
-                <span className="font-medium">Ratna Puspitasari</span>
-                <span className="block text-sm text-bone-muted mt-1">
-                  HR Manager, Malang
-                </span>
-              </figcaption>
-            </figure>
-
-            <figure className="reveal md:col-span-2 bg-surface-elevated border border-line rounded-2xl p-8 flex flex-col">
-              <Quotes className="w-5 h-5 text-amber-brand" />
-              <blockquote className="mt-4 text-sm leading-relaxed flex-1">
-                Pesan 40 mug custom untuk tamu undangan. Pengrajinnya langsung mengirim progress fotonya.
-              </blockquote>
-              <figcaption className="mt-6">
-                <span className="font-medium text-sm">Bagas Anindito</span>
-                <span className="block text-xs text-bone-muted mt-1">
-                  Pemilik kafe, Lowokwaru
-                </span>
-              </figcaption>
-            </figure>
-
-            <figure className="reveal md:col-span-2 bg-surface-elevated border border-line rounded-2xl p-8 flex flex-col">
-              <Quotes className="w-5 h-5 text-amber-brand" />
-              <blockquote className="mt-4 text-sm leading-relaxed flex-1">
-                Anak-anak sekolah ramai di roda pemutar, data rombongan sudah rapi di manifes admin.
-              </blockquote>
-              <figcaption className="mt-6">
-                <span className="font-medium text-sm">Sri Wahyuni</span>
-                <span className="block text-xs text-bone-muted mt-1">
-                  Guru SD, Kota Malang
-                </span>
-              </figcaption>
-            </figure>
+            {testimonials.map((t) => (
+              <figure
+                key={t.name}
+                className={`reveal card-hover-glow bg-surface-elevated border border-line rounded-2xl flex flex-col relative overflow-hidden ${
+                  t.span === 3 ? "md:col-span-3" : "md:col-span-2"
+                } ${t.large ? "p-8 lg:p-10" : "p-8"}`}
+              >
+                {/* Subtle inner glow on each card */}
+                <div aria-hidden className="absolute top-0 right-0 w-24 h-24 rounded-full bg-amber-brand opacity-[0.06] blur-[30px] pointer-events-none" />
+                <Quotes className={`text-amber-brand ${t.large ? "w-6 h-6" : "w-5 h-5"}`} />
+                <blockquote className={`flex-1 leading-relaxed ${t.large ? "mt-6 text-lg" : "mt-4 text-sm"}`}>
+                  {t.quote}
+                </blockquote>
+                <figcaption className={`flex items-center gap-3 ${t.large ? "mt-8" : "mt-6"}`}>
+                  {/* Avatar with initials */}
+                  <div className="w-9 h-9 rounded-full bg-amber-brand/15 border border-amber-brand/30 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-amber-brand">{t.initials}</span>
+                  </div>
+                  <div>
+                    <span className={`font-medium block ${t.large ? "" : "text-sm"}`}>{t.name}</span>
+                    <span className={`text-bone-muted block mt-0.5 ${t.large ? "text-sm" : "text-xs"}`}>
+                      {t.role}
+                    </span>
+                  </div>
+                </figcaption>
+              </figure>
+            ))}
           </div>
         </div>
       </section>
 
-      <footer className="border-b border-line">
+      {/* ── FOOTER CTA ─────────────────────────────────────────────────────── */}
+      <footer className="border-b border-line relative overflow-hidden">
+        {/* Glow behind heading */}
+        <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute top-1/2 left-1/4 -translate-y-1/2 w-[500px] h-[300px] rounded-full bg-amber-brand opacity-[0.06] blur-[120px]" />
+        </div>
         <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-28 grid lg:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="text-3xl md:text-4xl font-semibold tracking-tighter leading-[1.1] max-w-lg">

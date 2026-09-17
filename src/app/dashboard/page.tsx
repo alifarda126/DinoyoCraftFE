@@ -1,6 +1,7 @@
 "use client";
 
 import { createClient } from "@/lib/supabase";
+import { getDemoSession, clearDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
@@ -15,6 +16,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadUser() {
+      // Check demo session first
+      const demo = getDemoSession();
+      if (demo) {
+        setUser({ id: demo.user.id, email: demo.user.email } as User);
+        setLoading(false);
+        return;
+      }
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push("/auth");
@@ -27,6 +35,7 @@ export default function DashboardPage() {
   }, [router, supabase]);
 
   async function handleSignOut() {
+    clearDemoSession();
     await supabase.auth.signOut();
     router.push("/");
   }

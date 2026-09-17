@@ -73,10 +73,19 @@ export default function ReservasiPage() {
 
       if (error) throw error;
 
-      await supabase
-        .from("schedules")
-        .update({ current_bookings: selectedSchedule.current_bookings + participantCount })
-        .eq("id", selectedSchedule.id);
+      // Use atomic RPC to increment bookings safely (prevents race conditions)
+      const { error: rpcError } = await supabase.rpc("increment_bookings", {
+        schedule_id: selectedSchedule.id,
+        increment_by: participantCount,
+      });
+
+      if (rpcError) {
+        // If RPC fails (e.g. not yet created), fallback to manual update
+        await supabase
+          .from("schedules")
+          .update({ current_bookings: selectedSchedule.current_bookings + participantCount })
+          .eq("id", selectedSchedule.id);
+      }
 
       toast.success("Reservasi berhasil dibuat");
       router.push(`/dashboard/pembayaran/${booking.id}`);

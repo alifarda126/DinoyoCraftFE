@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase";
+import { setDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -58,6 +59,16 @@ export default function AuthPage() {
       const message = error instanceof Error ? error.message : "Terjadi kesalahan";
       toast.error(message);
     }
+  }
+
+  function handleDemoLogin(role: "user" | "admin") {
+    setDemoSession(role);
+    toast.success(
+      role === "admin"
+        ? "Masuk sebagai Demo Admin"
+        : "Masuk sebagai Demo Pengunjung"
+    );
+    router.push(role === "admin" ? "/admin" : "/dashboard");
   }
 
   return (
@@ -146,6 +157,39 @@ export default function AuthPage() {
               {mode === "signin" ? "Daftar" : "Masuk"}
             </button>
           </p>
+
+          {/* ── DEMO MODE ─────────────────────────────────────────────── */}
+          <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
+              <span className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase px-1">
+                SIMULASI DEMO
+              </span>
+              <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-800" />
+            </div>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 text-center mb-3 leading-relaxed">
+              Coba tanpa daftar — tidak memerlukan koneksi ke server
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleDemoLogin("user")}
+                className="py-2.5 border border-zinc-300 dark:border-zinc-700 rounded-lg text-sm font-medium hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors flex items-center justify-center gap-2"
+              >
+                <span aria-hidden>👤</span>
+                Demo Pengunjung
+              </button>
+              <button
+                onClick={() => handleDemoLogin("admin")}
+                className="py-2.5 border border-amber-500/40 text-amber-600 dark:text-amber-400 rounded-lg text-sm font-medium hover:bg-amber-50/50 dark:hover:bg-amber-950/20 transition-colors flex items-center justify-center gap-2"
+              >
+                <span aria-hidden>⚙️</span>
+                Demo Admin
+              </button>
+            </div>
+            <p className="text-[10px] text-zinc-400 text-center mt-3">
+              Demo Admin → akses penuh panel admin DinoyoCraft
+            </p>
+          </div>
         </div>
       </div>
     </div>

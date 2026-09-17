@@ -292,3 +292,99 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
+
+-- ============================================================
+-- ADDITIONS — run these if schema was already applied before
+-- ============================================================
+
+-- Add attended column to participants (if not exists)
+alter table public.participants
+  add column if not exists attended boolean default false;
+
+-- ============================================================
+-- Atomic RPC: increment_bookings
+-- Prevents race condition when multiple users book simultaneously
+-- ============================================================
+create or replace function public.increment_bookings(
+  schedule_id uuid,
+  increment_by int
+)
+returns void as $$
+begin
+  update public.schedules
+  set current_bookings = current_bookings + increment_by,
+      updated_at = now()
+  where id = schedule_id;
+end;
+$$ language plpgsql security definer;
+
+-- ============================================================
+-- Additional policies for admin
+-- ============================================================
+
+-- Allow admins to update participants (mark attendance)
+create policy "Admins can update participants"
+  on participants for update using (
+    exists (
+      select 1 from profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
+-- Allow admins to view all participants
+create policy "Admins can view all participants"
+  on participants for select using (
+    exists (
+      select 1 from profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
+-- Allow admins to insert chat messages (reply to users)
+create policy "Admins can send messages"
+  on chat_messages for insert with check (
+    exists (
+      select 1 from profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
+-- Allow admins to update chat messages (mark as read)
+create policy "Admins can update chat messages"
+  on chat_messages for update using (
+    exists (
+      select 1 from profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
+-- Allow admins to view all chat messages
+create policy "Admins can view all chat messages"
+  on chat_messages for select using (
+    exists (
+      select 1 from profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
+-- Allow admins to manage alley map
+create policy "Admins can manage alley map"
+  on alley_map for all using (
+    exists (
+      select 1 from profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
+-- Allow admins to manage financial reports
+create policy "Only admins can insert financial reports"
+  on financial_reports for insert with check (
+    exists (
+      select 1 from profiles
+      where id = auth.uid() and role = 'admin'
+    )
+  );
+
+-- Grant execute on RPC to authenticated users
+grant execute on function public.increment_bookings(uuid, int) to authenticated;
+
