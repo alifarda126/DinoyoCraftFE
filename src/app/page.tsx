@@ -8,9 +8,20 @@ import {
   Wallet,
   QrCode,
   Bank,
+  ShoppingCart,
+  Star,
 } from "@phosphor-icons/react";
 import Navbar from "@/components/Navbar";
 import FAB from "@/components/FAB";
+import { useCartStore } from "@/store/cartStore";
+
+// Mock Data for Recommendation
+const rekomendasiProduk = [
+  { id: "p1", title: "Mug Keramik Motif Daun", store: "Studio Bumi", price: 120000, rating: 4.8, image: "https://picsum.photos/seed/mug1/400/400" },
+  { id: "p2", title: "Piring Estetik Putih Tulang", store: "Keramik Rina", price: 85000, rating: 4.9, image: "https://picsum.photos/seed/plate1/400/400" },
+  { id: "p3", title: "Vas Bunga Minimalis", store: "Tanah Liat Art", price: 250000, rating: 5.0, image: "https://picsum.photos/seed/vase1/400/400" },
+  { id: "p4", title: "Set Cangkir Teh Klasik", store: "Dinoyo Heritage", price: 180000, rating: 4.7, image: "https://picsum.photos/seed/tea1/400/400" },
+];
 
 const features = [
   {
@@ -98,6 +109,17 @@ const paymentMethods = [
 export default function Home() {
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [scheduleDate, setScheduleDate] = useState("");
+  const addToCart = useCartStore((state) => state.addToCart);
+
+  const handleAddToCart = (product: typeof rekomendasiProduk[0]) => {
+    addToCart({
+      id: product.id,
+      title: product.title,
+      price: product.price,
+      image_url: product.image,
+      store_name: product.store,
+    });
+  };
 
   return (
     <div style={{ background: "var(--surface)", color: "var(--bark)", minHeight: "100dvh", fontFamily: "var(--font-outfit), sans-serif" }}>
@@ -179,7 +201,7 @@ export default function Home() {
               }}
             >
               <Link
-                href="/auth"
+                href="/produk"
                 id="hero-cta-reservasi"
                 style={{
                   display: "inline-flex",
@@ -204,7 +226,7 @@ export default function Home() {
                   (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
                 }}
               >
-                Mulai Reservasi
+                Eksplorasi Produk
                 <ArrowRight className="w-4 h-4" weight="bold" />
               </Link>
               <a
@@ -346,6 +368,167 @@ export default function Home() {
                 </figure>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── REKOMENDASI PRODUK ────────────────────────────────────────── */}
+      <section
+        id="rekomendasi"
+        style={{ borderBottom: "1.5px solid var(--line)", background: "var(--surface)" }}
+      >
+        <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-32">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "1rem" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxWidth: "40rem" }}>
+              <span
+                style={{
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--clay)",
+                }}
+              >
+                Katalog Pilihan
+              </span>
+              <h2
+                style={{
+                  fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
+                  fontWeight: 800,
+                  letterSpacing: "-0.025em",
+                  lineHeight: 1.1,
+                  color: "var(--bark)",
+                  fontFamily: "var(--font-outfit), sans-serif",
+                }}
+              >
+                Rekomendasi Produk
+              </h2>
+            </div>
+            <Link
+              href="/produk"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                color: "var(--clay)",
+                fontWeight: 700,
+                fontSize: "0.95rem",
+                textDecoration: "none",
+                transition: "color 0.2s",
+              }}
+            >
+              Lihat Semua
+              <ArrowRight className="w-4 h-4" weight="bold" />
+            </Link>
+          </div>
+
+          <div
+            style={{
+              marginTop: "3.5rem",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+              gap: "1.5rem",
+            }}
+          >
+            {rekomendasiProduk.map((item) => (
+              <div
+                key={item.id}
+                className="card-hover-glow"
+                style={{
+                  background: "#fff",
+                  border: "1.5px solid var(--line)",
+                  borderRadius: "1.25rem",
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                  transition: "transform 0.2s, box-shadow 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(-4px)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 12px 32px rgba(61,43,31,0.08)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "none";
+                }}
+              >
+                <div style={{ position: "relative", aspectRatio: "1/1", width: "100%", overflow: "hidden" }}>
+                  <Image
+                    src={item.image}
+                    alt={item.title}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    style={{ objectFit: "cover" }}
+                    className="hover:scale-105 transition-transform duration-700"
+                  />
+                </div>
+                <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", flexGrow: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
+                    <p
+                      style={{
+                        fontSize: "0.75rem",
+                        fontWeight: 600,
+                        color: "var(--bark-muted)",
+                        fontFamily: "var(--font-geist-mono), monospace",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      {item.store}
+                    </p>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.2rem", color: "#F59E0B" }}>
+                      <Star weight="fill" size={14} />
+                      <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--bark)" }}>{item.rating}</span>
+                    </div>
+                  </div>
+                  <h3
+                    style={{
+                      fontSize: "1.1rem",
+                      fontWeight: 700,
+                      color: "var(--bark)",
+                      marginBottom: "1rem",
+                      lineHeight: 1.4,
+                      flexGrow: 1,
+                    }}
+                  >
+                    {item.title}
+                  </h3>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--clay)" }}>
+                      Rp {item.price.toLocaleString("id-ID")}
+                    </span>
+                    <button
+                      onClick={() => handleAddToCart(item)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: "2.5rem",
+                        height: "2.5rem",
+                        borderRadius: "9999px",
+                        background: "var(--clay-light)",
+                        color: "var(--clay-dark)",
+                        border: "none",
+                        cursor: "pointer",
+                        transition: "background 0.2s, transform 0.1s",
+                      }}
+                      title="Tambah ke Keranjang"
+                      onMouseEnter={(e) => {
+                        (e.currentTarget as HTMLElement).style.background = "var(--clay)";
+                        (e.currentTarget as HTMLElement).style.color = "#fff";
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.background = "var(--clay-light)";
+                        (e.currentTarget as HTMLElement).style.color = "var(--clay-dark)";
+                      }}
+                      onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.95)")}
+                      onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+                    >
+                      <ShoppingCart size={18} weight="bold" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>

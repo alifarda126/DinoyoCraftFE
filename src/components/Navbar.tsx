@@ -4,17 +4,21 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 
+import { ShoppingCart } from "@phosphor-icons/react";
+import { useCartStore } from "@/store/cartStore";
+
 const navLinks = [
-  { href: "/#fitur",               label: "Beranda" },
-  { href: "/dashboard/katalog",    label: "Katalog & Kustom" },
-  { href: "/dashboard/reservasi",  label: "Reservasi Kelas" },
-  { href: "/dashboard/peta",       label: "Peta Gang" },
-  { href: "/dashboard/bantuan",    label: "Bantuan" },
+  { href: "/",                 label: "Beranda" },
+  { href: "/produk",           label: "Produk" },
+  { href: "/daftar-toko",      label: "Daftar Toko" },
+  { href: "/workshop",         label: "Workshop & Wisata" },
+  { href: "/dashboard/bantuan",label: "Bantuan" },
 ];
 
 export default function Navbar() {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
+  const totalItems = useCartStore((state) => state.getTotalItems());
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 8);
@@ -23,7 +27,7 @@ export default function Navbar() {
   }, []);
 
   const isActive = (href: string) =>
-    href === "/#fitur" ? pathname === "/" : pathname.startsWith(href);
+    href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
     <nav
@@ -94,35 +98,75 @@ export default function Navbar() {
           })}
         </div>
 
-        {/* ── Masuk — pojok kanan, kotak berbackground ──────────────── */}
-        <Link
-          href="/auth"
-          id="navbar-masuk-btn"
-          style={{
-            display: "inline-flex", alignItems: "center",
-            padding: "0.45rem 1.25rem",
-            borderRadius: "0.5rem",
-            background: "var(--clay)",
-            color: "#fff",
-            fontWeight: 600, fontSize: "0.875rem",
-            textDecoration: "none", flexShrink: 0,
-            letterSpacing: "-0.01em",
-            transition: "background 0.2s, transform 0.15s, box-shadow 0.2s",
-            boxShadow: "0 2px 8px rgba(184,92,60,0.22)",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background = "var(--clay-dark)";
-            (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
-            (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 14px rgba(184,92,60,0.32)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background = "var(--clay)";
-            (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-            (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 8px rgba(184,92,60,0.22)";
-          }}
-        >
-          Masuk
-        </Link>
+        {/* ── Action Buttons ────────────────────────────────────────────── */}
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          {/* Cart Icon */}
+          <Link
+            href="/keranjang"
+            style={{
+              position: "relative",
+              color: "var(--bark)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              transition: "color 0.2s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = "var(--clay)")}
+            onMouseLeave={(e) => (e.currentTarget.style.color = "var(--bark)")}
+          >
+            <ShoppingCart size={24} weight="regular" />
+            {totalItems > 0 && (
+              <span
+                style={{
+                  position: "absolute",
+                  top: "-5px",
+                  right: "-8px",
+                  background: "#e53e3e", // Red badge
+                  color: "#fff",
+                  fontSize: "0.65rem",
+                  fontWeight: "bold",
+                  minWidth: "18px",
+                  height: "18px",
+                  borderRadius: "9999px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "0 4px",
+                }}
+              >
+                {totalItems}
+              </span>
+            )}
+          </Link>
+
+          {/* Masuk — pojok kanan, kotak berbackground */}
+          <Link
+            href="/auth"
+            id="navbar-masuk-btn"
+            style={{
+              display: "inline-flex", alignItems: "center",
+              padding: "0.45rem 1.25rem",
+              borderRadius: "0.5rem",
+              background: "var(--clay)",
+              color: "#fff",
+              fontWeight: 600, fontSize: "0.875rem",
+              textDecoration: "none", flexShrink: 0,
+              letterSpacing: "-0.01em",
+              transition: "background 0.2s, transform 0.15s, box-shadow 0.2s",
+              boxShadow: "0 2px 8px rgba(184,92,60,0.22)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--clay-dark)";
+              (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+              (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 14px rgba(184,92,60,0.32)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = "var(--clay)";
+              (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+              (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 8px rgba(184,92,60,0.22)";
+            }}
+          >
+            Masuk
+          </Link>
+        </div>
       </div>
     </nav>
   );
