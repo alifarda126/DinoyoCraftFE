@@ -1,6 +1,5 @@
 "use client";
 
-import { createClient } from "@/lib/supabase";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, MagnifyingGlass, Funnel, PaintBrush, ArrowRight } from "@phosphor-icons/react";
@@ -23,20 +22,13 @@ export default function KatalogPage() {
   const [artworks, setArtworks] = useState<Artwork[]>([]);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const supabase = createClient();
-
   const loadArtworks = async () => {
-    const { data } = await supabase
-      .from("artworks")
-      .select(`
-        *,
-        artisan:profiles!artworks_artisan_id_fkey (
-          full_name
-        )
-      `)
-      .order("created_at", { ascending: false });
-
-    if (data) setArtworks(data as Artwork[]);
+    const mockData: Artwork[] = [
+      { id: "1", title: "Vas Keramik Motif Batik", description: "Vas bunga buatan tangan dengan motif batik khas Malang.", price: 150000, image_url: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&q=80&w=400", category: "Vas Bunga", artisan: { full_name: "Budi Santoso" } },
+      { id: "2", title: "Set Cangkir Tanah Liat", description: "Set isi 4 cangkir teh gaya tradisional untuk menemani waktu santai Anda.", price: 120000, image_url: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&q=80&w=400", category: "Peralatan Makan", artisan: { full_name: "Siti Rahma" } },
+      { id: "3", title: "Piring Hias Keramik", description: "Piring hias dinding dengan lukisan pemandangan khas Dinoyo.", price: 200000, image_url: "https://images.unsplash.com/photo-1616628188506-4bf98d413a96?auto=format&fit=crop&q=80&w=400", category: "Hiasan Dinding", artisan: { full_name: "Ahmad Wijaya" } }
+    ];
+    setArtworks(mockData);
   };
 
   useEffect(() => {

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase";
 import { PaperPlaneTilt, ArrowLeft, Phone, Envelope, Clock, ChatTeardropText, UserCircle, Robot } from "@phosphor-icons/react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
@@ -53,7 +52,6 @@ export default function BantuanPage() {
   const [csTyping, setCsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const supabase = createClient();
 
   const CHATBOT_GREETING: Message = {
     id: "greeting-bot",
@@ -65,16 +63,14 @@ export default function BantuanPage() {
   const LIVE_GREETING: Message = {
     id: "greeting-live",
     sender_id: "bot",
-    message: "Anda terhubung dengan tim Customer Service DinoyoCraft. Kami biasanya membalas dalam 1–2 jam kerja. Silakan ceritakan pertanyaan atau kendala Anda.",
+    message: "Anda terhubung dengan tim Customer Service DinoyoCraft. (Mode Demo: Admin tidak terhubung)",
     is_from_admin: true,
     created_at: new Date().toISOString(),
   };
 
   useEffect(() => {
-    fetch("/api/admin-id")
-      .then((r) => r.json())
-      .then((d) => { if (d.id) setAdminId(d.id); })
-      .catch(() => {});
+    // Mock admin fetch
+    setAdminId("mock-admin-id");
   }, []);
 
   useEffect(() => {
@@ -82,28 +78,9 @@ export default function BantuanPage() {
       setMessages([CHATBOT_GREETING]);
     } else {
       setMessages([LIVE_GREETING]);
-      loadLiveMessages();
-      const channel = supabase
-        .channel("chat")
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
-        })
-        .subscribe();
-      return () => { supabase.removeChannel(channel); };
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isChatbot]);
-
-  async function loadLiveMessages() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase
-      .from("chat_messages")
-      .select("*")
-      .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-      .order("created_at", { ascending: true });
-    if (data) setMessages((prev) => [prev[0], ...data]);
-  }
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -140,22 +117,19 @@ export default function BantuanPage() {
         setCsTyping(false);
       }, 900 + Math.random() * 600);
     } else {
-      if (!adminId) {
-        setMessages((prev) => [...prev, {
-          id: `sys-${Date.now()}`, sender_id: "bot",
-          message: "Admin belum dikonfigurasi. Hubungi WhatsApp: +62 812-3456-7890.",
-          is_from_admin: true, created_at: new Date().toISOString(),
-        }]);
-        return;
-      }
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      await supabase.from("chat_messages").insert({
-        sender_id: user.id,
-        recipient_id: adminId,
-        message: text,
-        is_from_admin: false,
-      });
+      // Mock live chat response
+      setCsTyping(true);
+      setTimeout(() => {
+        const botMsg: Message = {
+          id: `live-${Date.now()}`,
+          sender_id: "admin",
+          message: "Terima kasih pesan Anda. Ini adalah demo frontend, pesan tidak benar-benar dikirim ke admin.",
+          is_from_admin: true,
+          created_at: new Date().toISOString(),
+        };
+        setMessages((prev) => [...prev, botMsg]);
+        setCsTyping(false);
+      }, 1500);
     }
   }
 

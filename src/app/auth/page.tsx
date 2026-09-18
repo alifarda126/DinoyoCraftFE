@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase";
 import { setDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -14,53 +13,28 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
-
   async function handleEmailAuth(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
 
     try {
+      await new Promise(resolve => setTimeout(resolve, 800));
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
-        });
-        if (error) throw error;
-        toast.success("Cek email untuk verifikasi akun");
+        toast.success("Akun berhasil dibuat (Mock)");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        toast.success("Login berhasil");
+        toast.success("Login berhasil (Mock)");
         router.push("/dashboard");
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Terjadi kesalahan";
-      toast.error(message);
+      toast.error("Terjadi kesalahan");
     } finally {
       setLoading(false);
     }
   }
 
   async function handleGoogleAuth() {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
-      if (error) throw error;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Terjadi kesalahan";
-      toast.error(message);
-    }
+    toast.success("Login Google berhasil (Mock)");
+    router.push("/dashboard");
   }
 
   function handleDemoLogin(role: "user" | "admin") {

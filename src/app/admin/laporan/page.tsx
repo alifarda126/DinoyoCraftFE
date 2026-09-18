@@ -1,6 +1,5 @@
 "use client";
 
-import { createClient } from "@/lib/supabase";
 import { getDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -23,37 +22,19 @@ export default function AdminReportsPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [period, setPeriod] = useState<"daily" | "weekly" | "monthly">("daily");
   const router = useRouter();
-  const supabase = createClient();
-
   const checkAdmin = async () => {
     const demo = getDemoSession();
     if (demo) {
       if (demo.role !== "admin") router.push("/dashboard");
       return;
     }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push("/auth");
-      return;
-    }
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (profile?.role !== "admin") {
-      router.push("/dashboard");
-    }
   };
 
   const loadReports = async () => {
-    const { data } = await supabase
-      .from("financial_reports")
-      .select("*")
-      .order("date", { ascending: false })
-      .limit(30);
-
-    if (data) setReports(data);
+    // Mock reports
+    setReports([
+      { id: "1", date: new Date().toISOString(), booking_revenue: 500000, custom_order_revenue: 150000, total_revenue: 650000, total_expenses: 100000, profit: 550000 }
+    ]);
   };
 
   useEffect(() => {

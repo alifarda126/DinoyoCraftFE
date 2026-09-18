@@ -1,6 +1,5 @@
 "use client";
 
-import { createClient } from "@/lib/supabase";
 import { getDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -37,38 +36,18 @@ export default function AdminSchedulesPage() {
   const [maxCapacity, setMaxCapacity] = useState(20);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
-
   const checkAdmin = async () => {
     const demo = getDemoSession();
     if (demo) {
       if (demo.role !== "admin") router.push("/dashboard");
       return;
     }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push("/auth");
-      return;
-    }
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (profile?.role !== "admin") {
-      router.push("/dashboard");
-    }
   };
 
   const loadSchedules = async () => {
-    const { data } = await supabase
-      .from("schedules")
-      .select("*")
-      .gte("date", format(new Date(), "yyyy-MM-dd"))
-      .order("date", { ascending: true })
-      .limit(30);
-
-    if (data) setSchedules(data as Schedule[]);
+    setSchedules([
+      { id: "s1", date: format(new Date(), "yyyy-MM-dd"), start_time: "09:00", end_time: "11:00", max_capacity: 20, current_bookings: 5, is_locked: false }
+    ]);
   };
 
   useEffect(() => {
@@ -80,16 +59,8 @@ export default function AdminSchedulesPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.from("schedules").insert({
-        date: newDate,
-        start_time: startTime,
-        end_time: endTime,
-        max_capacity: maxCapacity,
-        current_bookings: 0,
-        is_locked: false,
-      });
-      if (error) throw error;
-      toast.success("Jadwal berhasil ditambahkan");
+      await new Promise(resolve => setTimeout(resolve, 500));
+      toast.success("Jadwal berhasil ditambahkan (Mock)");
       setShowForm(false);
       loadSchedules();
     } catch (error) {
@@ -100,32 +71,13 @@ export default function AdminSchedulesPage() {
   }
 
   async function toggleLock(scheduleId: string, currentLock: boolean) {
-    const { error } = await supabase
-      .from("schedules")
-      .update({ is_locked: !currentLock })
-      .eq("id", scheduleId);
-
-    if (error) {
-      toast.error("Gagal mengubah status jadwal");
-      return;
-    }
-    toast.success(!currentLock ? "Jadwal dikunci" : "Jadwal dibuka");
+    toast.success(!currentLock ? "Jadwal dikunci (Mock)" : "Jadwal dibuka (Mock)");
     loadSchedules();
   }
 
   async function deleteSchedule(scheduleId: string) {
     if (!confirm("Hapus jadwal ini?")) return;
-
-    const { error } = await supabase
-      .from("schedules")
-      .delete()
-      .eq("id", scheduleId);
-
-    if (error) {
-      toast.error("Gagal menghapus jadwal");
-      return;
-    }
-    toast.success("Jadwal dihapus");
+    toast.success("Jadwal dihapus (Mock)");
     loadSchedules();
   }
 

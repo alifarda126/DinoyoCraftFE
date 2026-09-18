@@ -1,6 +1,5 @@
 "use client";
 
-import { createClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
@@ -48,17 +47,30 @@ export default function ReservasiPage() {
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
-
   const loadSchedules = async () => {
-    const { data } = await supabase
-      .from("schedules")
-      .select("*")
-      .gte("date", format(new Date(), "yyyy-MM-dd"))
-      .order("date", { ascending: true })
-      .limit(30);
-
-    if (data) setSchedules(data);
+    // Mock schedules
+    const today = new Date();
+    const mock: Schedule[] = [
+      {
+        id: "1",
+        date: format(today, "yyyy-MM-dd"),
+        start_time: "09:00",
+        end_time: "11:00",
+        max_capacity: 20,
+        current_bookings: 5,
+        is_locked: false,
+      },
+      {
+        id: "2",
+        date: format(today, "yyyy-MM-dd"),
+        start_time: "13:00",
+        end_time: "15:00",
+        max_capacity: 20,
+        current_bookings: 20, // Full
+        is_locked: false,
+      }
+    ];
+    setSchedules(mock);
   };
 
   useEffect(() => {
@@ -71,45 +83,16 @@ export default function ReservasiPage() {
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("User tidak login");
-
       const available = selectedSchedule.max_capacity - selectedSchedule.current_bookings;
       if (participantCount > available) {
         throw new Error(`Hanya tersisa ${available} slot`);
       }
 
-      const { data: booking, error } = await supabase
-        .from("bookings")
-        .insert({
-          user_id: user.id,
-          schedule_id: selectedSchedule.id,
-          group_name: groupName,
-          participant_count: participantCount,
-          phone,
-          status: "pending",
-        })
-        .select()
-        .single();
+      // Simulate network request
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      if (error) throw error;
-
-      // Use atomic RPC to increment bookings safely (prevents race conditions)
-      const { error: rpcError } = await supabase.rpc("increment_bookings", {
-        schedule_id: selectedSchedule.id,
-        increment_by: participantCount,
-      });
-
-      if (rpcError) {
-        // If RPC fails (e.g. not yet created), fallback to manual update
-        await supabase
-          .from("schedules")
-          .update({ current_bookings: selectedSchedule.current_bookings + participantCount })
-          .eq("id", selectedSchedule.id);
-      }
-
-      toast.success("Reservasi berhasil dibuat");
-      router.push(`/dashboard/pembayaran/${booking.id}`);
+      toast.success("Reservasi berhasil dibuat (Mock)");
+      router.push(`/dashboard/pembayaran/mock-booking-id`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Terjadi kesalahan";
       toast.error(message);

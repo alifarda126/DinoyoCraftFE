@@ -1,6 +1,5 @@
 "use client";
 
-import { createClient } from "@/lib/supabase";
 import { getDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -32,8 +31,6 @@ export default function AdminInboxPage() {
   const [adminId, setAdminId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
-  const supabase = createClient();
-
   const checkAdmin = async () => {
     // Check demo session first
     const demo = getDemoSession();
@@ -45,106 +42,21 @@ export default function AdminInboxPage() {
       setAdminId(demo.user.id);
       return demo.user.id;
     }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push("/auth");
-      return null;
-    }
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (profile?.role !== "admin") {
-      router.push("/dashboard");
-      return null;
-    }
-    setAdminId(user.id);
-    return user.id;
+    const adminId = "mock-admin-id";
+    setAdminId(adminId);
+    return adminId;
   };
 
   const loadConversations = async (currentAdminId: string) => {
-    // Fetch all messages where admin is either sender or recipient
-    const { data } = await supabase
-      .from("chat_messages")
-      .select(`
-        id,
-        sender_id,
-        recipient_id,
-        message,
-        is_from_admin,
-        read,
-        created_at,
-        sender_profile:profiles!chat_messages_sender_id_fkey (id, email),
-        recipient_profile:profiles!chat_messages_recipient_id_fkey (id, email)
-      `)
-      .or(`sender_id.eq.${currentAdminId},recipient_id.eq.${currentAdminId}`)
-      .order("created_at", { ascending: false });
-
-    if (!data) return;
-
-    // Build conversations map keyed by user UUID (non-admin party)
-    const map = new Map<string, Conversation>();
-    data.forEach((msg: unknown) => {
-      const record = msg as {
-        sender_id: string;
-        recipient_id: string;
-        message: string;
-        is_from_admin: boolean;
-        read: boolean;
-        created_at: string;
-        sender_profile: { id: string; email: string } | null;
-        recipient_profile: { id: string; email: string } | null;
-      };
-
-      // The user in the conversation is the non-admin party
-      const isAdminSender = record.sender_id === currentAdminId;
-      const userId = isAdminSender ? record.recipient_id : record.sender_id;
-      const userEmail = isAdminSender
-        ? record.recipient_profile?.email || userId
-        : record.sender_profile?.email || userId;
-
-      if (!map.has(userId)) {
-        map.set(userId, {
-          user_id: userId,
-          user_email: userEmail,
-          last_message: record.message,
-          last_message_at: record.created_at,
-          unread_count: (!record.is_from_admin && !record.read) ? 1 : 0,
-        });
-      } else {
-        const conv = map.get(userId)!;
-        if (!record.is_from_admin && !record.read) {
-          conv.unread_count += 1;
-        }
-      }
-    });
-
-    // Sort by most recent message
-    const sorted = Array.from(map.values()).sort(
-      (a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
-    );
-    setConversations(sorted);
+    setConversations([
+      { user_id: "u1", user_email: "pengguna@dinoyocraft.com", last_message: "Halo min, mau tanya harga tiket", last_message_at: new Date().toISOString(), unread_count: 1 }
+    ]);
   };
 
   const loadMessages = async (userId: string, currentAdminId: string) => {
-    const { data } = await supabase
-      .from("chat_messages")
-      .select("*")
-      .or(
-        `and(sender_id.eq.${userId},recipient_id.eq.${currentAdminId}),and(sender_id.eq.${currentAdminId},recipient_id.eq.${userId})`
-      )
-      .order("created_at", { ascending: true });
-
-    if (data) setMessages(data);
-
-    // Mark user's messages as read
-    await supabase
-      .from("chat_messages")
-      .update({ read: true })
-      .eq("sender_id", userId)
-      .eq("recipient_id", currentAdminId)
-      .eq("read", false);
+    setMessages([
+      { id: "m1", sender_id: "u1", recipient_id: currentAdminId, message: "Halo min, mau tanya harga tiket", is_from_admin: false, created_at: new Date().toISOString() }
+    ]);
   };
 
   useEffect(() => {
@@ -155,25 +67,7 @@ export default function AdminInboxPage() {
 
   useEffect(() => {
     if (!selectedUser || !adminId) return;
-
     loadMessages(selectedUser, adminId);
-
-    const channel = supabase
-      .channel("admin-chat")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
-        const msg = payload.new as Message;
-        if (msg.sender_id === selectedUser || msg.recipient_id === selectedUser) {
-          setMessages((prev) => [...prev, msg]);
-          setTimeout(() => {
-            messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-          }, 50);
-        }
-        // Refresh conversation list for unread count
-        if (adminId) loadConversations(adminId);
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
   }, [selectedUser, adminId]);
 
   // Auto-scroll on new messages
@@ -188,13 +82,14 @@ export default function AdminInboxPage() {
     const messageText = input;
     setInput("");
 
-    await supabase.from("chat_messages").insert({
+    setMessages(prev => [...prev, {
+      id: Date.now().toString(),
       sender_id: adminId,
       recipient_id: selectedUser,
       message: messageText,
       is_from_admin: true,
-      read: false,
-    });
+      created_at: new Date().toISOString()
+    }]);
   };
 
   const selectedConv = conversations.find((c) => c.user_id === selectedUser);

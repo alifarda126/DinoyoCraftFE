@@ -1,10 +1,10 @@
 "use client";
 
-import { createClient } from "@/lib/supabase";
 import { getDemoSession, clearDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { User } from "@supabase/supabase-js";
+
+type User = { id: string; email: string };
 import {
   CalendarBlank,
   ShoppingBag,
@@ -55,8 +55,6 @@ export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClient();
-
   useEffect(() => {
     async function loadUser() {
       // Check demo session first
@@ -66,20 +64,16 @@ export default function DashboardPage() {
         setLoading(false);
         return;
       }
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/auth");
-        return;
-      }
-      setUser(user);
+      
+      // If no demo session, create a mock user for frontend dev
+      setUser({ id: "mock-user-id", email: "pengguna@dinoyocraft.com" });
       setLoading(false);
     }
     loadUser();
-  }, [router, supabase]);
+  }, [router]);
 
   async function handleSignOut() {
     clearDemoSession();
-    await supabase.auth.signOut();
     router.push("/");
   }
 
