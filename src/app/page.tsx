@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import MagneticButton from "@/components/MagneticButton";
 import { ArrowRight, HandsClapping, MapPin, Quotes } from "@phosphor-icons/react";
 import {
   Chats,
@@ -114,19 +115,19 @@ export default function Home() {
               bengkel. Satu aplikasi untuk seluruh kampung keramik Malang.
             </p>
             <div className="mt-8 flex flex-wrap gap-4">
-              <Link
+              <MagneticButton
                 href="/auth"
-                className="inline-flex items-center gap-2 px-7 py-3.5 rounded-full bg-amber-brand text-surface font-semibold hover:bg-amber-dark transition-colors"
+                className="inline-flex items-center px-7 py-3.5 rounded-full bg-amber-brand text-surface font-semibold hover:bg-amber-dark transition-colors"
               >
                 Mulai Reservasi
                 <ArrowRight className="w-4 h-4" weight="bold" />
-              </Link>
-              <a
+              </MagneticButton>
+              <MagneticButton
                 href="#fitur"
                 className="inline-flex items-center px-7 py-3.5 rounded-full border border-line text-bone font-medium hover:border-bone-muted transition-colors"
               >
                 Lihat Fitur
-              </a>
+              </MagneticButton>
             </div>
           </div>
 
