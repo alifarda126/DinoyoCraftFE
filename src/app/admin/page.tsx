@@ -1,128 +1,116 @@
 "use client";
 
-// Backend removed
-import { getDemoSession, clearDemoSession } from "@/lib/demo";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  Calendar,
-  UserCheck,
-  Image as ImageIcon,
-  ChatCircle,
-  ChartLineUp,
-  SignOut,
-} from "@phosphor-icons/react";
-import Link from "next/link";
+import { getDemoSession } from "@/lib/demo";
+import { useRouter } from "next/navigation";
+import { Storefront, Receipt, Users, CurrencyCircleDollar, TrendUp, WarningCircle } from "@phosphor-icons/react";
 
-type UserProfile = {
-  email?: string;
-  id: string;
-};
-
-export default function AdminPage() {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+export default function AdminDashboardHome() {
   const router = useRouter();
-  const checkAdmin = async () => {
-    // Check demo session first
-    const demo = getDemoSession();
-    if (demo) {
-      if (demo.role !== "admin") {
-        router.push("/dashboard");
-        return;
-      }
-      setUser({ email: demo.user.email, id: demo.user.id });
-      setLoading(false);
-      return;
-    }
-    // Mock admin
-    setUser({ email: "admin@dinoyocraft.com", id: "mock-admin-id" });
-    setLoading(false);
-  };
+  const [loading, setLoading] = useState(true);
+  const [adminName, setAdminName] = useState("");
 
   useEffect(() => {
-    checkAdmin();
-  }, []);
+    const session = getDemoSession();
+    if (!session || session.role !== "admin") {
+      router.push("/auth");
+    } else {
+      setAdminName(session.profile.full_name);
+      setLoading(false);
+    }
+  }, [router]);
 
-  async function handleSignOut() {
-    clearDemoSession();
-    router.push("/");
-  }
+  if (loading) return <div>Memuat data...</div>;
 
-  if (loading) {
-    return (
-      <div className="min-h-[100dvh] flex items-center justify-center">
-        <div className="text-zinc-600 dark:text-zinc-400">Memvalidasi akses...</div>
-      </div>
-    );
-  }
-
-  const menu = [
-    {
-      href: "/admin/jadwal",
-      icon: Calendar,
-      title: "Manajemen Jadwal",
-      desc: "Atur jam buka, kapasitas, dan kunci jadwal",
-    },
-    {
-      href: "/admin/manifes",
-      icon: UserCheck,
-      title: "Manifes Kehadiran",
-      desc: "Validasi tamu hari-H dengan kode booking",
-    },
-    {
-      href: "/admin/katalog",
-      icon: ImageIcon,
-      title: "Manajemen Katalog",
-      desc: "Kelola karya keramik dan harga",
-    },
-    {
-      href: "/admin/inbox",
-      icon: ChatCircle,
-      title: "Inbox Live Chat",
-      desc: "Balas pesan dan pertanyaan pengguna",
-    },
-    {
-      href: "/admin/laporan",
-      icon: ChartLineUp,
-      title: "Laporan Keuangan",
-      desc: "Pantau omzet, arus kas, dan bagi hasil",
-    },
+  const stats = [
+    { label: "Total Transaksi Lintas Toko", value: "342", icon: Receipt, color: "var(--clay)" },
+    { label: "Total Omzet (Bulan Ini)", value: "Rp 15.400.000", icon: CurrencyCircleDollar, color: "var(--moss)" },
+    { label: "Kunjungan Wisatawan", value: "1,204", icon: Users, color: "var(--ocean, #2b6cb0)" },
+    { label: "Toko Pengrajin Aktif", value: "48", icon: Storefront, color: "var(--sand)" },
   ];
 
   return (
-    <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-900">
-      <header className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold">Dasbor Admin</h1>
-            <p className="text-sm text-zinc-500">{user?.email}</p>
-          </div>
-          <button
-            onClick={handleSignOut}
-            className="p-2 text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-            title="Keluar"
-          >
-            <SignOut className="w-5 h-5" />
-          </button>
-        </div>
+    <div>
+      <header style={{ marginBottom: "2rem" }}>
+        <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--bark)", marginBottom: "0.25rem" }}>
+          Selamat datang, {adminName}!
+        </h1>
+        <p style={{ color: "var(--bark-muted)", fontSize: "0.95rem" }}>
+          Berikut ringkasan statistik dan aktivitas platform DinoyoCraft.
+        </p>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {menu.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
-            >
-              <item.icon className="w-8 h-8 mb-4 text-zinc-900 dark:text-zinc-100" />
-              <h3 className="font-semibold mb-2">{item.title}</h3>
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">{item.desc}</p>
-            </Link>
-          ))}
+      {/* Stats Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.25rem", marginBottom: "2rem" }}>
+        {stats.map((stat, i) => (
+          <div key={i} style={{
+            background: "#fff", padding: "1.5rem", borderRadius: "1rem",
+            border: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: "1rem"
+          }}>
+            <div style={{
+              width: 40, height: 40, borderRadius: "0.75rem",
+              background: `${stat.color}20`, color: stat.color,
+              display: "flex", alignItems: "center", justifyContent: "center"
+            }}>
+              <stat.icon size={24} weight="duotone" />
+            </div>
+            <div>
+              <p style={{ fontSize: "0.85rem", color: "var(--bark-muted)", marginBottom: "0.25rem" }}>{stat.label}</p>
+              <p style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--bark)" }}>{stat.value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Quick Actions & Alerts */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem" }}>
+        <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", padding: "1.5rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+            <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--bark)" }}>Aktivitas Transaksi Terbaru</h2>
+            <button onClick={() => router.push("/admin/transaksi")} style={{ background: "none", border: "none", color: "var(--clay)", fontWeight: 600, cursor: "pointer", fontSize: "0.85rem" }}>Lihat Semua</button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {[1, 2, 3].map((item) => (
+              <div key={item} style={{
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "1rem", border: "1px solid var(--line-light)", borderRadius: "0.5rem"
+              }}>
+                <div>
+                  <p style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--bark)" }}>INV/2023/10/XX{item}</p>
+                  <p style={{ fontSize: "0.8rem", color: "var(--bark-muted)" }}>Dari Toko Studio Bumi • Rp 150.000</p>
+                </div>
+                <span style={{
+                  padding: "0.25rem 0.75rem", borderRadius: "9999px",
+                  fontSize: "0.75rem", fontWeight: 600,
+                  background: "var(--moss)", color: "#fff"
+                }}>
+                  Berhasil
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-      </main>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          <div style={{ background: "linear-gradient(145deg, var(--bark), #2d2a26)", borderRadius: "1rem", padding: "1.5rem", color: "#fff" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+              <WarningCircle size={24} weight="bold" color="var(--sand)" />
+              <h2 style={{ fontSize: "1.1rem", fontWeight: 700 }}>Perlu Perhatian</h2>
+            </div>
+            <p style={{ fontSize: "0.9rem", lineHeight: 1.6, opacity: 0.9, marginBottom: "1.5rem" }}>
+              Terdapat <strong>3 pengajuan toko baru</strong> yang menunggu verifikasi Anda.
+            </p>
+            <button onClick={() => router.push("/admin/verifikasi")} style={{
+              background: "#fff", color: "var(--bark)", border: "none",
+              padding: "0.6rem 1rem", borderRadius: "9999px",
+              fontWeight: 700, fontSize: "0.85rem", cursor: "pointer",
+              width: "100%"
+            }}>
+              Tinjau Sekarang
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

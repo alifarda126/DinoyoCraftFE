@@ -4,7 +4,7 @@
  * Session is stored in localStorage under a private key.
  */
 
-export type DemoRole = "user" | "admin";
+export type DemoRole = "user" | "admin" | "seller";
 
 export interface DemoUser {
   id: string;
@@ -48,6 +48,17 @@ const DEMO_SESSIONS: Record<DemoRole, DemoSession> = {
       role: "admin",
     },
   },
+  seller: {
+    role: "seller",
+    user: { id: "demo-seller-0000-0000-0000-000000000003", email: "seller@dinoyocraft.id" },
+    profile: {
+      id: "demo-seller-0000-0000-0000-000000000003",
+      email: "seller@dinoyocraft.id",
+      full_name: "Mitra Pengrajin",
+      phone: "08111222333",
+      role: "seller",
+    },
+  },
 };
 
 const STORAGE_KEY = "_dc_demo_v1";
@@ -80,4 +91,8 @@ export function getDemoProfile(): DemoProfile | null {
 
 export function isDemoAdmin(): boolean {
   return getDemoSession()?.role === "admin";
+}
+
+export function isDemoSeller(): boolean {
+  return getDemoSession()?.role === "seller";
 }

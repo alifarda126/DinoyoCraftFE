@@ -6,6 +6,7 @@ export interface CartItem {
   price: number;
   quantity: number;
   image_url: string;
+  store_id: string;
   store_name: string;
 }
 
@@ -17,6 +18,7 @@ interface CartState {
   clearCart: () => void;
   getTotalItems: () => number;
   getTotalPrice: () => number;
+  getGroupedItems: () => Record<string, CartItem[]>;
 }
 
 export const useCartStore = create<CartState>((set, get) => ({
@@ -52,5 +54,16 @@ export const useCartStore = create<CartState>((set, get) => ({
   getTotalPrice: () => {
     const { items } = get();
     return items.reduce((total, item) => total + item.price * item.quantity, 0);
+  },
+  getGroupedItems: () => {
+    const { items } = get();
+    return items.reduce((acc, item) => {
+      const key = item.store_id; // we can group by store_id
+      if (!acc[key]) {
+        acc[key] = [];
+      }
+      acc[key].push(item);
+      return acc;
+    }, {} as Record<string, CartItem[]>);
   },
 }));

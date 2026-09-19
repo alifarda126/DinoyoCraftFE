@@ -5,6 +5,9 @@ import Image from "next/image";
 import { Star, ShoppingCart, MagnifyingGlass, Funnel } from "@phosphor-icons/react";
 import Navbar from "@/components/Navbar";
 import { useCartStore } from "@/store/cartStore";
+import { getDemoSession } from "@/lib/demo";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 // Mock Data for Catalog
 const produkKatalog = [
@@ -22,6 +25,7 @@ const categories = ["Semua", "Peralatan Makan", "Peralatan Minum", "Dekorasi", "
 const stores = ["Semua", "Studio Bumi", "Keramik Rina", "Tanah Liat Art", "Dinoyo Heritage"];
 
 export default function ProdukPage() {
+  const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Semua");
   const [selectedStore, setSelectedStore] = useState("Semua");
@@ -36,13 +40,28 @@ export default function ProdukPage() {
   });
 
   const handleAddToCart = (product: typeof produkKatalog[0]) => {
+    const session = getDemoSession();
+    if (!session) {
+      toast("Silakan login untuk melanjutkan", {
+        description: "Anda perlu masuk ke akun untuk menambahkan produk ke keranjang.",
+        action: {
+          label: "Masuk",
+          onClick: () => router.push("/auth"),
+        },
+      });
+      return;
+    }
+
     addToCart({
       id: product.id,
       title: product.title,
       price: product.price,
       image_url: product.image,
+      store_id: product.store,
       store_name: product.store,
     });
+    toast.success(`${product.title} ditambahkan ke keranjang.`);
+    setTimeout(() => router.push("/keranjang"), 800);
   };
 
   return (

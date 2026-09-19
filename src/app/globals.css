@@ -85,6 +85,10 @@ body {
   background-attachment: fixed;
 }
 
+button {
+  cursor: pointer;
+}
+
 /* ══════════════════════════════════════════════════════════════════════════
    Grain / Noise overlay — ceramic / clay feel
    ══════════════════════════════════════════════════════════════════════════ */

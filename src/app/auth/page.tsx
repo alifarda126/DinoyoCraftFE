@@ -9,6 +9,7 @@ import { ArrowLeft, ArrowRight } from "@phosphor-icons/react";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [authRole, setAuthRole] = useState<"customer" | "seller">("customer");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,7 +24,16 @@ export default function AuthPage() {
         toast.success("Akun berhasil dibuat (Mock)");
       } else {
         toast.success("Login berhasil (Mock)");
-        router.push("/dashboard");
+        if (authRole === "seller") {
+          setDemoSession("seller");
+          router.push("/seller");
+        } else if (email.toLowerCase().includes("admin")) {
+          setDemoSession("admin");
+          router.push("/admin");
+        } else {
+          setDemoSession("user");
+          router.push("/customer");
+        }
       }
     } catch (error) {
       toast.error("Terjadi kesalahan");
@@ -34,17 +44,25 @@ export default function AuthPage() {
 
   async function handleGoogleAuth() {
     toast.success("Login Google berhasil (Mock)");
-    router.push("/dashboard");
+    router.push("/customer");
   }
 
-  function handleDemoLogin(role: "user" | "admin") {
+  function handleDemoLogin(role: "user" | "admin" | "seller") {
     setDemoSession(role);
-    toast.success(
-      role === "admin"
-        ? "Masuk sebagai Demo Admin"
-        : "Masuk sebagai Demo Pengunjung"
-    );
-    router.push(role === "admin" ? "/admin" : "/dashboard");
+    let msg = "";
+    let path = "";
+    if (role === "admin") {
+      msg = "Masuk sebagai Demo Admin";
+      path = "/admin";
+    } else if (role === "seller") {
+      msg = "Masuk sebagai Mitra Pengrajin (Demo)";
+      path = "/seller";
+    } else {
+      msg = "Masuk sebagai Demo Pengunjung";
+      path = "/customer";
+    }
+    toast.success(msg);
+    router.push(path);
   }
 
   return (
@@ -119,7 +137,9 @@ export default function AuthPage() {
             lineHeight: 1.1, color: "#FFFFFF",
             maxWidth: "18ch",
           }}>
-            Satu akun untuk seluruh pengalaman keramik.
+            {authRole === "customer" 
+              ? "Satu akun untuk seluruh pengalaman keramik."
+              : "Kelola tokomu dan kembangkan bisnis keramikmu."}
           </h2>
           <p style={{
             marginTop: "1.25rem",
@@ -128,8 +148,9 @@ export default function AuthPage() {
             lineHeight: 1.7,
             maxWidth: "38ch",
           }}>
-            Reservasi kelas, pesan suvenir kustom, dan jelajahi gang bengkel
-            langsung dari sini.
+            {authRole === "customer"
+              ? "Reservasi kelas, pesan suvenir kustom, dan jelajahi gang bengkel langsung dari sini."
+              : "Pantau pesanan, tambah katalog produk, dan kelola pendapatan langsung dari satu dasbor."}
           </p>
 
           {/* Stats row */}
@@ -211,15 +232,67 @@ export default function AuthPage() {
       >
         <div style={{ width: "100%", maxWidth: "400px" }}>
 
+          {/* Role toggle */}
+          <div style={{ display: "flex", justifyContent: "center", width: "100%", marginBottom: "1.5rem" }}>
+            <div style={{
+              display: "flex",
+              borderRadius: "0.5rem",
+              background: "var(--surface-raised)",
+              padding: "0.25rem",
+              gap: "0.25rem",
+              width: "100%"
+            }}>
+              <button
+                onClick={() => setAuthRole("customer")}
+                style={{
+                  flex: 1,
+                  padding: "0.6rem",
+                  borderRadius: "0.375rem",
+                  fontSize: "0.85rem",
+                  fontWeight: authRole === "customer" ? 700 : 500,
+                  color: authRole === "customer" ? "var(--bark)" : "var(--bark-muted)",
+                  background: authRole === "customer" ? "#fff" : "transparent",
+                  border: authRole === "customer" ? "1px solid var(--line)" : "1px solid transparent",
+                  boxShadow: authRole === "customer" ? "0 1px 3px rgba(0,0,0,0.05)" : "none",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  fontFamily: "var(--font-outfit), sans-serif",
+                }}
+              >
+                Pelanggan
+              </button>
+              <button
+                onClick={() => setAuthRole("seller")}
+                style={{
+                  flex: 1,
+                  padding: "0.6rem",
+                  borderRadius: "0.375rem",
+                  fontSize: "0.85rem",
+                  fontWeight: authRole === "seller" ? 700 : 500,
+                  color: authRole === "seller" ? "var(--bark)" : "var(--bark-muted)",
+                  background: authRole === "seller" ? "#fff" : "transparent",
+                  border: authRole === "seller" ? "1px solid var(--line)" : "1px solid transparent",
+                  boxShadow: authRole === "seller" ? "0 1px 3px rgba(0,0,0,0.05)" : "none",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  fontFamily: "var(--font-outfit), sans-serif",
+                }}
+              >
+                Mitra Pengrajin
+              </button>
+            </div>
+          </div>
+
           {/* Mode toggle */}
-          <div style={{
-            display: "inline-flex",
-            borderRadius: "9999px",
-            border: "1.5px solid var(--line-strong)",
-            padding: "0.2rem",
-            marginBottom: "2.5rem",
-            background: "#fff",
-          }}>
+          <div style={{ display: "flex", justifyContent: "center", width: "100%" }}>
+            <div style={{
+              display: "inline-flex",
+              borderRadius: "9999px",
+              border: "1.5px solid var(--line-strong)",
+              padding: "0.2rem",
+              marginBottom: "2.5rem",
+              background: "#fff",
+            }}>
             {(["signin", "signup"] as const).map((m) => (
               <button
                 key={m}
@@ -239,6 +312,7 @@ export default function AuthPage() {
                 {m === "signin" ? "Masuk" : "Daftar"}
               </button>
             ))}
+            </div>
           </div>
 
           {/* Heading */}
@@ -254,8 +328,8 @@ export default function AuthPage() {
             marginBottom: "2rem", lineHeight: 1.6,
           }}>
             {mode === "signin"
-              ? "Masuk untuk melanjutkan reservasi dan pesananmu."
-              : "Daftar gratis dan mulai eksplorasi Kampung Keramik Dinoyo."}
+              ? (authRole === "customer" ? "Masuk untuk melanjutkan reservasi dan pesananmu." : "Masuk ke dasbor mitra pengrajin.")
+              : (authRole === "customer" ? "Daftar gratis dan mulai eksplorasi Kampung Keramik Dinoyo." : "Daftar sebagai mitra dan mulai berjualan.")}
           </p>
 
           {/* Google button */}
@@ -499,6 +573,35 @@ export default function AuthPage() {
                 </span>
                 <span style={{ fontSize: "0.65rem", color: "var(--clay)", marginTop: "0.2rem", opacity: 0.8 }}>
                   (Kelola Data & Pesanan)
+                </span>
+              </button>
+
+              <button
+                id="auth-demo-seller-btn"
+                onClick={() => handleDemoLogin("seller")}
+                style={{
+                  gridColumn: "1 / -1",
+                  display: "flex", flexDirection: "column", alignItems: "center",
+                  padding: "0.85rem",
+                  borderRadius: "0.75rem",
+                  border: "1.5px solid var(--bark)",
+                  background: "transparent",
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                  fontFamily: "var(--font-outfit), sans-serif",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "var(--line)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "transparent";
+                }}
+              >
+                <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "var(--bark)" }}>
+                  Mitra Pengrajin
+                </span>
+                <span style={{ fontSize: "0.65rem", color: "var(--bark-muted)", marginTop: "0.2rem", opacity: 0.8 }}>
+                  (Kelola Toko & Katalog)
                 </span>
               </button>
             </div>

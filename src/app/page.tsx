@@ -3,6 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   ArrowRight,
   Wallet,
@@ -14,6 +16,7 @@ import {
 import Navbar from "@/components/Navbar";
 import FAB from "@/components/FAB";
 import { useCartStore } from "@/store/cartStore";
+import { getDemoSession } from "@/lib/demo";
 
 // Mock Data for Recommendation
 const rekomendasiProduk = [
@@ -107,18 +110,34 @@ const paymentMethods = [
 ];
 
 export default function Home() {
+  const router = useRouter();
   const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
   const [scheduleDate, setScheduleDate] = useState("");
   const addToCart = useCartStore((state) => state.addToCart);
 
   const handleAddToCart = (product: typeof rekomendasiProduk[0]) => {
+    const session = getDemoSession();
+    if (!session) {
+      toast("Silakan login untuk melanjutkan", {
+        description: "Anda perlu masuk ke akun untuk menambahkan produk ke keranjang.",
+        action: {
+          label: "Masuk",
+          onClick: () => router.push("/auth"),
+        },
+      });
+      return;
+    }
+
     addToCart({
       id: product.id,
       title: product.title,
       price: product.price,
       image_url: product.image,
+      store_id: product.store,
       store_name: product.store,
     });
+    toast.success(`${product.title} ditambahkan ke keranjang.`);
+    setTimeout(() => router.push("/keranjang"), 800);
   };
 
   return (
@@ -1414,9 +1433,9 @@ export default function Home() {
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               {[
                 { href: "/#fitur", label: "Beranda" },
-                { href: "/dashboard/katalog", label: "Katalog & Kustom" },
-                { href: "/dashboard/reservasi", label: "Reservasi Kelas" },
-                { href: "/dashboard/peta", label: "Peta Gang" },
+                { href: "/customer/katalog", label: "Katalog & Kustom" },
+                { href: "/customer/reservasi", label: "Reservasi Kelas" },
+                { href: "/customer/peta", label: "Peta Gang" },
               ].map(({ href, label }) => (
                 <Link
                   key={href}
@@ -1438,10 +1457,10 @@ export default function Home() {
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               {[
-                { href: "/dashboard/bantuan", label: "Customer Service" },
-                { href: "/dashboard/bantuan", label: "Live Chat Admin" },
+                { href: "/customer/bantuan", label: "Customer Service" },
+                { href: "/customer/bantuan", label: "Live Chat Admin" },
                 { href: "/auth", label: "Masuk / Daftar" },
-                { href: "/dashboard", label: "Dashboard" },
+                { href: "/customer", label: "Dashboard" },
               ].map(({ href, label }) => (
                 <Link
                   key={label}
@@ -1497,9 +1516,9 @@ export default function Home() {
             <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
               {[
                 { href: "/#fitur", label: "Beranda" },
-                { href: "/dashboard/katalog", label: "Katalog" },
-                { href: "/dashboard/reservasi", label: "Reservasi" },
-                { href: "/dashboard/bantuan", label: "Bantuan" },
+                { href: "/customer/katalog", label: "Katalog" },
+                { href: "/customer/reservasi", label: "Reservasi" },
+                { href: "/customer/bantuan", label: "Bantuan" },
                 { href: "/auth", label: "Masuk" },
               ].map(({ href, label }, i) => (
                 <span key={href} style={{ display: "flex", alignItems: "center" }}>

@@ -5,6 +5,9 @@ import { useParams } from "next/navigation";
 import { Star, MapPin, ShoppingCart } from "@phosphor-icons/react";
 import Navbar from "@/components/Navbar";
 import { useCartStore } from "@/store/cartStore";
+import { getDemoSession } from "@/lib/demo";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 // Mock Data for Store Detail
 const storeData: Record<string, any> = {
@@ -35,19 +38,35 @@ const storeData: Record<string, any> = {
 };
 
 export default function StoreDetailPage() {
+  const router = useRouter();
   const params = useParams();
   const storeId = typeof params?.storeId === "string" ? params.storeId : "";
   const store = storeData[storeId] || storeData["studio-bumi"]; // Fallback for demo
   const addToCart = useCartStore((state) => state.addToCart);
 
   const handleAddToCart = (product: any) => {
+    const session = getDemoSession();
+    if (!session) {
+      toast("Silakan login untuk melanjutkan", {
+        description: "Anda perlu masuk ke akun untuk menambahkan produk ke keranjang.",
+        action: {
+          label: "Masuk",
+          onClick: () => router.push("/auth"),
+        },
+      });
+      return;
+    }
+
     addToCart({
       id: product.id,
       title: product.title,
       price: product.price,
       image_url: product.image,
+      store_id: storeId,
       store_name: store.name,
     });
+    toast.success(`${product.title} ditambahkan ke keranjang.`);
+    setTimeout(() => router.push("/keranjang"), 800);
   };
 
   return (
