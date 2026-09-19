@@ -1,6 +1,5 @@
 "use client";
 
-import { createClient } from "@/lib/supabase";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -27,36 +26,25 @@ export default function PembayaranPage() {
   const [loading, setLoading] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<"va" | "ewallet" | "qris">("va");
   const router = useRouter();
-  const supabase = createClient();
-
   const loadBooking = async () => {
-    const { data } = await supabase
-      .from("bookings")
-      .select(`
-        *,
-        schedule:schedules (
-          date,
-          start_time,
-          end_time
-        )
-      `)
-      .eq("id", bookingId)
-      .single();
-
-    if (data) setBooking(data as Booking);
+    // Mock booking data
+    setBooking({
+      id: bookingId,
+      booking_code: "BKG-MOCK-01",
+      group_name: "Grup Demo Frontend",
+      participant_count: 5,
+      phone: "08123456789",
+      status: "pending",
+      schedule: {
+        date: new Date().toISOString(),
+        start_time: "10:00",
+        end_time: "12:00"
+      }
+    });
   };
 
   useEffect(() => {
     loadBooking();
-    // Load Midtrans Snap.js safely via useEffect (works in Next.js App Router)
-    const snapSrc = `https://app.${process.env.NODE_ENV === "production" ? "" : "sandbox."}midtrans.com/snap/snap.js`;
-    if (!document.querySelector(`script[src="${snapSrc}"]`)) {
-      const script = document.createElement("script");
-      script.src = snapSrc;
-      script.setAttribute("data-client-key", process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || "");
-      script.async = true;
-      document.head.appendChild(script);
-    }
   }, []);
 
   const handlePayment = async () => {
@@ -64,59 +52,11 @@ export default function PembayaranPage() {
     setLoading(true);
 
     try {
-      const amount = booking.participant_count * 50000;
-
-      const res = await fetch("/api/midtrans/create-transaction", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          booking_id: booking.id,
-          amount,
-          payment_method: paymentMethod,
-          customer: {
-            name: booking.group_name,
-            phone: booking.phone,
-          },
-        }),
-      });
-
-      const data = await res.json();
-
-      if (data.token) {
-        const snapWindow = window as typeof window & {
-          snap?: {
-            pay: (
-              token: string,
-              options: {
-                onSuccess?: () => void;
-                onPending?: () => void;
-                onError?: () => void;
-              }
-            ) => void;
-          };
-        };
-
-        if (!snapWindow.snap) {
-          toast.error("Snap.js belum siap. Coba lagi dalam beberapa detik.");
-          return;
-        }
-
-        snapWindow.snap.pay(data.token, {
-          onSuccess: () => {
-            toast.success("Pembayaran berhasil");
-            router.push("/dashboard/profil");
-          },
-          onPending: () => {
-            toast.info("Menunggu pembayaran");
-            router.push("/dashboard/profil");
-          },
-          onError: () => {
-            toast.error("Pembayaran gagal");
-          },
-        });
-      } else if (data.error) {
-        toast.error(data.error);
-      }
+      // Simulate network request
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      
+      toast.success("Pembayaran berhasil (Mock)");
+      router.push("/dashboard/profil");
     } catch (error) {
       const message = error instanceof Error ? error.message : "Terjadi kesalahan";
       toast.error(message);

@@ -1,6 +1,5 @@
 "use client";
 
-import { createClient } from "@/lib/supabase";
 import { getDemoSession } from "@/lib/demo";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
@@ -58,51 +57,42 @@ export default function ProfilPage() {
   const [editPhone, setEditPhone] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const supabase = createClient();
-
   const loadData = async () => {
-    // Show demo profile data when in demo mode
-    const demo = getDemoSession();
-    if (demo) {
-      setProfile(demo.profile as Profile);
-      setEditName(demo.profile.full_name || "");
-      setEditPhone(demo.profile.phone || "");
-      setBookings([]);
-      setCustomOrders([]);
-      return;
-    }
+    // Show mock profile data 
+    setProfile({
+      id: "mock-id",
+      full_name: "Pengguna Demo",
+      email: "pengguna@dinoyocraft.com",
+      phone: "081234567890"
+    });
+    setEditName("Pengguna Demo");
+    setEditPhone("081234567890");
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const { data: prof } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", user.id)
-      .single();
-    if (prof) {
-      setProfile(prof);
-      setEditName(prof.full_name || "");
-      setEditPhone(prof.phone || "");
-    }
-
-    const { data: bks } = await supabase
-      .from("bookings")
-      .select(`
-        *,
-        schedule:schedules (date, start_time, end_time),
-        payment:payments (amount, status, payment_method)
-      `)
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-    if (bks) setBookings(bks as Booking[]);
-
-    const { data: co } = await supabase
-      .from("custom_orders")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-    if (co) setCustomOrders(co);
+    setBookings([
+      {
+        id: "mock-booking",
+        booking_code: "BKG-1234",
+        group_name: "Rombongan SMA",
+        participant_count: 10,
+        phone: "081234567890",
+        status: "confirmed",
+        created_at: new Date().toISOString(),
+        schedule: {
+          date: new Date().toISOString(),
+          start_time: "09:00",
+          end_time: "11:00"
+        },
+        payment: [
+          {
+            amount: 750000,
+            status: "paid",
+            payment_method: "qris"
+          }
+        ]
+      }
+    ]);
+    
+    setCustomOrders([]);
   };
 
   useEffect(() => {
@@ -113,15 +103,7 @@ export default function ProfilPage() {
     if (!profile) return;
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from("profiles")
-        .update({
-          full_name: editName.trim() || null,
-          phone: editPhone.trim() || null,
-        })
-        .eq("id", profile.id);
-
-      if (error) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       toast.success("Profil berhasil diperbarui");
       setProfile((prev) => prev ? { ...prev, full_name: editName.trim(), phone: editPhone.trim() } : prev);
       setIsEditing(false);

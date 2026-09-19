@@ -1,19 +1,60 @@
 "use client";
 
-import { createClient } from "@/lib/supabase";
 import { getDemoSession, clearDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { User } from "@supabase/supabase-js";
-import { CalendarBlank, ShoppingBag, MapPin, ChatCircle, User as UserIcon } from "@phosphor-icons/react";
+
+type User = { id: string; email: string };
+import {
+  CalendarBlank,
+  ShoppingBag,
+  MapPin,
+  ChatCircle,
+  User as UserIcon,
+  ArrowRight,
+  SignOut,
+} from "@phosphor-icons/react";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
+import FAB from "@/components/FAB";
+
+const dashItems = [
+  {
+    href: "/dashboard/reservasi",
+    icon: CalendarBlank,
+    title: "Reservasi Kelas",
+    desc: "Pesan kelas keramik untuk rombongan",
+  },
+  {
+    href: "/dashboard/katalog",
+    icon: ShoppingBag,
+    title: "Katalog Keramik",
+    desc: "Lihat karya dan pesan kustom",
+  },
+  {
+    href: "/dashboard/peta",
+    icon: MapPin,
+    title: "Peta Gang",
+    desc: "Navigasi ke bengkel pengrajin",
+  },
+  {
+    href: "/dashboard/bantuan",
+    icon: ChatCircle,
+    title: "Bantuan",
+    desc: "Chatbot AI & live chat admin",
+  },
+  {
+    href: "/dashboard/profil",
+    icon: UserIcon,
+    title: "Profil",
+    desc: "Kelola profil & riwayat pesanan",
+  },
+];
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClient();
-
   useEffect(() => {
     async function loadUser() {
       // Check demo session first
@@ -23,108 +64,172 @@ export default function DashboardPage() {
         setLoading(false);
         return;
       }
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        router.push("/auth");
-        return;
-      }
-      setUser(user);
+      
+      // If no demo session, create a mock user for frontend dev
+      setUser({ id: "mock-user-id", email: "pengguna@dinoyocraft.com" });
       setLoading(false);
     }
     loadUser();
-  }, [router, supabase]);
+  }, [router]);
 
   async function handleSignOut() {
     clearDemoSession();
-    await supabase.auth.signOut();
     router.push("/");
   }
 
   if (loading) {
     return (
-      <div className="min-h-[100dvh] flex items-center justify-center">
-        <div className="text-zinc-600 dark:text-zinc-400">Memuat...</div>
+      <div
+        style={{
+          minHeight: "100dvh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--surface)",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: "9999px",
+              border: "3px solid var(--line-strong)",
+              borderTopColor: "var(--clay)",
+              animation: "spin 0.75s linear infinite",
+            }}
+          />
+          <span style={{ color: "var(--bark-muted)", fontSize: "0.9rem" }}>Memuat...</span>
+        </div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
+  const firstName = user?.email?.split("@")[0] ?? "Pengguna";
+
   return (
-    <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-900">
-      <header className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold">DinoyoCraft</h1>
-          <button
-            onClick={handleSignOut}
-            className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100"
+    <div style={{ minHeight: "100dvh", background: "var(--surface)", color: "var(--bark)" }}>
+      <Navbar />
+
+      <main style={{ maxWidth: "1100px", margin: "0 auto", padding: "2.5rem 1.25rem 5rem" }}>
+        {/* Greeting */}
+        <div
+          style={{
+            marginBottom: "2.5rem",
+            padding: "2rem 2.25rem",
+            borderRadius: "1.5rem",
+            background: "linear-gradient(135deg, var(--clay) 0%, var(--clay-dark) 100%)",
+            color: "#fff",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            aria-hidden
+            style={{
+              position: "absolute",
+              top: -40,
+              right: -40,
+              width: 200,
+              height: 200,
+              borderRadius: "9999px",
+              background: "rgba(255,255,255,0.08)",
+              filter: "blur(40px)",
+            }}
+          />
+          <p style={{ fontSize: "0.85rem", opacity: 0.75, marginBottom: "0.35rem" }}>
+            Selamat datang,
+          </p>
+          <h1
+            style={{
+              fontSize: "1.6rem",
+              fontWeight: 800,
+              fontFamily: "var(--font-outfit), sans-serif",
+              letterSpacing: "-0.02em",
+            }}
           >
+            {firstName}
+          </h1>
+          <p style={{ marginTop: "0.35rem", opacity: 0.7, fontSize: "0.85rem" }}>{user?.email}</p>
+          <button
+            id="dashboard-signout-btn"
+            onClick={handleSignOut}
+            style={{
+              position: "absolute",
+              top: "1.25rem",
+              right: "1.25rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.4rem",
+              padding: "0.45rem 0.85rem",
+              borderRadius: "9999px",
+              background: "rgba(255,255,255,0.15)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              color: "#fff",
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "background 0.2s",
+            }}
+            onMouseEnter={(e) =>
+              ((e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.25)")
+            }
+            onMouseLeave={(e) =>
+              ((e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.15)")
+            }
+          >
+            <SignOut size={14} />
             Keluar
           </button>
         </div>
-      </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold tracking-tight mb-1">Dashboard</h2>
-          <p className="text-zinc-600 dark:text-zinc-400">{user?.email}</p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Link
-            href="/dashboard/reservasi"
-            className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
-          >
-            <CalendarBlank className="w-8 h-8 mb-4 text-zinc-900 dark:text-zinc-100" />
-            <h3 className="font-semibold mb-2">Reservasi Kelas</h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Pesan kelas keramik untuk rombongan
-            </p>
-          </Link>
-
-          <Link
-            href="/dashboard/katalog"
-            className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
-          >
-            <ShoppingBag className="w-8 h-8 mb-4 text-zinc-900 dark:text-zinc-100" />
-            <h3 className="font-semibold mb-2">Katalog Keramik</h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Lihat karya dan pesan kustom
-            </p>
-          </Link>
-
-          <Link
-            href="/dashboard/peta"
-            className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
-          >
-            <MapPin className="w-8 h-8 mb-4 text-zinc-900 dark:text-zinc-100" />
-            <h3 className="font-semibold mb-2">Peta Gang</h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Navigasi ke bengkel pengrajin
-            </p>
-          </Link>
-
-          <Link
-            href="/dashboard/bantuan"
-            className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
-          >
-            <ChatCircle className="w-8 h-8 mb-4 text-zinc-900 dark:text-zinc-100" />
-            <h3 className="font-semibold mb-2">Bantuan</h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Chatbot AI & live chat admin
-            </p>
-          </Link>
-
-          <Link
-            href="/dashboard/profil"
-            className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl p-6 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
-          >
-            <UserIcon className="w-8 h-8 mb-4 text-zinc-900 dark:text-zinc-100" />
-            <h3 className="font-semibold mb-2">Profil</h3>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
-              Kelola profil & riwayat pesanan
-            </p>
-          </Link>
+        {/* Nav cards */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
+            gap: "1.1rem",
+          }}
+        >
+          {dashItems.map(({ href, icon: Icon, title, desc }) => (
+            <Link key={href} href={href} className="dash-card" id={`dash-card-${title.toLowerCase().replace(/\s/g, "-")}`}>
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: 48,
+                  height: 48,
+                  borderRadius: "0.875rem",
+                  background: "var(--clay-muted)",
+                  marginBottom: "1rem",
+                }}
+              >
+                <Icon size={24} style={{ color: "var(--clay)" }} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <h3
+                  style={{
+                    fontWeight: 700,
+                    fontSize: "1rem",
+                    color: "var(--bark)",
+                    fontFamily: "var(--font-outfit), sans-serif",
+                  }}
+                >
+                  {title}
+                </h3>
+                <ArrowRight size={16} style={{ color: "var(--bark-muted)" }} />
+              </div>
+              <p style={{ marginTop: "0.35rem", fontSize: "0.875rem", color: "var(--bark-muted)" }}>
+                {desc}
+              </p>
+            </Link>
+          ))}
         </div>
       </main>
+
+      <FAB />
     </div>
   );
 }

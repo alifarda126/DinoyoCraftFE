@@ -1,8 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, MapPin, NavigationArrow, Buildings, Users as UsersIcon } from "@phosphor-icons/react";
+import {
+  ArrowLeft,
+  MapPin,
+  NavigationArrow,
+  Buildings,
+  Users as UsersIcon,
+} from "@phosphor-icons/react";
 import Link from "next/link";
+import Navbar from "@/components/Navbar";
+import FAB from "@/components/FAB";
 
 type Marker = {
   id: string;
@@ -22,7 +30,7 @@ const MARKERS: Marker[] = [
     latitude: -7.9666,
     longitude: 112.6326,
     artisan_count: 8,
-    color: "#e8a33d",
+    color: "#B85C3C",
   },
   {
     id: "2",
@@ -31,7 +39,7 @@ const MARKERS: Marker[] = [
     latitude: -7.9668,
     longitude: 112.6328,
     artisan_count: 1,
-    color: "#60a5fa",
+    color: "#9A7D5C",
   },
   {
     id: "3",
@@ -40,16 +48,16 @@ const MARKERS: Marker[] = [
     latitude: -7.967,
     longitude: 112.6324,
     artisan_count: 3,
-    color: "#34d399",
+    color: "#6B8E7A",
   },
   {
     id: "4",
     name: "Galeri & Toko Oleh-oleh",
     description: "Pusat penjualan keramik jadi — dari gelas, vas, hingga hiasan dinding",
     latitude: -7.9664,
-    longitude: 112.6330,
+    longitude: 112.633,
     artisan_count: 5,
-    color: "#f87171",
+    color: "#5C7A8E",
   },
 ];
 
@@ -62,7 +70,6 @@ export default function PetaPage() {
   useEffect(() => {
     if (!mapRef.current || leafletMapRef.current) return;
 
-    // Dynamically import leaflet to avoid SSR issues
     import("leaflet").then((L) => {
       // Fix default icon paths for webpack/next.js bundling
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -99,7 +106,7 @@ export default function PetaPage() {
               border-radius: 50% 50% 50% 0;
               transform: rotate(-45deg);
               border: 3px solid white;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+              box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             ">
               <div style="transform: rotate(45deg); display:flex; align-items:center; justify-content:center; width:100%; height:100%;">
                 <svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 256 256' fill='white'>
@@ -119,10 +126,10 @@ export default function PetaPage() {
           className: "leaflet-popup-dinoyo",
         }).setContent(`
           <div style="font-family: system-ui, -apple-system, sans-serif; padding: 4px 0;">
-            <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #111;">${marker.name}</div>
-            <div style="font-size: 12px; color: #555; margin-bottom: 8px; line-height: 1.4;">${marker.description}</div>
-            <div style="display:flex; align-items:center; gap:6px; font-size:12px; color:#888; margin-bottom: 10px;">
-              <span>👤 ${marker.artisan_count} pengrajin</span>
+            <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px; color: #111827;">${marker.name}</div>
+            <div style="font-size: 12px; color: #6B7280; margin-bottom: 8px; line-height: 1.5;">${marker.description}</div>
+            <div style="display:flex; align-items:center; gap:6px; font-size:12px; color:#9CA3AF; margin-bottom: 10px;">
+              <span>${marker.artisan_count} pengrajin</span>
             </div>
             <a href="https://www.google.com/maps/dir/?api=1&destination=${marker.latitude},${marker.longitude}"
                target="_blank"
@@ -130,7 +137,7 @@ export default function PetaPage() {
                style="
                  display: inline-block;
                  padding: 6px 14px;
-                 background: #111;
+                 background: #B85C3C;
                  color: white;
                  border-radius: 8px;
                  text-decoration: none;
@@ -163,7 +170,6 @@ export default function PetaPage() {
 
   const handleSelectMarker = (marker: Marker) => {
     setSelected(marker);
-    // Pan map to marker
     if (leafletMapRef.current) {
       const map = leafletMapRef.current as { setView: (latlng: [number, number], zoom: number) => void };
       map.setView([marker.latitude, marker.longitude], 18);
@@ -173,108 +179,239 @@ export default function PetaPage() {
   return (
     <>
       {/* Leaflet CSS */}
-      <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      />
+      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-      <div className="min-h-[100dvh] bg-zinc-50 dark:bg-zinc-900">
-        <header className="bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800">
-          <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-4">
-            <Link href="/dashboard" className="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-              <ArrowLeft className="w-6 h-6" />
+      <div style={{ minHeight: "100dvh", background: "var(--surface)", color: "var(--bark)", fontFamily: "var(--font-outfit), sans-serif" }}>
+        <Navbar />
+
+        <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "2.5rem 1.25rem 5rem" }}>
+          {/* Page header */}
+          <div style={{ marginBottom: "2rem" }}>
+            <Link
+              href="/dashboard"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: "0.4rem",
+                color: "var(--bark-muted)", fontSize: "0.875rem",
+                textDecoration: "none", marginBottom: "1rem",
+                transition: "color 0.2s",
+              }}
+              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--clay)")}
+              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--bark-muted)")}
+            >
+              <ArrowLeft size={16} />
+              Kembali ke Dashboard
             </Link>
-            <h1 className="text-xl font-semibold">Peta Gang Keramik</h1>
-          </div>
-        </header>
 
-        <main className="max-w-5xl mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Map Container */}
-            <div className="md:col-span-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-2xl overflow-hidden">
+            <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
+              <div>
+                <p style={{
+                  fontSize: "0.72rem", fontWeight: 700,
+                  letterSpacing: "0.12em", textTransform: "uppercase",
+                  color: "var(--clay)", marginBottom: "0.4rem",
+                }}>
+                  Navigasi Interaktif
+                </p>
+                <h1 style={{
+                  fontSize: "clamp(1.5rem, 3vw, 2rem)",
+                  fontWeight: 800, letterSpacing: "-0.025em",
+                  color: "var(--bark)", lineHeight: 1.1,
+                }}>
+                  Peta Gang Keramik
+                </h1>
+                <p style={{ marginTop: "0.4rem", color: "var(--bark-muted)", fontSize: "0.9rem" }}>
+                  Jelajahi dan navigasi ke bengkel pengrajin di Kampung Dinoyo.
+                </p>
+              </div>
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${MARKERS[0].latitude},${MARKERS[0].longitude}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "0.5rem",
+                  padding: "0.6rem 1.25rem",
+                  borderRadius: "9999px",
+                  background: "var(--clay)",
+                  color: "#fff",
+                  fontSize: "0.85rem", fontWeight: 700,
+                  textDecoration: "none",
+                  transition: "background 0.2s, transform 0.15s",
+                  boxShadow: "0 4px 12px rgba(184,92,60,0.25)",
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "var(--clay-dark)";
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "var(--clay)";
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                }}
+              >
+                <NavigationArrow size={16} weight="fill" />
+                Navigasi ke Kampung Keramik
+              </a>
+            </div>
+          </div>
+
+          {/* Main grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "1.5rem" }} className="peta-grid">
+
+            {/* Map container */}
+            <div
+              style={{
+                background: "#fff",
+                border: "1.5px solid var(--line)",
+                borderRadius: "1.5rem",
+                overflow: "hidden",
+              }}
+            >
               {mapError ? (
-                /* Fallback jika Leaflet gagal load */
-                <div className="aspect-[4/3] flex flex-col items-center justify-center text-zinc-400 dark:text-zinc-500 p-8">
-                  <MapPin className="w-12 h-12 mx-auto mb-3" />
-                  <p className="font-medium">Peta tidak tersedia</p>
-                  <p className="text-sm mt-1 mb-4">Cek koneksi internet Anda</p>
+                <div style={{
+                  aspectRatio: "4/3",
+                  display: "flex", flexDirection: "column",
+                  alignItems: "center", justifyContent: "center",
+                  color: "var(--bark-muted)", padding: "3rem",
+                  textAlign: "center",
+                }}>
+                  <MapPin size={40} style={{ marginBottom: "0.75rem", opacity: 0.3 }} />
+                  <p style={{ fontWeight: 700, color: "var(--bark)", marginBottom: "0.35rem" }}>Peta tidak tersedia</p>
+                  <p style={{ fontSize: "0.875rem", marginBottom: "1.25rem" }}>Cek koneksi internet Anda</p>
                   <a
                     href={`https://www.google.com/maps/dir/?api=1&destination=${MARKERS[0].latitude},${MARKERS[0].longitude}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-block px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-lg text-sm font-medium hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-colors"
+                    className="btn-clay"
                   >
                     Buka di Google Maps
                   </a>
                 </div>
               ) : (
-                <div
-                  ref={mapRef}
-                  className="w-full"
-                  style={{ height: "420px" }}
-                />
+                <div ref={mapRef} className="w-full" style={{ height: "480px" }} />
               )}
             </div>
 
-            {/* Sidebar — daftar lokasi */}
-            <div className="space-y-3">
-              <h3 className="font-semibold text-zinc-900 dark:text-zinc-100">Lokasi di Gang Keramik</h3>
-              {MARKERS.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => handleSelectMarker(m)}
-                  className={`w-full text-left p-4 border rounded-xl transition-colors ${
-                    selected?.id === m.id
-                      ? "border-zinc-900 dark:border-zinc-100 bg-white dark:bg-zinc-900"
-                      : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 hover:border-zinc-300 dark:hover:border-zinc-700"
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <span
-                      className="mt-0.5 w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: m.color }}
-                    />
-                    <div className="min-w-0">
-                      <div className="font-medium text-sm text-zinc-900 dark:text-zinc-100 leading-snug">{m.name}</div>
-                      <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
-                        {m.description}
-                      </div>
-                      <div className="flex items-center gap-3 mt-2 text-xs text-zinc-500">
-                        <span className="flex items-center gap-1">
-                          <UsersIcon className="w-3 h-3" />
-                          {m.artisan_count} pengrajin
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
+            {/* Sidebar */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <h2 style={{
+                fontSize: "0.85rem", fontWeight: 700,
+                color: "var(--bark)", letterSpacing: "-0.01em",
+              }}>
+                Lokasi di Gang Keramik
+              </h2>
 
-              {/* Navigasi ke kampung keramik */}
-              <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${MARKERS[0].latitude},${MARKERS[0].longitude}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center justify-center gap-2 py-2.5 border border-zinc-300 dark:border-zinc-700 rounded-xl text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+                {MARKERS.map((m) => {
+                  const isSelected = selected?.id === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => handleSelectMarker(m)}
+                      style={{
+                        width: "100%", textAlign: "left",
+                        padding: "1rem 1.125rem",
+                        borderRadius: "1rem",
+                        border: `1.5px solid ${isSelected ? m.color : "var(--line-strong)"}`,
+                        background: isSelected ? `${m.color}08` : "#fff",
+                        cursor: "pointer",
+                        transition: "border-color 0.2s, background 0.2s, box-shadow 0.2s, transform 0.15s",
+                        boxShadow: isSelected ? `0 0 0 3px ${m.color}20` : "none",
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isSelected) {
+                          (e.currentTarget as HTMLElement).style.borderColor = m.color;
+                          (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+                          (e.currentTarget as HTMLElement).style.boxShadow = `0 4px 12px ${m.color}18`;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isSelected) {
+                          (e.currentTarget as HTMLElement).style.borderColor = "var(--line-strong)";
+                          (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                          (e.currentTarget as HTMLElement).style.boxShadow = "none";
+                        }
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: "0.75rem" }}>
+                        <span
+                          style={{
+                            marginTop: "0.2rem",
+                            width: 10, height: 10,
+                            borderRadius: "9999px",
+                            background: m.color,
+                            flexShrink: 0,
+                            boxShadow: `0 0 0 2px ${m.color}30`,
+                          }}
+                        />
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          <p style={{
+                            fontWeight: 700, fontSize: "0.85rem",
+                            color: isSelected ? m.color : "var(--bark)",
+                            lineHeight: 1.3, transition: "color 0.2s",
+                          }}>
+                            {m.name}
+                          </p>
+                          <p style={{
+                            marginTop: "0.25rem",
+                            fontSize: "0.75rem", color: "var(--bark-muted)",
+                            lineHeight: 1.5,
+                            display: "-webkit-box",
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: "vertical",
+                            overflow: "hidden",
+                          }}>
+                            {m.description}
+                          </p>
+                          <div style={{
+                            display: "flex", alignItems: "center", gap: "0.4rem",
+                            marginTop: "0.5rem",
+                            fontSize: "0.72rem", color: "var(--bark-muted)",
+                          }}>
+                            <UsersIcon size={12} />
+                            <span>{m.artisan_count} pengrajin</span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Address card */}
+              <div
+                style={{
+                  padding: "1.125rem",
+                  borderRadius: "1rem",
+                  border: "1.5px solid var(--line)",
+                  background: "var(--surface-elevated)",
+                }}
               >
-                <NavigationArrow className="w-4 h-4" />
-                Navigasi ke Kampung Keramik
-              </a>
-
-              {/* Alamat */}
-              <div className="p-4 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl">
-                <div className="flex items-start gap-2 text-xs text-zinc-600 dark:text-zinc-400">
-                  <Buildings className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "0.6rem" }}>
+                  <Buildings size={16} style={{ color: "var(--clay)", flexShrink: 0, marginTop: "0.1rem" }} />
                   <div>
-                    <p className="font-medium text-zinc-900 dark:text-zinc-100">Kampung Keramik Dinoyo</p>
-                    <p className="mt-1">Jl. Dinoyo, Kec. Lowokwaru, Kota Malang, Jawa Timur 65145</p>
+                    <p style={{ fontWeight: 700, fontSize: "0.82rem", color: "var(--bark)", marginBottom: "0.25rem" }}>
+                      Kampung Keramik Dinoyo
+                    </p>
+                    <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", lineHeight: 1.55 }}>
+                      Jl. Dinoyo, Kec. Lowokwaru,<br />
+                      Kota Malang, Jawa Timur 65145
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </main>
+
+        <FAB />
       </div>
+
+      <style>{`
+        @media (max-width: 768px) {
+          .peta-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </>
   );
 }

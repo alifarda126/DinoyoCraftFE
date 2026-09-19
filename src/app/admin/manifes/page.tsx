@@ -1,6 +1,5 @@
 "use client";
 
-import { createClient } from "@/lib/supabase";
 import { getDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -35,44 +34,40 @@ export default function ManifesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState("");
   const router = useRouter();
-  const supabase = createClient();
-
   const checkAdmin = async () => {
     const demo = getDemoSession();
     if (demo) {
       if (demo.role !== "admin") router.push("/dashboard");
       return;
     }
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      router.push("/auth");
-      return;
-    }
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
-    if (profile?.role !== "admin") {
-      router.push("/dashboard");
-    }
+    // Mock admin validation
   };
 
   const loadManifes = async () => {
     const today = new Date().toISOString().split("T")[0];
     setSelectedDate(today);
 
-    const { data } = await supabase
-      .from("bookings")
-      .select(`
-        *,
-        schedule:schedules (date, start_time, end_time),
-        participants (*)
-      `)
-      .eq("status", "confirmed")
-      .order("created_at", { ascending: false });
-
-    if (data) setBookings(data as BookingWithParticipants[]);
+    // Mock data
+    setBookings([
+      {
+        id: "mock-1",
+        booking_code: "BKG-DEMO-1",
+        group_name: "Rombongan SMA 3",
+        participant_count: 2,
+        phone: "08123456789",
+        status: "confirmed",
+        created_at: new Date().toISOString(),
+        schedule: {
+          date: today,
+          start_time: "09:00",
+          end_time: "11:00"
+        },
+        participants: [
+          { id: "p1", name: "Andi", phone: "0811", email: "andi@mail.com", attended: false },
+          { id: "p2", name: "Budi", phone: "0812", email: "budi@mail.com", attended: true }
+        ]
+      }
+    ]);
   };
 
   useEffect(() => {
@@ -81,17 +76,15 @@ export default function ManifesPage() {
   }, []);
 
   async function markAttended(participantId: string) {
-    const { error } = await supabase
-      .from("participants")
-      .update({ attended: true })
-      .eq("id", participantId);
-
-    if (error) {
-      toast.error("Gagal menandai kehadiran");
-      return;
-    }
-    toast.success("Kehadiran dicatat");
-    loadManifes();
+    setBookings(prev => 
+      prev.map(b => ({
+        ...b,
+        participants: b.participants.map(p => 
+          p.id === participantId ? { ...p, attended: true } : p
+        )
+      }))
+    );
+    toast.success("Kehadiran dicatat (Mock)");
   }
 
   const filtered = bookings.filter((b) => {
