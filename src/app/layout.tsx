@@ -1,14 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Outfit } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import "./globals.css";
-
-const outfit = Outfit({
-  variable: "--font-outfit",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,9 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "DinoyoCraft — Keramik Kampung Dinoyo, Malang",
-  description:
-    "Reservasi kelas keramik, pesan suvenir kustom, dan jelajahi gang bengkel Kampung Keramik Dinoyo, Lowokwaru, Kota Malang.",
+  title: "DinoyoCraft - Keramik Dinoyo",
+  description: "Platform reservasi dan penjualan keramik kampung Dinoyo",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -36,29 +29,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html
       lang="id"
-      className={`${outfit.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
-        <meta name="theme-color" content="#FFFFFF" />
+        <meta name="theme-color" content="#0a1410" />
       </head>
       <body className="min-h-full flex flex-col">
-        {/* Grain noise texture — ceramic/earth surface depth on every page */}
+        {/* Grain noise texture — gives ceramic/earth surface depth on every page */}
         <div className="grain-overlay" aria-hidden="true" />
         {children}
-        <Toaster
-          toastOptions={{
-            style: {
-              background: "#fff",
-              color: "#2E1A0E",
-              border: "1.5px solid rgba(61,43,31,0.12)",
-              borderRadius: "0.875rem",
-            },
-          }}
-        />
+        <Toaster />
         <ServiceWorkerRegister />
       </body>
     </html>
   );
 }
-
-// Trigger hot reload 8

@@ -1,6 +1,6 @@
 "use client";
 
-// Backend removed
+import { createClient } from "@/lib/supabase";
 import { getDemoSession, clearDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -23,6 +23,8 @@ export default function AdminPage() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const supabase = createClient();
+
   const checkAdmin = async () => {
     // Check demo session first
     const demo = getDemoSession();
@@ -35,8 +37,21 @@ export default function AdminPage() {
       setLoading(false);
       return;
     }
-    // Mock admin
-    setUser({ email: "admin@dinoyocraft.com", id: "mock-admin-id" });
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push("/auth");
+      return;
+    }
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    if (profile?.role !== "admin") {
+      router.push("/dashboard");
+      return;
+    }
+    setUser({ email: user.email, id: user.id });
     setLoading(false);
   };
 
@@ -46,6 +61,7 @@ export default function AdminPage() {
 
   async function handleSignOut() {
     clearDemoSession();
+    await supabase.auth.signOut();
     router.push("/");
   }
 

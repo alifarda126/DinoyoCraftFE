@@ -1,5 +1,6 @@
 "use client";
 
+import { createClient } from "@/lib/supabase";
 import { getDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -29,18 +30,40 @@ export default function AdminCatalogPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const supabase = createClient();
+
   const checkAdmin = async () => {
     const demo = getDemoSession();
     if (demo) {
       if (demo.role !== "admin") router.push("/dashboard");
       return;
     }
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      router.push("/auth");
+      return;
+    }
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+    if (profile?.role !== "admin") {
+      router.push("/dashboard");
+    }
   };
 
   const loadArtworks = async () => {
-    setArtworks([
-      { id: "mock-1", title: "Vas Bunga Tanah Liat", description: "Vas cantik", price: 150000, category: "Kriya", image_url: "https://images.unsplash.com/photo-1610701596007-11502861dcfa", artisan: { full_name: "Mock Artisan" } }
-    ]);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data } = await supabase
+      .from("artworks")
+      .select(`
+        *,
+        artisan:profiles!artworks_artisan_id_fkey (full_name)
+      `)
+      .eq("artisan_id", user?.id)
+      .order("created_at", { ascending: false });
+    if (data) setArtworks(data as Artwork[]);
   };
 
   useEffect(() => {
@@ -52,8 +75,20 @@ export default function AdminCatalogPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
-      toast.success("Karya berhasil ditambahkan (Mock)");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Belum login");
+
+      const { error } = await supabase.from("artworks").insert({
+        artisan_id: user.id,
+        title,
+        description,
+        price: parseFloat(price),
+        category,
+        image_url: imageUrl,
+      });
+
+      if (error) throw error;
+      toast.success("Karya berhasil ditambahkan");
       setShowForm(false);
       loadArtworks();
     } catch (error) {
@@ -65,7 +100,12 @@ export default function AdminCatalogPage() {
 
   async function deleteArtwork(id: string) {
     if (!confirm("Hapus karya ini?")) return;
-    toast.success("Karya dihapus (Mock)");
+    const { error } = await supabase.from("artworks").delete().eq("id", id);
+    if (error) {
+      toast.error("Gagal menghapus karya");
+      return;
+    }
+    toast.success("Karya dihapus");
     loadArtworks();
   }
 

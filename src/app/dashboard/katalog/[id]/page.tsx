@@ -1,5 +1,6 @@
 "use client";
 
+import { createClient } from "@/lib/supabase";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -24,17 +25,21 @@ export default function ArtworkDetailPage() {
   const [customDesc, setCustomDesc] = useState("");
   const [customBudget, setCustomBudget] = useState("");
   const [loading, setLoading] = useState(false);
+  const supabase = createClient();
+
   const loadArtwork = async () => {
-    // Mock artwork details
-    setArtwork({
-      id: artworkId,
-      title: "Karya Keramik " + artworkId,
-      description: "Ini adalah deskripsi karya keramik. Dibuat dengan tanah liat pilihan dari Dinoyo.",
-      price: 150000,
-      image_url: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&q=80&w=400",
-      category: "Kriya",
-      artisan: { full_name: "Pengrajin Dinoyo" }
-    });
+    const { data } = await supabase
+      .from("artworks")
+      .select(`
+        *,
+        artisan:profiles!artworks_artisan_id_fkey (
+          full_name
+        )
+      `)
+      .eq("id", artworkId)
+      .single();
+
+    if (data) setArtwork(data as ArtworkDetail);
   };
 
   useEffect(() => {
@@ -45,8 +50,20 @@ export default function ArtworkDetailPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      toast.success("Pesanan kustom berhasil dikirim (Mock)");
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User tidak login");
+
+      const { error } = await supabase.from("custom_orders").insert({
+        user_id: user.id,
+        artisan_id: artwork?.id,
+        title: customTitle,
+        description: customDesc,
+        budget: parseFloat(customBudget),
+        status: "submitted",
+      });
+
+      if (error) throw error;
+      toast.success("Pesanan kustom berhasil dikirim");
       setShowCustomForm(false);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Terjadi kesalahan";
