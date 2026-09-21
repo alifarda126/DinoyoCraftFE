@@ -111,7 +111,7 @@ export default function KeranjangPage() {
                   background: "var(--clay)", color: "#fff", fontWeight: 700, fontSize: "0.95rem",
                   border: "none", cursor: "pointer"
                 }}
-                onClick={() => router.push("/customer/pembayaran/INV-123")}
+                onClick={() => router.push("/customer/checkout")}
               >
                 Beli Sekarang
               </button>

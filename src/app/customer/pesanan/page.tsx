@@ -79,6 +79,7 @@ export default function PesananUserPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"all" | OrderStatus>("all");
   const [loading, setLoading] = useState(true);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => {
     const demo = getDemoSession();
@@ -185,7 +186,7 @@ export default function PesananUserPage() {
                     )}
                     {(order.status === "packed" || order.status === "completed") && (
                       <button 
-                        onClick={() => toast.info("Menampilkan detail pesanan (Mock)")}
+                        onClick={() => setSelectedOrder(order)}
                         className="px-4 py-2 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-sm font-semibold hover:bg-zinc-50 transition-colors"
                       >
                         Lihat Detail
@@ -203,6 +204,41 @@ export default function PesananUserPage() {
             </div>
           )}
         </div>
+
+        {/* Modal Detail Pesanan (Mock) */}
+        {selectedOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl">
+              <h2 className="text-xl font-bold mb-4">Detail Pesanan: {selectedOrder.id}</h2>
+              <div className="space-y-4 mb-6">
+                <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 text-sm">
+                  <p><span className="text-zinc-500">Toko:</span> <span className="font-semibold">{selectedOrder.storeName}</span></p>
+                  <p><span className="text-zinc-500">Tanggal:</span> <span className="font-semibold">{selectedOrder.date}</span></p>
+                  <p><span className="text-zinc-500">Status:</span> {getStatusBadge(selectedOrder.status)}</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2">Item:</h3>
+                  {selectedOrder.items.map(item => (
+                    <div key={item.id} className="flex justify-between text-sm mb-2">
+                      <span>{item.qty}x {item.name}</span>
+                      <span>Rp {(item.price * item.qty).toLocaleString("id-ID")}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="border-t border-zinc-200 pt-4 flex justify-between font-bold">
+                  <span>Total Tagihan</span>
+                  <span className="text-clay">Rp {selectedOrder.total.toLocaleString("id-ID")}</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setSelectedOrder(null)}
+                className="w-full py-3 bg-zinc-900 text-white rounded-xl font-bold"
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        )}
     </div>
   );
 }

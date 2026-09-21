@@ -9,6 +9,9 @@ import { toast } from "sonner";
 export default function LaporanKeuanganPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [withdrawAmount, setWithdrawAmount] = useState("");
 
   useEffect(() => {
     const session = getDemoSession();
@@ -18,6 +21,23 @@ export default function LaporanKeuanganPage() {
       setLoading(false);
     }
   }, [router]);
+
+  const handleDownload = () => {
+    setIsDownloading(true);
+    toast.info("Menyiapkan file CSV...");
+    setTimeout(() => {
+      setIsDownloading(false);
+      toast.success("Laporan keuangan berhasil diunduh.");
+    }, 1500);
+  };
+
+  const handleWithdraw = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!withdrawAmount) return;
+    toast.success(`Permintaan penarikan dana sebesar Rp ${parseInt(withdrawAmount).toLocaleString('id-ID')} sedang diproses.`);
+    setIsWithdrawModalOpen(false);
+    setWithdrawAmount("");
+  };
 
   if (loading) return <div>Memuat data laporan...</div>;
 
@@ -47,22 +67,23 @@ export default function LaporanKeuanganPage() {
         </div>
         <div style={{ display: "flex", gap: "0.75rem" }}>
           <button 
-            onClick={() => toast.success("Mulai proses unduh laporan (Mock)")}
+            onClick={handleDownload}
+            disabled={isDownloading}
             style={{
               display: "flex", alignItems: "center", gap: "0.5rem",
-              background: "#fff", color: "var(--bark)", border: "1px solid var(--line)",
+              background: isDownloading ? "var(--surface)" : "#fff", color: "var(--bark)", border: "1px solid var(--line)",
               padding: "0.6rem 1rem", borderRadius: "0.5rem",
-              fontWeight: 600, fontSize: "0.85rem", cursor: "pointer",
+              fontWeight: 600, fontSize: "0.85rem", cursor: isDownloading ? "not-allowed" : "pointer",
               transition: "background 0.2s"
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface)"}
-            onMouseLeave={(e) => e.currentTarget.style.background = "#fff"}
+            onMouseEnter={(e) => !isDownloading && (e.currentTarget.style.background = "var(--surface)")}
+            onMouseLeave={(e) => !isDownloading && (e.currentTarget.style.background = "#fff")}
           >
-            <DownloadSimple size={18} />
-            Unduh CSV
+            {isDownloading ? <ClockCounterClockwise size={18} className="animate-spin" /> : <DownloadSimple size={18} />}
+            {isDownloading ? "Mengunduh..." : "Unduh CSV"}
           </button>
           <button 
-            onClick={() => toast.success("Membuka modal penarikan dana (Mock)")}
+            onClick={() => setIsWithdrawModalOpen(true)}
             style={{
               display: "flex", alignItems: "center", gap: "0.5rem",
               background: "var(--clay)", color: "#fff", border: "none",
@@ -182,6 +203,53 @@ export default function LaporanKeuanganPage() {
         </div>
       </div>
       
+      {/* Modal Penarikan Dana */}
+      {isWithdrawModalOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "#fff", borderRadius: "1.5rem", padding: "2rem", maxWidth: "450px", width: "100%", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" }}>
+            <h2 style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--bark)", marginBottom: "1.5rem" }}>Tarik Dana</h2>
+            
+            <div style={{ background: "var(--surface)", padding: "1rem", borderRadius: "1rem", marginBottom: "1.5rem", border: "1px solid var(--line)" }}>
+              <p style={{ fontSize: "0.85rem", color: "var(--bark-muted)", marginBottom: "0.25rem" }}>Saldo Aktif Tersedia</p>
+              <p style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--moss)" }}>Rp 3.250.000</p>
+            </div>
+
+            <form onSubmit={handleWithdraw}>
+              <div style={{ marginBottom: "1.5rem" }}>
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.5rem" }}>Nominal Penarikan (Rp)</label>
+                <input 
+                  type="number" 
+                  required
+                  min="50000"
+                  max="3250000"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(e.target.value)}
+                  placeholder="Contoh: 1000000"
+                  style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "0.75rem", border: "1px solid var(--line)", fontSize: "1rem", outline: "none", transition: "border-color 0.2s" }}
+                />
+                <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", marginTop: "0.5rem" }}>Minimal penarikan Rp 50.000</p>
+              </div>
+
+              <div style={{ display: "flex", gap: "1rem" }}>
+                <button 
+                  type="button"
+                  onClick={() => setIsWithdrawModalOpen(false)}
+                  style={{ flex: 1, padding: "0.75rem", borderRadius: "0.75rem", background: "#fff", color: "var(--bark)", fontWeight: 700, border: "1px solid var(--line-strong)", cursor: "pointer" }}
+                >
+                  Batal
+                </button>
+                <button 
+                  type="submit"
+                  style={{ flex: 1, padding: "0.75rem", borderRadius: "0.75rem", background: "var(--clay)", color: "#fff", fontWeight: 700, border: "none", cursor: "pointer" }}
+                >
+                  Proses
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes fadeIn {
           from { opacity: 0; transform: translateY(10px); }

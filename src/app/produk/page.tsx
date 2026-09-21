@@ -165,29 +165,31 @@ export default function ProdukPage() {
               }}
             >
               {filteredProduk.length > 0 ? (
-                filteredProduk.map((item) => (
+                filteredProduk.map((item, index) => (
                   <div
                     key={item.id}
                     className="card-hover-glow"
                     style={{
-                      background: "#fff",
-                      border: "1.5px solid var(--line)",
+                      position: "relative",
                       borderRadius: "1.25rem",
                       overflow: "hidden",
                       display: "flex",
                       flexDirection: "column",
+                      aspectRatio: "3/4",
+                      border: "1.5px solid var(--line)",
                       transition: "transform 0.2s, box-shadow 0.2s",
                     }}
                     onMouseEnter={(e) => {
                       (e.currentTarget as HTMLElement).style.transform = "translateY(-4px)";
-                      (e.currentTarget as HTMLElement).style.boxShadow = "0 12px 32px rgba(61,43,31,0.08)";
+                      (e.currentTarget as HTMLElement).style.boxShadow = "0 12px 32px rgba(61,43,31,0.15)";
                     }}
                     onMouseLeave={(e) => {
                       (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
                       (e.currentTarget as HTMLElement).style.boxShadow = "none";
                     }}
                   >
-                    <div style={{ position: "relative", aspectRatio: "1/1", width: "100%", overflow: "hidden" }}>
+                    {/* Full Card Image Background */}
+                    <div style={{ position: "absolute", inset: 0, zIndex: 0 }}>
                       <Image
                         src={item.image}
                         alt={item.title}
@@ -195,14 +197,28 @@ export default function ProdukPage() {
                         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         style={{ objectFit: "cover" }}
                         className="hover:scale-105 transition-transform duration-700"
+                        priority={index < 4}
                       />
                     </div>
-                    <div style={{ padding: "1.25rem", display: "flex", flexDirection: "column", flexGrow: 1 }}>
+
+                    {/* Glassmorphism Text Area at the bottom */}
+                    <div style={{ 
+                      marginTop: "auto", 
+                      position: "relative", 
+                      zIndex: 1,
+                      padding: "1rem 1.25rem", 
+                      display: "flex", 
+                      flexDirection: "column",
+                      background: "rgba(255, 255, 255, 0.85)",
+                      backdropFilter: "blur(20px) saturate(180%)",
+                      WebkitBackdropFilter: "blur(20px) saturate(180%)",
+                      borderTop: "1px solid rgba(255, 255, 255, 0.6)",
+                    }}>
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
                         <p
                           style={{
                             fontSize: "0.7rem",
-                            fontWeight: 600,
+                            fontWeight: 700,
                             color: "var(--bark-muted)",
                             fontFamily: "var(--font-geist-mono), monospace",
                             textTransform: "uppercase",
@@ -210,18 +226,18 @@ export default function ProdukPage() {
                         >
                           {item.store}
                         </p>
-                        <div style={{ display: "flex", alignItems: "center", gap: "0.2rem", color: "#F59E0B" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "0.2rem", color: "#d97706" }}>
                           <Star weight="fill" size={12} />
-                          <span style={{ fontSize: "0.75rem", fontWeight: 700, color: "var(--bark)" }}>{item.rating}</span>
+                          <span style={{ fontSize: "0.75rem", fontWeight: 800, color: "var(--bark)" }}>{item.rating}</span>
                         </div>
                       </div>
                       <h3
                         style={{
                           fontSize: "1rem",
-                          fontWeight: 700,
+                          fontWeight: 800,
                           color: "var(--bark)",
                           marginBottom: "0.75rem",
-                          lineHeight: 1.4,
+                          lineHeight: 1.3,
                           flexGrow: 1,
                         }}
                       >
@@ -240,11 +256,11 @@ export default function ProdukPage() {
                             width: "2.25rem",
                             height: "2.25rem",
                             borderRadius: "9999px",
-                            background: "var(--clay-light)",
-                            color: "var(--clay-dark)",
-                            border: "none",
+                            background: "rgba(0, 0, 0, 0.05)",
+                            color: "var(--clay)",
+                            border: "1px solid rgba(0,0,0,0.1)",
                             cursor: "pointer",
-                            transition: "background 0.2s, transform 0.1s",
+                            transition: "all 0.2s",
                           }}
                           title="Tambah ke Keranjang"
                           onMouseEnter={(e) => {
@@ -252,8 +268,8 @@ export default function ProdukPage() {
                             (e.currentTarget as HTMLElement).style.color = "#fff";
                           }}
                           onMouseLeave={(e) => {
-                            (e.currentTarget as HTMLElement).style.background = "var(--clay-light)";
-                            (e.currentTarget as HTMLElement).style.color = "var(--clay-dark)";
+                            (e.currentTarget as HTMLElement).style.background = "rgba(0, 0, 0, 0.05)";
+                            (e.currentTarget as HTMLElement).style.color = "var(--clay)";
                           }}
                           onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.95)")}
                           onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
