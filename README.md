@@ -13,6 +13,13 @@ Platform reservasi dan penjualan keramik kampung Dinoyo, Malang.
 - **Toast**: sonner
 - **QR Code**: qrcode.react
 
+## Pembaruan Terbaru (Frontend)
+- **Glassmorphism Design**: Seluruh *card* produk pada Beranda, Katalog, dan Detail Toko kini menggunakan efek *frosted glass* yang cerah dan estetis.
+- **Interactive UI Mock**: 
+  - Penambahan form modal untuk interaksi pengguna (Detail Pesanan, Penarikan Dana).
+  - Toast *feedback* dengan `sonner` untuk simulasi aksi seperti Tambah Keranjang, Unduh CSV, dan Hapus Pengguna/Kategori/Toko (Admin).
+  - Alur fungsional *mock* pada fitur **Checkout** dan **Pembayaran** (sebelum *backend* dihubungkan).
+
 ## Cara Menjalankan
 
 ### 1. Setup Supabase
