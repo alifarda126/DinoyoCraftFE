@@ -3,176 +3,176 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 import {
   ArrowRight,
-  Wallet,
-  QrCode,
-  Bank,
-  ShoppingCart,
-  Star,
+  ArrowLeft,
+  CheckCircle,
+  Storefront,
+  Headset,
+  CaretDown,
+  CaretUp,
+  Quotes,
 } from "@phosphor-icons/react";
 import Navbar from "@/components/Navbar";
 import FAB from "@/components/FAB";
-import { useCartStore } from "@/store/cartStore";
-import { getDemoSession } from "@/lib/demo";
 
-// Mock Data for Recommendation
-const rekomendasiProduk = [
-  { id: "p1", title: "Mug Keramik Motif Daun", store: "Studio Bumi", price: 120000, rating: 4.8, image: "https://picsum.photos/seed/mug1/400/400" },
-  { id: "p2", title: "Piring Estetik Putih Tulang", store: "Keramik Rina", price: 85000, rating: 4.9, image: "https://picsum.photos/seed/plate1/400/400" },
-  { id: "p3", title: "Vas Bunga Minimalis", store: "Tanah Liat Art", price: 250000, rating: 5.0, image: "https://picsum.photos/seed/vase1/400/400" },
-  { id: "p4", title: "Set Cangkir Teh Klasik", store: "Dinoyo Heritage", price: 180000, rating: 4.7, image: "https://picsum.photos/seed/tea1/400/400" },
+/* ────────────────────────────────────────────────────────────────────────────
+   DATA — Program Mitra DinoyoCraft
+   ──────────────────────────────────────────────────────────────────────────── */
+
+const steps = [
+  {
+    title: "Daftar Jadi Mitra",
+    text: "Daftarkan dirimu melalui tombol Daftar Sekarang, pilih sesi bergabung, dan selesaikan pembayaran keanggotaan sekali untuk memulai.",
+  },
+  {
+    title: "Pilih Produk Keramik",
+    text: "Akses katalog puluhan ribu produk kerajinan Kampung Keramik Dinoyo dan pilih produk untuk kamu jual, tanpa perlu menyetok barang.",
+  },
+  {
+    title: "Jual di Channelmu",
+    text: "Pasarkan produk di marketplace, media sosial, atau grup komunitasmu. Kamu yang tentukan harga jual dan raup marginnya.",
+  },
+  {
+    title: "Kami Proses & Kirim",
+    text: "Saat pesanan masuk, mitra pengrajin kami yang menyiapkan, mengemas dengan nama tokomu, dan mengirim ke pembeli.",
+  },
 ];
 
-const features = [
+const regional = [
   {
-    label: "01",
-    title: "Reservasi Rombongan",
-    desc: "Pesan kelas keramik untuk satu rombongan dalam satu transaksi.",
+    title: "Jawa Timur",
+    region: "Malang · Surabaya · Blitar",
+    desc: "Pusat Kampung Keramik Dinoyo, akses terdekat ke bengkel pengrajin dan potensi omzet terbesar.",
   },
   {
-    label: "02",
-    title: "Suvenir Kustom",
-    desc: "Ajukan desain cenderamata langsung ke pengrajin pilihanmu.",
+    title: "Pulau Jawa",
+    region: "Jabodetabek · Bandung · Jogja · Semarang",
+    desc: "Jangkauan pengiriman ekspres 1–2 hari, cocok untuk bisnis dropship berskala cepat.",
   },
   {
-    label: "03",
-    title: "Peta Gang",
-    desc: "Navigasi interaktif ke bengkel pengrajin di lorong keramik.",
+    title: "Luar Jawa",
+    region: "Sumatera · Kalimantan · Sulawesi · Bali",
+    desc: "Terus dibuka bertahap. Dapatkan prioritas saat program Mitra Regional hadir di kotamu.",
+  },
+];
+
+const whyData = [
+  {
+    title: "Relationship Manager",
+    text: "Tim khusus yang siap membantu proses bisnismu dari awal berjualan di channel, siaga memberikan informasi terkini seputar bisnis dropship keramik, serta siap membantu menyelesaikan kendala dalam berjualan online.",
   },
   {
-    label: "04",
-    title: "Bantuan 24 Jam",
-    desc: "Chatbot untuk pertanyaan umum, admin untuk kendala spesifik.",
+    title: "Edukasi & Tips Bisnis",
+    text: "Akses artikel, kelas, dan panduan langkah demi langkah khusus mitra untuk memaksimalkan keuntungan jualan keramik di marketplace dan media sosial.",
+  },
+  {
+    title: "Komisi Optimal",
+    text: "Margin jual bebas kamu tentukan di atas harga supplier. Semakin laris daganganmu, semakin besar omzet yang mengalir ke rekeningmu.",
+  },
+  {
+    title: "Laporan Omzet Real-time",
+    text: "Pantau jumlah pesanan, produk terlaris, dan total pendapatan yang siap ditarik langsung dari dasbor mitra.",
   },
 ];
 
 const testimonials = [
   {
     quote:
-      "Rombongan kantor kami 12 orang, satu transaksi selesai. Kode booking tinggal ditunjukkan di gang.",
+      "Awalnya cuma iseng daftar, sekarang jualan mug dan vas keramik sudah jadi penghasilan kedua. Packingnya selalu rapi pakai nama toko saya.",
     name: "Ratna Puspitasari",
-    role: "HR Manager, Malang",
-    initials: "RP",
-    span: 3,
-    large: true,
+    role: "Mitra dari Malang",
   },
   {
     quote:
-      "Pesan 40 mug custom untuk tamu undangan. Pengrajinnya langsung mengirim progress fotonya.",
+      "Paling enak sistem dropship-nya, saya nggak pegang stok sama sekali. Tim RM-nya responsif tiap saya kena kendala pengiriman.",
     name: "Bagas Anindito",
-    role: "Pemilik kafe, Lowokwaru",
-    initials: "BA",
-    span: 2,
-    large: false,
+    role: "Mitra dari Surabaya",
   },
   {
     quote:
-      "Anak-anak sekolah ramai di roda pemutar, data rombongan sudah rapi di manifes admin.",
+      "Suvenir custom keramik untuk acara banyak dicari. Katalognya lengkap, harga supplier-nya masuk akal untuk dijual lagi.",
     name: "Sri Wahyuni",
-    role: "Guru SD, Kota Malang",
-    initials: "SW",
-    span: 2,
-    large: false,
-  },
-  {
-    quote:
-      "Dari sketsa di WhatsApp, keramiknya jadi persis bayangan kami. Studio sangat responsif dan ramah.",
-    name: "Dewi Wulandari",
-    role: "Dekorator interior, Surabaya",
-    initials: "DW",
-    span: 3,
-    large: false,
+    role: "Mitra dari Jakarta",
   },
 ];
 
-const paymentMethods = [
+const faqs = [
   {
-    id: "transfer",
-    icon: Bank,
-    label: "Transfer Bank",
-    desc: "BCA · BNI · Mandiri · BRI",
+    q: "Berapa modal untuk menjadi Mitra DinoyoCraft?",
+    a: "Bisa mulai dengan biaya bergabung sekali saja, cukup Rp350.000 (harga normal Rp500.000). Tidak ada biaya bulanan, dan kamu tidak perlu modal untuk stok barang karena sistemnya full dropship.",
   },
   {
-    id: "ewallet",
-    icon: Wallet,
-    label: "E-Wallet",
-    desc: "GoPay · OVO · DANA · ShopeePay",
+    q: "Apakah saya harus punya toko offline atau modal barang?",
+    a: "Tidak. Program Mitra DinoyoCraft 100% dropship. Kamu cukup memasarkan produk, pesanan yang masuk kami yang siapkan dan kirimkan.",
   },
   {
-    id: "qris",
-    icon: QrCode,
-    label: "QRIS",
-    desc: "Scan QR — semua e-wallet & bank",
+    q: "Bagaimana pesanan dikemas? Apakah nama pelanggan tahu suppliernya?",
+    a: "Setiap pesanan dikemas dengan nama tokomu tanpa identitas supplier. Pelanggan tidak akan tahu asal supplier barang.",
+  },
+  {
+    q: "Kapan saya bisa tarik penghasilan?",
+    a: "Penghasilan yang mengendap di saldo mitra bisa ditarik ke rekening bank kamu kapan saja mengikuti ketentuan penarikan di dasbor mitra.",
+  },
+  {
+    q: "Apakah ada wilayah yang bisa saya jangkau?",
+    a: "Saat ini prioritas Pulau Jawa, terutama Jawa Timur. Program regional untuk wilayah lain sedang dibuka bertahap.",
   },
 ];
+
+/* ──────────────────────────────────────────────────────────────────────────── */
 
 export default function Home() {
-  const router = useRouter();
-  const [selectedPayment, setSelectedPayment] = useState<string | null>(null);
-  const [scheduleDate, setScheduleDate] = useState("");
-  const addToCart = useCartStore((state) => state.addToCart);
-
-  const handleAddToCart = (product: typeof rekomendasiProduk[0]) => {
-    const session = getDemoSession();
-    if (!session) {
-      toast("Silakan login untuk melanjutkan", {
-        description: "Anda perlu masuk ke akun untuk menambahkan produk ke keranjang.",
-        action: {
-          label: "Masuk",
-          onClick: () => router.push("/auth"),
-        },
-      });
-      return;
-    }
-
-    addToCart({
-      id: product.id,
-      title: product.title,
-      price: product.price,
-      image_url: product.image,
-      store_id: product.store,
-      store_name: product.store,
-    });
-    toast.success(`${product.title} ditambahkan ke keranjang.`);
-    setTimeout(() => router.push("/keranjang"), 800);
-  };
+  const [activeRegion, setActiveRegion] = useState(0);
+  const [activeFeature, setActiveFeature] = useState(0);
+  const [currentTestimony, setCurrentTestimony] = useState(0);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   return (
-    <div style={{ background: "var(--surface)", color: "var(--bark)", minHeight: "100dvh", fontFamily: "var(--font-outfit), sans-serif" }}>
-      {/* ── NAVBAR ─────────────────────────────────────────────────────── */}
+    <div
+      style={{
+        background: "var(--surface)",
+        color: "var(--bark)",
+        minHeight: "100dvh",
+        fontFamily: "var(--font-outfit), sans-serif",
+      }}
+    >
       <Navbar />
 
       {/* ── HERO ───────────────────────────────────────────────────────── */}
       <section
-        id="beranda"
-        style={{ borderBottom: "1.5px solid var(--line)", position: "relative", overflow: "hidden" }}
+        style={{
+          position: "relative",
+          overflow: "hidden",
+          borderBottom: "1.5px solid var(--line)",
+        }}
       >
-        {/* Background Ceramic Image with Gradient Fade (Mask) */}
-        <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+        {/* Background ceramic image + mask */}
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none overflow-hidden"
+        >
           <div
             style={{
               position: "absolute",
               inset: 0,
-              backgroundImage: "url('https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=2000&auto=format&fit=crop')",
+              backgroundImage:
+                "url('https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=2000&auto=format&fit=crop')",
               backgroundSize: "cover",
               backgroundPosition: "center 30%",
-              opacity: 0.45, /* Increased from 25% to 45% to make the ceramic texture more visible */
-              /* Mask image fades it out towards the bottom and right */
-              WebkitMaskImage: "linear-gradient(to bottom right, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 85%)",
-              maskImage: "linear-gradient(to bottom right, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 85%)",
+              opacity: 0.45,
+              WebkitMaskImage:
+                "linear-gradient(to bottom right, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 85%)",
+              maskImage:
+                "linear-gradient(to bottom right, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 85%)",
             }}
           />
         </div>
 
-        <div className="max-w-[1400px] mx-auto px-5 lg:px-8 grid lg:grid-cols-2 gap-12 items-center min-h-[92dvh] pt-16 pb-20 relative z-10">
+        <div className="max-w-[1400px] mx-auto px-5 lg:px-8 grid lg:grid-cols-2 gap-12 items-center min-h-[88dvh] pt-16 pb-20 relative z-10">
           <div>
-            {/* Eyebrow — plain typographic label, same font as heading */}
             <p
               style={{
-                fontFamily: "var(--font-outfit), sans-serif",
                 fontSize: "0.8rem",
                 fontWeight: 600,
                 letterSpacing: "0.12em",
@@ -181,7 +181,7 @@ export default function Home() {
                 marginBottom: "1rem",
               }}
             >
-              Kampung Keramik Dinoyo, Malang
+              Mitra DinoyoCraft — Kampung Keramik Dinoyo, Malang
             </p>
 
             <h1
@@ -192,10 +192,11 @@ export default function Home() {
                 lineHeight: 1.06,
                 maxWidth: "18ch",
                 color: "var(--bark)",
-                fontFamily: "var(--font-outfit), sans-serif",
               }}
             >
-              Tanah liat Dinoyo, dari roda pemutar langsung ke tanganmu.
+              Bergabung Menjadi{" "}
+              <span style={{ color: "var(--clay)" }}>Mitra DinoyoCraft</span>{" "}
+              dan Raih Omzet Jutaan dari Keramik!
             </h1>
 
             <p
@@ -207,90 +208,92 @@ export default function Home() {
                 maxWidth: "60ch",
               }}
             >
-              Reservasi kelas keramik, pesan suvenir kustom, jelajahi gang bengkel.
-              Satu aplikasi untuk seluruh kampung keramik Malang.
+              Bersama Program Mitra DinoyoCraft, kamu bisa praktis berbisnis
+              dropship kerajinan keramik. Tersedia berbagai fitur dan edukasi
+              berbisnis untuk memaksimalkan keuntunganmu.
             </p>
 
             <div
               style={{
-                marginTop: "2rem",
                 display: "flex",
+                alignItems: "center",
+                gap: "1.5rem",
+                marginTop: "2rem",
                 flexWrap: "wrap",
-                gap: "0.75rem",
               }}
             >
+              <div>
+                <p
+                  style={{
+                    fontSize: "0.78rem",
+                    fontWeight: 600,
+                    color: "var(--bark-muted)",
+                    textDecoration: "line-through",
+                  }}
+                >
+                  Rp500.000
+                </p>
+                <p
+                  style={{
+                    fontSize: "2rem",
+                    fontWeight: 800,
+                    lineHeight: 1,
+                    color: "var(--bark)",
+                    letterSpacing: "-0.03em",
+                  }}
+                >
+                  Rp350<span style={{ fontSize: "1.2rem" }}>RB</span>
+                </p>
+                <p
+                  style={{
+                    fontSize: "0.72rem",
+                    fontWeight: 600,
+                    color: "var(--clay)",
+                    marginTop: "0.15rem",
+                    letterSpacing: "0.06em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Promo Spesial
+                </p>
+              </div>
+
               <Link
-                href="/produk"
-                id="hero-cta-reservasi"
+                href="/mitra/login"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "0.5rem",
-                  padding: "0.8rem 1.75rem",
+                  padding: "0.9rem 1.9rem",
                   borderRadius: "9999px",
                   background: "var(--clay)",
                   color: "#fff",
                   fontWeight: 700,
                   fontSize: "0.95rem",
                   textDecoration: "none",
-                  transition: "background 0.2s, transform 0.15s, box-shadow 0.2s",
+                  transition:
+                    "background 0.2s, transform 0.15s, box-shadow 0.2s",
                   boxShadow: "0 4px 16px rgba(184,92,60,0.25)",
                 }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = "var(--clay-dark)";
-                  (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = "var(--clay)";
-                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-                }}
               >
-                Eksplorasi Produk
-                <ArrowRight className="w-4 h-4" weight="bold" />
+                Daftar Sekarang
+                <ArrowRight size={16} weight="bold" />
               </Link>
-              <a
-                href="#fitur"
-                id="hero-cta-fitur"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  padding: "0.8rem 1.75rem",
-                  borderRadius: "9999px",
-                  border: "1.5px solid var(--line-strong)",
-                  color: "var(--bark)",
-                  fontWeight: 600,
-                  fontSize: "0.95rem",
-                  textDecoration: "none",
-                  transition: "border-color 0.2s, background 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.borderColor = "var(--clay-light)";
-                  (e.currentTarget as HTMLElement).style.background = "var(--clay-muted)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.borderColor = "var(--line-strong)";
-                  (e.currentTarget as HTMLElement).style.background = "transparent";
-                }}
-              >
-                Lihat Fitur
-              </a>
             </div>
 
-            {/* Trust badges — typographic, no emoji */}
             <p
               style={{
                 marginTop: "2.5rem",
                 fontSize: "0.82rem",
                 color: "var(--bark-muted)",
                 fontWeight: 500,
-                letterSpacing: "0.01em",
               }}
             >
-              Booking Instan
-              <span style={{ margin: "0 0.5rem", opacity: 0.4 }}>&bull;</span>
-              50+ Pengrajin
-              <span style={{ margin: "0 0.5rem", opacity: 0.4 }}>&bull;</span>
-              Peta Interaktif
+              Tanpa Stok Barang
+              <span style={{ margin: "0 0.5rem", opacity: 0.4 }}>•</span>
+              100.000+ Produk Keramik
+              <span style={{ margin: "0 0.5rem", opacity: 0.4 }}>•</span>
+              Packing Nama Tokomu
             </p>
           </div>
 
@@ -324,8 +327,8 @@ export default function Home() {
                   }}
                 >
                   <Image
-                    src="https://picsum.photos/seed/dinoyo-potter-hands-clay-wheel/600/750"
-                    alt="Pengrajin Dinoyo membentuk tanah liat dengan tangan di roda pemutar"
+                    src="https://picsum.photos/seed/dinoyo-mitra-pottery/600/750"
+                    alt="Mitra DinoyoCraft memegang keramik karya pengrajin Dinoyo"
                     width={600}
                     height={750}
                     priority
@@ -342,8 +345,8 @@ export default function Home() {
                   }}
                 >
                   <Image
-                    src="https://picsum.photos/seed/dinoyo-fired-pottery-kiln-glaze/600/600"
-                    alt="Keramik hasil pembakaran kiln tradisional Dinoyo dengan glasir matang"
+                    src="https://picsum.photos/seed/dinoyo-glaze-cup/600/600"
+                    alt="Cangkir keramik glasir produk mitra"
                     width={600}
                     height={600}
                     className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
@@ -361,8 +364,8 @@ export default function Home() {
                   }}
                 >
                   <Image
-                    src="https://picsum.photos/seed/dinoyo-narrow-alley-pottery-workshop/600/600"
-                    alt="Lorong sempit gang keramik Dinoyo dengan bengkel di kiri kanan"
+                    src="https://picsum.photos/seed/dinoyo-packaging/600/600"
+                    alt="Packing keramik dengan nama toko mitra"
                     width={600}
                     height={600}
                     className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
@@ -378,8 +381,8 @@ export default function Home() {
                   }}
                 >
                   <Image
-                    src="https://picsum.photos/seed/dinoyo-clay-preparation-mud-workshop/600/750"
-                    alt="Meja persiapan tanah liat dan alat-alat keramik di bengkel Dinoyo"
+                    src="https://picsum.photos/seed/dinoyo-workshop/600/750"
+                    alt="Bengkel keramik Dinoyo tempat barang diproduksi dan dikirim"
                     width={600}
                     height={750}
                     className="w-full h-full object-cover hover:scale-105 transition-transform duration-700"
@@ -391,186 +394,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── REKOMENDASI PRODUK ────────────────────────────────────────── */}
+      {/* ── APA ITU PROGRAM MITRA ──────────────────────────────────────── */}
       <section
-        id="rekomendasi"
-        style={{ borderBottom: "1.5px solid var(--line)", background: "var(--surface)" }}
-      >
-        <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-32">
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: "1rem" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxWidth: "40rem" }}>
-              <span
-                style={{
-                  fontSize: "0.78rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: "var(--clay)",
-                }}
-              >
-                Katalog Pilihan
-              </span>
-              <h2
-                style={{
-                  fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
-                  fontWeight: 800,
-                  letterSpacing: "-0.025em",
-                  lineHeight: 1.1,
-                  color: "var(--bark)",
-                  fontFamily: "var(--font-outfit), sans-serif",
-                }}
-              >
-                Rekomendasi Produk
-              </h2>
-            </div>
-            <Link
-              href="/produk"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "0.5rem",
-                color: "var(--clay)",
-                fontWeight: 700,
-                fontSize: "0.95rem",
-                textDecoration: "none",
-                transition: "color 0.2s",
-              }}
-            >
-              Lihat Semua
-              <ArrowRight className="w-4 h-4" weight="bold" />
-            </Link>
-          </div>
-
-          <div
-            style={{
-              marginTop: "3.5rem",
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "1.5rem",
-            }}
-          >
-            {rekomendasiProduk.map((item) => (
-              <div
-                key={item.id}
-                className="card-hover-glow"
-                style={{
-                  position: "relative",
-                  borderRadius: "1.25rem",
-                  overflow: "hidden",
-                  display: "flex",
-                  flexDirection: "column",
-                  aspectRatio: "3/4",
-                  border: "1.5px solid var(--line)",
-                  transition: "transform 0.2s, box-shadow 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.transform = "translateY(-4px)";
-                  (e.currentTarget as HTMLElement).style.boxShadow = "0 12px 32px rgba(61,43,31,0.15)";
-                }}
-                onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-                  (e.currentTarget as HTMLElement).style.boxShadow = "none";
-                }}
-              >
-                {/* Full Card Image Background */}
-                <div style={{ position: "absolute", inset: 0, zIndex: 0 }}>
-                  <Image
-                    src={item.image}
-                    alt={item.title}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    style={{ objectFit: "cover" }}
-                    className="hover:scale-105 transition-transform duration-700"
-                  />
-                </div>
-
-                {/* Glassmorphism Text Area at the bottom */}
-                <div style={{ 
-                  marginTop: "auto", 
-                  position: "relative", 
-                  zIndex: 1,
-                  padding: "1.25rem 1.5rem", 
-                  display: "flex", 
-                  flexDirection: "column",
-                  background: "rgba(255, 255, 255, 0.85)",
-                  backdropFilter: "blur(20px) saturate(180%)",
-                  WebkitBackdropFilter: "blur(20px) saturate(180%)",
-                  borderTop: "1px solid rgba(255, 255, 255, 0.6)",
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
-                    <p
-                      style={{
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
-                        color: "var(--bark-muted)",
-                        fontFamily: "var(--font-geist-mono), monospace",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {item.store}
-                    </p>
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.2rem", color: "#d97706" }}>
-                      <Star weight="fill" size={14} />
-                      <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "var(--bark)" }}>{item.rating}</span>
-                    </div>
-                  </div>
-                  <h3
-                    style={{
-                      fontSize: "1.1rem",
-                      fontWeight: 800,
-                      color: "var(--bark)",
-                      marginBottom: "1rem",
-                      lineHeight: 1.3,
-                      flexGrow: 1,
-                    }}
-                  >
-                    {item.title}
-                  </h3>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <span style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--clay)" }}>
-                      Rp {item.price.toLocaleString("id-ID")}
-                    </span>
-                    <button
-                      onClick={() => handleAddToCart(item)}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        width: "2.5rem",
-                        height: "2.5rem",
-                        borderRadius: "9999px",
-                        background: "rgba(0, 0, 0, 0.05)",
-                        color: "var(--clay)",
-                        border: "1px solid rgba(0,0,0,0.1)",
-                        cursor: "pointer",
-                        transition: "all 0.2s",
-                      }}
-                      title="Tambah ke Keranjang"
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = "var(--clay)";
-                        (e.currentTarget as HTMLElement).style.color = "#fff";
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = "rgba(0, 0, 0, 0.05)";
-                        (e.currentTarget as HTMLElement).style.color = "var(--clay)";
-                      }}
-                      onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.95)")}
-                      onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-                    >
-                      <ShoppingCart size={18} weight="bold" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── FITUR ────────────────────────────────────────────────────────── */}
-      <section
-        id="fitur"
-        style={{ borderBottom: "1.5px solid var(--line)", position: "relative", overflow: "hidden" }}
+        style={{
+          borderBottom: "1.5px solid var(--line)",
+          position: "relative",
+          overflow: "hidden",
+        }}
       >
         <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
           <div
@@ -590,7 +420,14 @@ export default function Home() {
         </div>
 
         <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-32">
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", maxWidth: "40rem" }}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.5rem",
+              maxWidth: "40rem",
+            }}
+          >
             <span
               style={{
                 fontSize: "0.78rem",
@@ -600,7 +437,7 @@ export default function Home() {
                 color: "var(--clay)",
               }}
             >
-              Fitur Platform
+              Apa Itu DinoyoCraft?
             </span>
             <h2
               style={{
@@ -609,233 +446,72 @@ export default function Home() {
                 letterSpacing: "-0.025em",
                 lineHeight: 1.1,
                 color: "var(--bark)",
-                fontFamily: "var(--font-outfit), sans-serif",
               }}
             >
-              Semua yang kamu butuhkan untuk hari yang penuh tanah liat.
+              Apa Itu Program Mitra DinoyoCraft?
             </h2>
+            <p
+              style={{
+                marginTop: "1rem",
+                color: "var(--bark-muted)",
+                lineHeight: 1.8,
+              }}
+            >
+              Program Mitra DinoyoCraft adalah sebuah peluang bisnis online
+              yang dihadirkan untuk kamu yang ingin mendapatkan penghasilan
+              tambahan melalui bisnis dropship kerajinan keramik khas Kampung
+              Keramik Dinoyo, Malang. Cukup dengan memasarkan produk lewat
+              channel yang kamu pilih — marketplace, media sosial, atau grup
+              komunitas — saat pesanan masuk, tim pengrajin kami yang
+              menyiapkan hingga mengirimkannya ke pelanggan.
+            </p>
           </div>
 
           <div
             style={{
-              marginTop: "3.5rem",
+              marginTop: "3rem",
               display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
+              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
               gap: "1.25rem",
             }}
-            className="grid-cols-1 md:grid-cols-3"
           >
-            {features.map((f, i) => {
-              const isWide = i === 0 || i === 3;
-              return (
-                <div
-                  key={f.title}
-                  className={`reveal card-hover-glow${isWide ? " md:col-span-2" : ""}`}
-                  style={{
-                    background: "#fff",
-                    border: "1.5px solid var(--line)",
-                    borderRadius: "1.25rem",
-                    padding: "2rem 2.25rem",
-                    position: "relative",
-                    overflow: "hidden",
-                    gridColumn: isWide ? "span 2" : undefined,
-                  }}
-                >
-                  {/* Subtle ambient glow */}
-                  <div
-                    aria-hidden
-                    style={{
-                      position: "absolute",
-                      top: -32,
-                      right: -32,
-                      width: 100,
-                      height: 100,
-                      borderRadius: "9999px",
-                      background: "var(--clay)",
-                      opacity: 0.05,
-                      filter: "blur(40px)",
-                    }}
-                  />
-                  {/* Typographic number accent instead of icon */}
-                  <span
-                    style={{
-                      display: "block",
-                      fontFamily: "var(--font-geist-mono), monospace",
-                      fontSize: "0.72rem",
-                      fontWeight: 700,
-                      letterSpacing: "0.1em",
-                      color: "var(--clay)",
-                      marginBottom: "1.25rem",
-                    }}
-                  >
-                    {f.label}
-                  </span>
-                  <h3
-                    style={{
-                      fontSize: "1.15rem",
-                      fontWeight: 700,
-                      color: "var(--bark)",
-                      fontFamily: "var(--font-outfit), sans-serif",
-                      letterSpacing: "-0.02em",
-                    }}
-                  >
-                    {f.title}
-                  </h3>
-                  <p
-                    style={{
-                      marginTop: "0.6rem",
-                      color: "var(--bark-muted)",
-                      lineHeight: 1.65,
-                      maxWidth: "50ch",
-                      fontSize: "0.9rem",
-                    }}
-                  >
-                    {f.desc}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ── CARA BERKUNJUNG ──────────────────────────────────────────────── */}
-      <section
-        id="cara"
-        style={{ borderBottom: "1.5px solid var(--line)", position: "relative", overflow: "hidden" }}
-      >
-        <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: 400,
-              height: 400,
-              borderRadius: "9999px",
-              background: "var(--clay-light)",
-              opacity: 0.06,
-              filter: "blur(120px)",
-            }}
-          />
-        </div>
-
-        <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-32">
-          <div className="grid lg:grid-cols-[2fr_1fr] gap-12">
-            <div>
-              <span
-                style={{
-                  fontSize: "0.78rem",
-                  fontWeight: 700,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: "var(--clay)",
-                }}
-              >
-                Panduan
-              </span>
-              <h2
-                style={{
-                  marginTop: "0.5rem",
-                  fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
-                  fontWeight: 800,
-                  letterSpacing: "-0.025em",
-                  lineHeight: 1.1,
-                  color: "var(--bark)",
-                  fontFamily: "var(--font-outfit), sans-serif",
-                }}
-              >
-                Cara berkunjung dalam empat langkah.
-              </h2>
-
-              <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 gap-10">
-                {[
-                  ["Daftar", "Buat akun dengan email atau Google."],
-                  ["Pilih Jadwal", "Cek ketersediaan, isi data rombongan."],
-                  ["Bayar", "Transfer bank, VA, e-wallet, atau QRIS."],
-                  ["Datang", "Tunjukkan kode booking di gang keramik."],
-                ].map(([title, desc], i) => (
-                  <div key={title} className="reveal">
-                    <span
-                      style={{
-                        fontFamily: "var(--font-geist-mono), monospace",
-                        color: "var(--clay)",
-                        fontSize: "0.85rem",
-                        fontWeight: 700,
-                      }}
-                    >
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <h3
-                      style={{
-                        marginTop: "0.75rem",
-                        fontSize: "1.15rem",
-                        fontWeight: 700,
-                        color: "var(--bark)",
-                        fontFamily: "var(--font-outfit), sans-serif",
-                      }}
-                    >
-                      {title}
-                    </h3>
-                    <p style={{ marginTop: "0.4rem", color: "var(--bark-muted)", lineHeight: 1.65 }}>
-                      {desc}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <aside className="lg:justify-self-end">
+            {[
+              {
+                title: "Dropship",
+                text: "Sistem jual online tanpa stok. Kamu jual, kami yang kirim.",
+              },
+              {
+                title: "Tanpa Gudang",
+                text: "Tidak perlu cari tempat simpan barang atau khawatir stok menumpuk.",
+              },
+              {
+                title: "Tanpa Packing",
+                text: "Semua pesanan dikemas rapi dengan nama tokomu.",
+              },
+              {
+                title: "Omzet Jutaan",
+                text: "Ribuan mitra telah meraih omzet jutaan dari jualan keramik.",
+              },
+            ].map((c) => (
               <div
+                key={c.title}
                 className="card-hover-glow"
                 style={{
                   background: "#fff",
                   border: "1.5px solid var(--line)",
                   borderRadius: "1.25rem",
-                  padding: "2rem",
-                  position: "relative",
-                  overflow: "hidden",
+                  padding: "1.75rem",
                 }}
               >
-                <div
-                  aria-hidden
-                  style={{
-                    position: "absolute",
-                    top: -40,
-                    right: -40,
-                    width: 160,
-                    height: 160,
-                    borderRadius: "9999px",
-                    background: "var(--clay)",
-                    opacity: 0.06,
-                    filter: "blur(50px)",
-                  }}
-                />
-                {/* Typographic accent — no icon */}
-                <span
-                  style={{
-                    display: "block",
-                    fontFamily: "var(--font-geist-mono), monospace",
-                    fontSize: "0.72rem",
-                    fontWeight: 700,
-                    letterSpacing: "0.1em",
-                    color: "var(--clay)",
-                    marginBottom: "1.25rem",
-                    textTransform: "uppercase",
-                  }}
-                >
-                  Mulai Hari Ini
-                </span>
                 <h3
                   style={{
-                    fontWeight: 700,
                     fontSize: "1.1rem",
+                    fontWeight: 800,
                     color: "var(--bark)",
-                    fontFamily: "var(--font-outfit), sans-serif",
                     letterSpacing: "-0.02em",
                   }}
                 >
-                  Kelas keramik instan
+                  {c.title}
                 </h3>
                 <p
                   style={{
@@ -843,45 +519,23 @@ export default function Home() {
                     color: "var(--bark-muted)",
                     fontSize: "0.9rem",
                     lineHeight: 1.65,
+                    maxWidth: "40ch",
                   }}
                 >
-                  Tak perlu tunggu jadwal panjang. Pesan sesi hari ini, bayar, dan langsung bentuk
-                  tanah liat pertamamu di roda pemutar.
+                  {c.text}
                 </p>
-                <Link
-                  href="/auth"
-                  id="cara-cta-link"
-                  style={{
-                    marginTop: "1.5rem",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "0.4rem",
-                    color: "var(--clay)",
-                    fontWeight: 700,
-                    fontSize: "0.9rem",
-                    textDecoration: "none",
-                    transition: "color 0.2s",
-                  }}
-                >
-                  Coba sekarang
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
               </div>
-            </aside>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════════
-          ── FORMULIR RESERVASI ROMBONGAN (UI Placeholder) ──────────────
-          ══════════════════════════════════════════════════════════════ */}
+      {/* ── CARA KERJA ────────────────────────────────────────────────── */}
       <section
-        id="reservasi"
         style={{
-          borderBottom: "1px solid var(--line)",
+          borderBottom: "1.5px solid var(--line)",
           position: "relative",
           overflow: "hidden",
-          background: "var(--surface-elevated)",
         }}
       >
         <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -894,17 +548,161 @@ export default function Home() {
               height: 300,
               borderRadius: "9999px",
               background: "var(--clay)",
-              opacity: 0.06,
+              opacity: 0.05,
               filter: "blur(120px)",
             }}
           />
         </div>
 
         <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-32">
-          <div className="grid lg:grid-cols-2 gap-12 items-start">
+          <div style={{ maxWidth: "40rem" }}>
+            <span
+              style={{
+                fontSize: "0.78rem",
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "var(--clay)",
+              }}
+            >
+              Cara Kerja
+            </span>
+            <h2
+              style={{
+                marginTop: "0.5rem",
+                fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
+                fontWeight: 800,
+                letterSpacing: "-0.025em",
+                lineHeight: 1.1,
+                color: "var(--bark)",
+              }}
+            >
+              Mulai Bismiss Dropship dalam 4 Langkah
+            </h2>
+          </div>
 
-            {/* Left: Copy */}
-            <div>
+          <div className="mt-14 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
+            {steps.map((s, i) => (
+              <div key={s.title} className="reveal">
+                <span
+                  style={{
+                    fontFamily: "var(--font-geist-mono), monospace",
+                    color: "var(--clay)",
+                    fontSize: "0.85rem",
+                    fontWeight: 700,
+                  }}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <h3
+                  style={{
+                    marginTop: "0.75rem",
+                    fontSize: "1.15rem",
+                    fontWeight: 700,
+                    color: "var(--bark)",
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  {s.title}
+                </h3>
+                <p
+                  style={{
+                    marginTop: "0.4rem",
+                    color: "var(--bark-muted)",
+                    lineHeight: 1.65,
+                    fontSize: "0.9rem",
+                    maxWidth: "34ch",
+                  }}
+                >
+                  {s.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── JUMLAH MITRA ──────────────────────────────────────────────── */}
+      <section
+        style={{
+          borderBottom: "1.5px solid var(--line)",
+          background: "var(--surface-elevated)",
+        }}
+      >
+        <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-20 lg:py-24">
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: "2.5rem",
+              alignItems: "center",
+            }}
+          >
+            {[
+              { value: "5.000+", label: "Mitra Aktif" },
+              { value: "100.000+", label: "Produk Keramik" },
+              { value: "48", label: "Pengrajin Supplier" },
+              { value: "4.9", label: "Rating Mitra" },
+            ].map((s) => (
+              <div key={s.label} style={{ textAlign: "center" }}>
+                <p
+                  style={{
+                    fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
+                    fontWeight: 800,
+                    letterSpacing: "-0.03em",
+                    lineHeight: 1,
+                    color: "var(--bark)",
+                  }}
+                >
+                  {s.value}
+                </p>
+                <p
+                  style={{
+                    marginTop: "0.4rem",
+                    fontSize: "0.85rem",
+                    color: "var(--bark-muted)",
+                    fontWeight: 500,
+                  }}
+                >
+                  {s.label}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <p
+            style={{
+              marginTop: "3rem",
+              textAlign: "center",
+              fontSize: "0.9rem",
+              color: "var(--bark-muted)",
+            }}
+          >
+            Terjual laris di berbagai platform media sosial dan marketplace —
+            Tokopedia, Shopee, Instagram, Facebook, dan WhatsApp Business.
+          </p>
+        </div>
+      </section>
+
+      {/* ── MITRA REGIONAL ────────────────────────────────────────────── */}
+      <section
+        style={{
+          borderBottom: "1.5px solid var(--line)",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-32">
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+              flexWrap: "wrap",
+              gap: "1rem",
+            }}
+          >
+            <div style={{ maxWidth: "40rem" }}>
               <span
                 style={{
                   fontSize: "0.78rem",
@@ -914,7 +712,7 @@ export default function Home() {
                   color: "var(--clay)",
                 }}
               >
-                Reservasi Rombongan
+                Mitra Regional
               </span>
               <h2
                 style={{
@@ -924,294 +722,347 @@ export default function Home() {
                   letterSpacing: "-0.025em",
                   lineHeight: 1.1,
                   color: "var(--bark)",
-                  fontFamily: "var(--font-outfit), sans-serif",
                 }}
               >
-                Bawa rombonganmu ke gang keramik.
+                Jangkau Pasar Lebih Luas dengan Mitra Regional
               </h2>
               <p
                 style={{
                   marginTop: "1rem",
                   color: "var(--bark-muted)",
                   lineHeight: 1.7,
-                  maxWidth: "52ch",
-                  fontSize: "1rem",
+                  maxWidth: "60ch",
                 }}
               >
-                Isi formulir berikut, pilih jadwal yang tersedia, lalu lanjutkan ke pembayaran.
-                Kode booking akan langsung dikirim ke email rombonganmu.
+                Program Mitra DinoyoCraft menawarkan kesempatan bagi kamu di
+                berbagai wilayah regional, sehingga kamu dapat menjalankan
+                bisnis dari wilayah:
               </p>
+            </div>
+          </div>
 
-              <div style={{ marginTop: "2rem", display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-                {[
-                  "Kapasitas 1–50 orang per sesi",
-                  "Konfirmasi otomatis via email",
-                  "Bisa reschedule hingga H-1",
-                ].map((item) => (
+          <div
+            className="mt-12 grid lg:grid-cols-[1fr_1.4fr] gap-12 items-start"
+          >
+            {/* Regional list */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.75rem",
+              }}
+            >
+              {regional.map((r, i) => (
+                <button
+                  key={r.title}
+                  onClick={() => setActiveRegion(i)}
+                  style={{
+                    textAlign: "left",
+                    padding: "1.25rem 1.5rem",
+                    borderRadius: "1rem",
+                    border: `1.5px solid ${
+                      activeRegion === i ? "var(--clay)" : "var(--line-strong)"
+                    }`,
+                    background:
+                      activeRegion === i ? "var(--clay-muted)" : "#fff",
+                    cursor: "pointer",
+                    transition: "border-color 0.2s, background 0.2s",
+                    fontFamily: "var(--font-outfit), sans-serif",
+                  }}
+                >
                   <div
-                    key={item}
-                    style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "0.6rem",
+                    }}
                   >
                     <span
                       style={{
-                        display: "inline-block",
-                        width: 4,
-                        height: 4,
-                        borderRadius: "9999px",
-                        background: "var(--clay)",
-                        flexShrink: 0,
+                        fontSize: "1rem",
+                        fontWeight: 700,
+                        color: "var(--bark)",
+                        letterSpacing: "-0.02em",
                       }}
-                    />
-                    <span style={{ fontSize: "0.9rem", color: "var(--bark-mid)", fontWeight: 500 }}>
-                      {item}
+                    >
+                      {r.title}
                     </span>
+                    {r.title !== "Jawa Timur" && (
+                      <span
+                        style={{
+                          fontSize: "0.62rem",
+                          fontWeight: 700,
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          color: "#fff",
+                          background: "var(--clay-light)",
+                          padding: "0.15rem 0.5rem",
+                          borderRadius: "9999px",
+                        }}
+                      >
+                        Segera Hadir
+                      </span>
+                    )}
                   </div>
-                ))}
-              </div>
+                  <p
+                    style={{
+                      marginTop: "0.35rem",
+                      fontSize: "0.8rem",
+                      color: "var(--bark-muted)",
+                    }}
+                  >
+                    {r.region}
+                  </p>
+                </button>
+              ))}
             </div>
 
-            {/* Right: Form UI */}
+            {/* Detail panel */}
             <div
+              className="card-hover-glow"
               style={{
                 background: "#fff",
                 border: "1.5px solid var(--line)",
                 borderRadius: "1.5rem",
-                padding: "2rem",
-                boxShadow: "0 4px 32px rgba(61,43,31,0.07)",
+                padding: "2.5rem",
+                position: "relative",
+                overflow: "hidden",
+                minHeight: 280,
               }}
             >
-              <h3
+              <div
+                aria-hidden
                 style={{
-                  fontSize: "1.05rem",
+                  position: "absolute",
+                  top: -40,
+                  right: -40,
+                  width: 160,
+                  height: 160,
+                  borderRadius: "9999px",
+                  background: "var(--clay)",
+                  opacity: 0.05,
+                  filter: "blur(50px)",
+                }}
+              />
+              <span
+                style={{
+                  display: "block",
+                  fontFamily: "var(--font-geist-mono), monospace",
+                  fontSize: "0.72rem",
                   fontWeight: 700,
-                  color: "var(--bark)",
-                  marginBottom: "1.5rem",
-                  fontFamily: "var(--font-outfit), sans-serif",
+                  letterSpacing: "0.1em",
+                  color: "var(--clay)",
+                  textTransform: "uppercase",
                 }}
               >
-                Detail Rombongan
+                SEGERA HADIR
+              </span>
+              <h3
+                style={{
+                  marginTop: "0.75rem",
+                  fontSize: "1.5rem",
+                  fontWeight: 800,
+                  color: "var(--bark)",
+                  letterSpacing: "-0.03em",
+                }}
+              >
+                {regional[activeRegion].title}
               </h3>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
-                {/* Nama Perwakilan */}
-                <div>
-                  <label
-                    htmlFor="group-rep-name"
-                    style={{
-                      display: "block",
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                      color: "var(--bark)",
-                      marginBottom: "0.4rem",
-                    }}
-                  >
-                    Nama Perwakilan
-                  </label>
-                  <input
-                    id="group-rep-name"
-                    type="text"
-                    placeholder="Contoh: Budi Santoso"
-                    className="input-earthy"
-                    aria-label="Nama perwakilan rombongan"
-                  />
-                </div>
-
-                {/* Jumlah Peserta */}
-                <div>
-                  <label
-                    htmlFor="group-participant-count"
-                    style={{
-                      display: "block",
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                      color: "var(--bark)",
-                      marginBottom: "0.4rem",
-                    }}
-                  >
-                    Jumlah Peserta
-                  </label>
-                  <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-                    <input
-                      id="group-participant-count"
-                      type="number"
-                      min="1"
-                      max="50"
-                      defaultValue={1}
-                      className="input-earthy"
-                      style={{ maxWidth: "9rem" }}
-                      aria-label="Jumlah peserta rombongan"
-                    />
-                    <span
-                      style={{ fontSize: "0.85rem", color: "var(--bark-muted)", flexShrink: 0 }}
-                    >
-                      orang (maks. 50)
-                    </span>
-                  </div>
-                </div>
-
-                {/* Pilih Jadwal */}
-                <div>
-                  <label
-                    htmlFor="group-schedule-date"
-                    style={{
-                      display: "block",
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                      color: "var(--bark)",
-                      marginBottom: "0.4rem",
-                    }}
-                  >
-                    Pilih Jadwal
-                  </label>
-                  <input
-                    id="group-schedule-date"
-                    type="date"
-                    className="input-earthy"
-                    value={scheduleDate}
-                    onChange={(e) => setScheduleDate(e.target.value)}
-                    aria-label="Pilih tanggal jadwal reservasi"
-                  />
-                </div>
-
-                {/* Nomor Telepon */}
-                <div>
-                  <label
-                    htmlFor="group-phone"
-                    style={{
-                      display: "block",
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                      color: "var(--bark)",
-                      marginBottom: "0.4rem",
-                    }}
-                  >
-                    Nomor Telepon / WhatsApp
-                  </label>
-                  <input
-                    id="group-phone"
-                    type="tel"
-                    placeholder="08xxxxxxxxxx"
-                    className="input-earthy"
-                    aria-label="Nomor telepon perwakilan"
-                  />
-                </div>
-
-                {/* ── Opsi Pembayaran Digital ── */}
-                <div
-                  style={{
-                    marginTop: "0.5rem",
-                    paddingTop: "1.25rem",
-                    borderTop: "1.5px dashed var(--line-strong)",
-                  }}
-                >
-                  <p
-                    style={{
-                      fontSize: "0.85rem",
-                      fontWeight: 700,
-                      color: "var(--bark)",
-                      marginBottom: "0.75rem",
-                    }}
-                  >
-                    Metode Pembayaran
-                  </p>
-
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
-                    {paymentMethods.map(({ id, icon: Icon, label, desc }) => (
-                      <button
-                        key={id}
-                        id={`payment-option-${id}`}
-                        type="button"
-                        aria-pressed={selectedPayment === id}
-                        onClick={() => setSelectedPayment(id)}
-                        className={`payment-option${selectedPayment === id ? " selected" : ""}`}
-                      >
-                        <span className={`payment-radio${selectedPayment === id ? " selected" : ""}`} />
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            width: 36,
-                            height: 36,
-                            borderRadius: "0.625rem",
-                            background: "var(--clay-muted)",
-                            flexShrink: 0,
-                          }}
-                        >
-                          <Icon size={18} style={{ color: "var(--clay)" }} />
-                        </div>
-                        <div>
-                          <p
-                            style={{
-                              fontSize: "0.875rem",
-                              fontWeight: 700,
-                              color: "var(--bark)",
-                              lineHeight: 1.2,
-                            }}
-                          >
-                            {label}
-                          </p>
-                          <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", marginTop: 2 }}>
-                            {desc}
-                          </p>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* CTA */}
-                <Link
-                  href="/auth"
-                  id="reservasi-form-cta"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "0.5rem",
-                    marginTop: "0.75rem",
-                    padding: "0.875rem",
-                    borderRadius: "0.875rem",
-                    background: "var(--clay)",
-                    color: "#fff",
-                    fontWeight: 700,
-                    fontSize: "0.95rem",
-                    textDecoration: "none",
-                    transition: "background 0.2s, transform 0.15s, box-shadow 0.2s",
-                    boxShadow: "0 4px 16px rgba(184,92,60,0.22)",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = "var(--clay-dark)";
-                    (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = "var(--clay)";
-                    (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-                  }}
-                >
-                  Lanjut Reservasi
-                  <ArrowRight weight="bold" size={16} />
-                </Link>
-                <p
-                  style={{
-                    fontSize: "0.75rem",
-                    color: "var(--bark-muted)",
-                    textAlign: "center",
-                    marginTop: "0.5rem",
-                  }}
-                >
-                  Masuk atau daftar akun untuk menyelesaikan reservasi
-                </p>
-              </div>
+              <p
+                style={{
+                  marginTop: "0.5rem",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  color: "var(--bark-mid)",
+                }}
+              >
+                {regional[activeRegion].region}
+              </p>
+              <p
+                style={{
+                  marginTop: "1rem",
+                  color: "var(--bark-muted)",
+                  lineHeight: 1.7,
+                  maxWidth: "50ch",
+                }}
+              >
+                {regional[activeRegion].desc}
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── TESTIMONIALS ─────────────────────────────────────────────────── */}
+      {/* ── KENAPA MEMILIH ────────────────────────────────────────────── */}
       <section
-        id="suara"
-        style={{ borderBottom: "1.5px solid var(--line)", position: "relative", overflow: "hidden" }}
+        style={{
+          borderBottom: "1.5px solid var(--line)",
+          position: "relative",
+          overflow: "hidden",
+          background: "var(--surface-elevated)",
+        }}
+      >
+        <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-32">
+          <div style={{ maxWidth: "40rem" }}>
+            <span
+              style={{
+                fontSize: "0.78rem",
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "var(--clay)",
+              }}
+            >
+              Kenapa Memilih DinoyoCraft?
+            </span>
+            <h2
+              style={{
+                marginTop: "0.5rem",
+                fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
+                fontWeight: 800,
+                letterSpacing: "-0.025em",
+                lineHeight: 1.1,
+                color: "var(--bark)",
+              }}
+            >
+              Nikmati Berbagai Kemudahan Berbisnis
+            </h2>
+          </div>
+
+          <div
+            className="mt-12 grid lg:grid-cols-[1fr_1.4fr] gap-12 items-start"
+          >
+            {/* Feature list */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.75rem",
+              }}
+            >
+              {whyData.map((f, i) => (
+                <button
+                  key={f.title}
+                  onClick={() => setActiveFeature(i)}
+                  style={{
+                    textAlign: "left",
+                    padding: "1.25rem 1.5rem",
+                    borderRadius: "1rem",
+                    border: `1.5px solid ${
+                      activeFeature === i
+                        ? "var(--clay)"
+                        : "var(--line-strong)"
+                    }`,
+                    background:
+                      activeFeature === i ? "var(--clay-muted)" : "#fff",
+                    cursor: "pointer",
+                    transition: "border-color 0.2s, background 0.2s",
+                    fontFamily: "var(--font-outfit), sans-serif",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "1rem",
+                      fontWeight: 700,
+                      color: "var(--bark)",
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    {f.title}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Detail panel */}
+            <div
+              className="card-hover-glow"
+              style={{
+                background: "#fff",
+                border: "1.5px solid var(--line)",
+                borderRadius: "1.5rem",
+                padding: "2.5rem",
+                position: "relative",
+                overflow: "hidden",
+                minHeight: 280,
+              }}
+            >
+              <div
+                aria-hidden
+                style={{
+                  position: "absolute",
+                  bottom: -40,
+                  left: -40,
+                  width: 160,
+                  height: 160,
+                  borderRadius: "9999px",
+                  background: "var(--clay)",
+                  opacity: 0.05,
+                  filter: "blur(50px)",
+                }}
+              />
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  padding: "0.4rem 0.9rem",
+                  borderRadius: "9999px",
+                  background: "var(--clay-muted)",
+                  color: "var(--clay-dark)",
+                  fontSize: "0.72rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
+              >
+                <Storefront size={14} weight="bold" />
+                {whyData[activeFeature].title}
+              </span>
+              <p
+                style={{
+                  marginTop: "1.5rem",
+                  color: "var(--bark-mid)",
+                  lineHeight: 1.8,
+                  maxWidth: "52ch",
+                  fontSize: "1rem",
+                }}
+              >
+                {whyData[activeFeature].text}
+              </p>
+              <Link
+                href="/mitra/login"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.5rem",
+                  marginTop: "2rem",
+                  padding: "0.7rem 1.6rem",
+                  borderRadius: "9999px",
+                  background: "var(--clay)",
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: "0.9rem",
+                  textDecoration: "none",
+                  transition:
+                    "background 0.2s, transform 0.15s",
+                }}
+              >
+                DAFTAR SEKARANG
+                <ArrowRight size={14} weight="bold" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── TESTIMONI ─────────────────────────────────────────────────── */}
+      <section
+        style={{
+          borderBottom: "1.5px solid var(--line)",
+          position: "relative",
+          overflow: "hidden",
+        }}
       >
         <div
           aria-hidden
@@ -1236,253 +1087,708 @@ export default function Home() {
             &ldquo;
           </span>
         </div>
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            bottom: 0,
-            left: "33%",
-            width: 500,
-            height: 300,
-            borderRadius: "9999px",
-            background: "var(--clay)",
-            opacity: 0.05,
-            filter: "blur(120px)",
-            pointerEvents: "none",
-          }}
-        />
 
         <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-32">
-          <span
-            style={{
-              fontSize: "0.78rem",
-              fontWeight: 700,
-              letterSpacing: "0.1em",
-              textTransform: "uppercase",
-              color: "var(--clay)",
-            }}
-          >
-            Testimoni
-          </span>
-          <h2
-            style={{
-              marginTop: "0.5rem",
-              fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
-              fontWeight: 800,
-              letterSpacing: "-0.025em",
-              lineHeight: 1.1,
-              color: "var(--bark)",
-              fontFamily: "var(--font-outfit), sans-serif",
-            }}
-          >
-            Suara dari lorong keramik.
-          </h2>
-
           <div
             style={{
-              marginTop: "3.5rem",
-              display: "grid",
-              gridTemplateColumns: "repeat(5, 1fr)",
-              gap: "1.25rem",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+              flexWrap: "wrap",
+              gap: "1rem",
             }}
           >
-            {testimonials.map((t) => (
-              <figure
-                key={t.name}
-                className={`reveal card-hover-glow`}
+            <div style={{ maxWidth: "40rem" }}>
+              <span
                 style={{
-                  background: "#fff",
-                  border: "1.5px solid var(--line)",
-                  borderRadius: "1.25rem",
-                  display: "flex",
-                  flexDirection: "column",
-                  position: "relative",
-                  overflow: "hidden",
-                  gridColumn: `span ${t.span}`,
-                  padding: t.large ? "2rem 2.25rem" : "1.75rem",
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--clay)",
                 }}
               >
-                {/* Typographic quote mark — no icon dependency */}
-                <span
-                  aria-hidden
+                Kisah Sukses
+              </span>
+              <h2
+                style={{
+                  marginTop: "0.5rem",
+                  fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
+                  fontWeight: 800,
+                  letterSpacing: "-0.025em",
+                  lineHeight: 1.1,
+                  color: "var(--bark)",
+                }}
+              >
+                Mereka yang Sukses Bersama DinoyoCraft
+              </h2>
+            </div>
+
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button
+                onClick={() =>
+                  setCurrentTestimony((c) =>
+                    c === 0 ? testimonials.length - 1 : c - 1
+                  )
+                }
+                aria-label="Testimoni sebelumnya"
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "9999px",
+                  border: "1.5px solid var(--line-strong)",
+                  background: "#fff",
+                  color: "var(--bark)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  transition: "border-color 0.2s, background 0.2s",
+                  fontFamily: "var(--font-outfit), sans-serif",
+                }}
+              >
+                <ArrowLeft size={18} weight="bold" />
+              </button>
+              <button
+                onClick={() =>
+                  setCurrentTestimony((c) =>
+                    c === testimonials.length - 1 ? 0 : c + 1
+                  )
+                }
+                aria-label="Testimoni berikutnya"
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "9999px",
+                  border: "1.5px solid var(--line-strong)",
+                  background: "var(--clay)",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                  fontFamily: "var(--font-outfit), sans-serif",
+                }}
+              >
+                <ArrowRight size={18} weight="bold" />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-12">
+            <figure
+              className="card-hover-glow"
+              style={{
+                background: "#fff",
+                border: "1.5px solid var(--line)",
+                borderRadius: "1.5rem",
+                padding: "2.5rem",
+                maxWidth: "820px",
+                minHeight: 240,
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <Quotes
+                size={40}
+                weight="fill"
+                style={{ color: "var(--clay)", opacity: 0.4 }}
+              />
+              <blockquote
+                style={{
+                  flex: 1,
+                  marginTop: "1.5rem",
+                  fontSize: "clamp(1.1rem, 2.2vw, 1.4rem)",
+                  lineHeight: 1.6,
+                  color: "var(--bark)",
+                  fontWeight: 500,
+                  letterSpacing: "-0.01em",
+                  maxWidth: "60ch",
+                }}
+              >
+                {testimonials[currentTestimony].quote}
+              </blockquote>
+
+              <figcaption
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.9rem",
+                  marginTop: "2rem",
+                }}
+              >
+                <div
                   style={{
-                    display: "block",
-                    fontFamily: "Georgia, serif",
-                    fontSize: t.large ? "3rem" : "2.25rem",
-                    lineHeight: 1,
-                    color: "var(--clay)",
-                    opacity: 0.35,
-                    marginBottom: "0.25rem",
-                    userSelect: "none",
-                  }}
-                >
-                  &ldquo;
-                </span>
-                <blockquote
-                  style={{
-                    flex: 1,
-                    lineHeight: 1.65,
-                    marginTop: t.large ? "1.5rem" : "1rem",
-                    fontSize: t.large ? "1.05rem" : "0.9rem",
-                    color: "var(--bark)",
-                  }}
-                >
-                  {t.quote}
-                </blockquote>
-                <figcaption
-                  style={{
+                    width: 48,
+                    height: 48,
+                    borderRadius: "9999px",
+                    background: "var(--clay)",
+                    color: "#fff",
                     display: "flex",
                     alignItems: "center",
-                    gap: "0.75rem",
-                    marginTop: t.large ? "2rem" : "1.5rem",
+                    justifyContent: "center",
+                    flexShrink: 0,
                   }}
                 >
-                  <div
+                  <span style={{ fontSize: "0.85rem", fontWeight: 800 }}>
+                    {testimonials[currentTestimony].name
+                      .split(" ")
+                      .map((w) => w[0])
+                      .slice(0, 2)
+                      .join("")}
+                  </span>
+                </div>
+                <div>
+                  <span
                     style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: "9999px",
-                      background: "var(--clay-muted)",
-                      border: "1.5px solid rgba(184,92,60,0.25)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
+                      fontWeight: 800,
+                      display: "block",
+                      fontSize: "1rem",
+                      color: "var(--bark)",
                     }}
                   >
-                    <span
-                      style={{ fontSize: "0.7rem", fontWeight: 800, color: "var(--clay-dark)" }}
-                    >
-                      {t.initials}
-                    </span>
-                  </div>
-                  <div>
-                    <span
-                      style={{
-                        fontWeight: 700,
-                        display: "block",
-                        fontSize: t.large ? "0.95rem" : "0.85rem",
-                        color: "var(--bark)",
-                      }}
-                    >
-                      {t.name}
-                    </span>
-                    <span
-                      style={{
-                        color: "var(--bark-muted)",
-                        display: "block",
-                        marginTop: 2,
-                        fontSize: t.large ? "0.82rem" : "0.75rem",
-                      }}
-                    >
-                      {t.role}
-                    </span>
-                  </div>
-                </figcaption>
-              </figure>
-            ))}
+                    {testimonials[currentTestimony].name}
+                  </span>
+                  <span
+                    style={{
+                      color: "var(--bark-muted)",
+                      display: "block",
+                      marginTop: 2,
+                      fontSize: "0.85rem",
+                    }}
+                  >
+                    {testimonials[currentTestimony].role}
+                  </span>
+                </div>
+              </figcaption>
+            </figure>
           </div>
         </div>
       </section>
 
-      {/* ── FOOTER ───────────────────────────────────────────────────────── */}
+      {/* ── CTA / PAKET ───────────────────────────────────────────────── */}
+      <section
+        style={{
+          borderBottom: "1.5px solid var(--line)",
+          position: "relative",
+          overflow: "hidden",
+          background: "var(--surface-elevated)",
+        }}
+      >
+        <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%,-50%)",
+              width: 700,
+              height: 400,
+              borderRadius: "9999px",
+              background: "var(--clay)",
+              opacity: 0.05,
+              filter: "blur(140px)",
+            }}
+          />
+        </div>
+
+        <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-32">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <span
+                style={{
+                  fontSize: "0.78rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--clay)",
+                }}
+              >
+                Mulai Sekarang
+              </span>
+              <h2
+                style={{
+                  marginTop: "0.5rem",
+                  fontSize: "clamp(1.9rem, 4vw, 3rem)",
+                  fontWeight: 800,
+                  letterSpacing: "-0.03em",
+                  lineHeight: 1.1,
+                  color: "var(--bark)",
+                }}
+              >
+                Cukup dengan Rp500.000, Sekarang Rp350.000
+              </h2>
+              <p
+                style={{
+                  marginTop: "1rem",
+                  color: "var(--bark-muted)",
+                  lineHeight: 1.7,
+                  maxWidth: "50ch",
+                }}
+              >
+                Bergabung sekali, akses selamanya. Setelah menjadi mitra, kamu
+                bisa langsung mulai jualan keramik tanpa perlu stok barang.
+              </p>
+
+              <div
+                style={{
+                  marginTop: "2rem",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "1rem",
+                  maxWidth: "400px",
+                }}
+              >
+                {[
+                  {
+                    title: "Daftar Sekarang",
+                    price: "Rp350.000",
+                    note: "Promo Spesial — harga normal Rp500.000",
+                    highlight: true,
+                  },
+                ].map((p) => (
+                  <div
+                    key={p.title}
+                    style={{
+                      background: "#fff",
+                      border: "1.5px solid var(--line)",
+                      borderRadius: "1.25rem",
+                      padding: "1.75rem",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                        gap: "1rem",
+                      }}
+                    >
+                      <div>
+                        <p
+                          style={{
+                            fontSize: "1.05rem",
+                            fontWeight: 800,
+                            color: "var(--bark)",
+                          }}
+                        >
+                          {p.title}
+                        </p>
+                        <p
+                          style={{
+                            fontSize: "0.8rem",
+                            color: "var(--bark-muted)",
+                            marginTop: "0.25rem",
+                          }}
+                        >
+                          {p.note}
+                        </p>
+                      </div>
+                      <p
+                        style={{
+                          fontSize: "1.5rem",
+                          fontWeight: 800,
+                          color: "var(--clay)",
+                          letterSpacing: "-0.03em",
+                        }}
+                      >
+                        {p.price}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div
+                className="card-hover-glow"
+                style={{
+                  background: "#fff",
+                  border: "1.5px solid var(--line)",
+                  borderRadius: "1.5rem",
+                  padding: "2.5rem",
+                }}
+              >
+                <p
+                  style={{
+                    fontSize: "1.1rem",
+                    fontWeight: 800,
+                    color: "var(--bark)",
+                    marginBottom: "1.5rem",
+                  }}
+                >
+                  Kamu akan mendapatkan
+                </p>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "1rem",
+                  }}
+                >
+                  {[
+                    "Lebih dari 100.000 pilihan produk keramik",
+                    "Packing dengan nama tokomu sendiri",
+                    "Dukungan Relationship Manager",
+                    "Edukasi & tips bisnis dropship",
+                    "Laporan omzet real-time di dasbor mitra",
+                  ].map((item) => (
+                    <div
+                      key={item}
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: "0.75rem",
+                      }}
+                    >
+                      <CheckCircle
+                        size={22}
+                        weight="fill"
+                        style={{
+                          color: "var(--clay)",
+                          flexShrink: 0,
+                        }}
+                      />
+                      <span
+                        style={{
+                          fontSize: "0.95rem",
+                          color: "var(--bark)",
+                          lineHeight: 1.5,
+                        }}
+                      >
+                        {item}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                <Link
+                  href="/mitra/login"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "0.5rem",
+                    marginTop: "2rem",
+                    padding: "0.9rem",
+                    borderRadius: "0.875rem",
+                    background: "var(--clay)",
+                    color: "#fff",
+                    fontWeight: 700,
+                    fontSize: "0.95rem",
+                    textDecoration: "none",
+                    transition:
+                      "background 0.2s, transform 0.15s",
+                  }}
+                >
+                  Daftar Sekarang
+                  <ArrowRight weight="bold" size={16} />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FAQ ───────────────────────────────────────────────────────── */}
+      <section
+        style={{
+          borderBottom: "1.5px solid var(--line)",
+          position: "relative",
+          overflow: "hidden",
+        }}
+      >
+        <div className="max-w-[900px] mx-auto px-5 lg:px-8 py-24 lg:py-32">
+          <div style={{ textAlign: "center", maxWidth: "36rem", margin: "0 auto" }}>
+            <span
+              style={{
+                fontSize: "0.78rem",
+                fontWeight: 700,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                color: "var(--clay)",
+              }}
+            >
+              FAQ
+            </span>
+            <h2
+              style={{
+                marginTop: "0.5rem",
+                fontSize: "clamp(1.75rem, 3.5vw, 2.5rem)",
+                fontWeight: 800,
+                letterSpacing: "-0.025em",
+                lineHeight: 1.1,
+                color: "var(--bark)",
+              }}
+            >
+              Pertanyaan Seputar Program Mitra
+            </h2>
+          </div>
+
+          <div
+            style={{
+              marginTop: "3rem",
+              display: "flex",
+              flexDirection: "column",
+              gap: "0.75rem",
+            }}
+          >
+            {faqs.map((f, i) => {
+              const open = openFaq === i;
+              return (
+                <div
+                  key={f.q}
+                  style={{
+                    background: "#fff",
+                    border: `1.5px solid ${
+                      open ? "var(--clay)" : "var(--line)"
+                    }`,
+                    borderRadius: "1rem",
+                    overflow: "hidden",
+                    transition: "border-color 0.2s",
+                  }}
+                >
+                  <button
+                    onClick={() => setOpenFaq(open ? null : i)}
+                    aria-expanded={open}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: "1rem",
+                      padding: "1.25rem 1.5rem",
+                      background: "transparent",
+                      border: "none",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      fontFamily: "var(--font-outfit), sans-serif",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontSize: "0.98rem",
+                        fontWeight: 700,
+                        color: "var(--bark)",
+                        letterSpacing: "-0.01em",
+                      }}
+                    >
+                      {f.q}
+                    </span>
+                    {open ? (
+                      <CaretUp
+                        size={18}
+                        weight="bold"
+                        style={{ color: "var(--clay)", flexShrink: 0 }}
+                      />
+                    ) : (
+                      <CaretDown
+                        size={18}
+                        weight="bold"
+                        style={{ color: "var(--bark-muted)", flexShrink: 0 }}
+                      />
+                    )}
+                  </button>
+                  {open && (
+                    <div
+                      style={{
+                        padding: "0 1.5rem 1.5rem",
+                        color: "var(--bark-muted)",
+                        lineHeight: 1.7,
+                        fontSize: "0.92rem",
+                        maxWidth: "70ch",
+                      }}
+                    >
+                      {f.a}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Help CTA */}
+          <div
+            style={{
+              marginTop: "2.5rem",
+              background: "#fff",
+              border: "1.5px solid var(--line)",
+              borderRadius: "1.5rem",
+              padding: "2rem",
+              textAlign: "center",
+            }}
+          >
+            <Headset size={32} weight="duotone" style={{ color: "var(--clay)" }} />
+            <p
+              style={{
+                marginTop: "0.75rem",
+                fontSize: "1.1rem",
+                fontWeight: 800,
+                color: "var(--bark)",
+              }}
+            >
+              Butuh Bantuan?
+            </p>
+            <p
+              style={{
+                marginTop: "0.4rem",
+                fontSize: "0.9rem",
+                color: "var(--bark-muted)",
+              }}
+            >
+              Hubungi Relationship Manager kami.
+            </p>
+            <a
+              href="mailto:cs@dinoyocraft.id"
+              style={{
+                display: "inline-block",
+                marginTop: "1rem",
+                color: "var(--clay)",
+                fontWeight: 700,
+                fontSize: "0.95rem",
+                textDecoration: "none",
+              }}
+            >
+              cs@dinoyocraft.id
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ── FOOTER ───────────────────────────────────────────────────── */}
       <footer
         style={{
           borderTop: "1px solid var(--line)",
           background: "var(--surface-elevated)",
           position: "relative",
           overflow: "hidden",
-          fontFamily: "var(--font-outfit), sans-serif",
         }}
       >
-        {/* Ambient blob */}
         <div
           aria-hidden
           style={{
-            position: "absolute", top: "40%", left: "60%",
-            width: 360, height: 200, borderRadius: "9999px",
-            background: "var(--clay)", opacity: 0.04,
-            filter: "blur(90px)", pointerEvents: "none",
+            position: "absolute",
+            top: "40%",
+            left: "60%",
+            width: 360,
+            height: 200,
+            borderRadius: "9999px",
+            background: "var(--clay)",
+            opacity: 0.04,
+            filter: "blur(90px)",
+            pointerEvents: "none",
           }}
         />
 
-        {/* ── Main footer grid ──────────────────────────────────── */}
         <div
           className="max-w-[1400px] mx-auto px-5 lg:px-8"
-          style={{ padding: "3.5rem 2rem 2.5rem", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1.5fr", gap: "2.5rem" }}
+          style={{
+            padding: "3.5rem 2rem 2.5rem",
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr 1fr 1.5fr",
+            gap: "2.5rem",
+          }}
         >
           {/* Brand column */}
           <div>
-            <span style={{ fontFamily: "var(--font-outfit), sans-serif", fontWeight: 800, fontSize: "1.15rem", letterSpacing: "-0.03em", color: "var(--bark)" }}>
+            <span
+              style={{
+                fontWeight: 800,
+                fontSize: "1.15rem",
+                letterSpacing: "-0.03em",
+                color: "var(--bark)",
+              }}
+            >
               Dinoyo<span style={{ color: "var(--clay)" }}>Craft</span>
             </span>
-            <p style={{ marginTop: "0.75rem", fontSize: "0.85rem", color: "var(--bark-muted)", lineHeight: 1.7, maxWidth: "26ch" }}>
-              Platform digital untuk menjelajahi, memesan, dan menikmati pengalaman keramik autentik di Kampung Dinoyo, Malang.
-            </p>
-            {/* CTA */}
-            <Link
-              href="/auth"
+            <p
               style={{
-                display: "inline-flex", alignItems: "center", gap: "0.4rem",
+                marginTop: "0.75rem",
+                fontSize: "0.85rem",
+                color: "var(--bark-muted)",
+                lineHeight: 1.7,
+                maxWidth: "26ch",
+              }}
+            >
+              Program mitra dropship kerajinan keramik autentik dari Kampung
+              Keramik Dinoyo, Malang.
+            </p>
+            <Link
+              href="/mitra/login"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.4rem",
                 marginTop: "1.25rem",
                 padding: "0.5rem 1.25rem",
                 borderRadius: "0.5rem",
-                background: "var(--clay)", color: "#fff",
-                fontWeight: 700, fontSize: "0.82rem",
-                textDecoration: "none", transition: "background 0.2s",
+                background: "var(--clay)",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: "0.82rem",
+                textDecoration: "none",
+                transition: "background 0.2s",
                 boxShadow: "0 2px 8px rgba(184,92,60,0.2)",
               }}
-              onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--clay-dark)")}
-              onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = "var(--clay)")}
+              onMouseEnter={(e) =>
+                ((e.currentTarget as HTMLElement).style.background =
+                  "var(--clay-dark)")
+              }
+              onMouseLeave={(e) =>
+                ((e.currentTarget as HTMLElement).style.background =
+                  "var(--clay)")
+              }
             >
-              Mulai Reservasi
+              Jadi Mitra
               <ArrowRight size={14} weight="bold" />
             </Link>
           </div>
 
-          {/* Jelajahi */}
+          {/* Program */}
           <div>
-            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--bark)", marginBottom: "1rem" }}>
-              Jelajahi
+            <p
+              style={{
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "var(--bark)",
+                marginBottom: "1rem",
+              }}
+            >
+              Program
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.5rem",
+              }}
+            >
               {[
-                { href: "/#fitur", label: "Beranda" },
-                { href: "/customer/katalog", label: "Katalog & Kustom" },
-                { href: "/customer/reservasi", label: "Reservasi Kelas" },
-                { href: "/customer/peta", label: "Peta Gang" },
-              ].map(({ href, label }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  style={{ fontSize: "0.85rem", color: "var(--bark-muted)", textDecoration: "none", transition: "color 0.18s" }}
-                  onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--clay)")}
-                  onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--bark-muted)")}
-                >
-                  {label}
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          {/* Layanan */}
-          <div>
-            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--bark)", marginBottom: "1rem" }}>
-              Layanan
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              {[
-                { href: "/customer/bantuan", label: "Customer Service" },
-                { href: "/customer/bantuan", label: "Live Chat Admin" },
-                { href: "/auth", label: "Masuk / Daftar" },
-                { href: "/customer", label: "Dashboard" },
+                { href: "/mitra/login", label: "Jadi Mitra" },
+                { href: "/mitra/login", label: "Login Mitra" },
+                { href: "/#faq", label: "FAQ" },
               ].map(({ href, label }) => (
                 <Link
                   key={label}
                   href={href}
-                  style={{ fontSize: "0.85rem", color: "var(--bark-muted)", textDecoration: "none", transition: "color 0.18s" }}
-                  onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--clay)")}
-                  onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--bark-muted)")}
+                  style={{
+                    fontSize: "0.85rem",
+                    color: "var(--bark-muted)",
+                    textDecoration: "none",
+                    transition: "color 0.18s",
+                  }}
+                  onMouseEnter={(e) =>
+                    ((e.currentTarget as HTMLElement).style.color =
+                      "var(--clay)")
+                  }
+                  onMouseLeave={(e) =>
+                    ((e.currentTarget as HTMLElement).style.color =
+                      "var(--bark-muted)")
+                  }
                 >
                   {label}
                 </Link>
@@ -1492,65 +1798,80 @@ export default function Home() {
 
           {/* Kontak */}
           <div>
-            <p style={{ fontSize: "0.72rem", fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--bark)", marginBottom: "1rem" }}>
-              Kontak & Lokasi
+            <p
+              style={{
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "var(--bark)",
+                marginBottom: "1rem",
+              }}
+            >
+              Kontak
             </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-              <div>
-                <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--bark)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Alamat</p>
-                <p style={{ marginTop: "0.2rem", fontSize: "0.82rem", color: "var(--bark-muted)", lineHeight: 1.6 }}>
-                  Jl. Dinoyo, Kec. Lowokwaru<br />
-                  Kota Malang, Jawa Timur 65145
-                </p>
-              </div>
-              <div>
-                <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--bark)", textTransform: "uppercase", letterSpacing: "0.06em" }}>WhatsApp</p>
-                <p style={{ marginTop: "0.2rem", fontSize: "0.82rem", color: "var(--bark-muted)" }}>+62 812-3456-7890</p>
-              </div>
-              <div>
-                <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--bark)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Email</p>
-                <p style={{ marginTop: "0.2rem", fontSize: "0.82rem", color: "var(--bark-muted)" }}>cs@dinoyocraft.id</p>
-              </div>
-              <div>
-                <p style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--bark)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Jam Layanan</p>
-                <p style={{ marginTop: "0.2rem", fontSize: "0.82rem", color: "var(--bark-muted)" }}>Senin–Sabtu, 08.00–16.00 WIB</p>
-              </div>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.5rem",
+              }}
+            >
+              <p style={{ fontSize: "0.82rem", color: "var(--bark-muted)" }}>
+                WhatsApp: +62 812-3456-7890
+              </p>
+              <p style={{ fontSize: "0.82rem", color: "var(--bark-muted)" }}>
+                Email: cs@dinoyocraft.id
+              </p>
+              <p style={{ fontSize: "0.82rem", color: "var(--bark-muted)" }}>
+                Jl. Dinoyo, Kec. Lowokwaru
+                <br />
+                Kota Malang, Jawa Timur 65145
+              </p>
             </div>
+          </div>
+
+          {/* Jam layanan */}
+          <div>
+            <p
+              style={{
+                fontSize: "0.72rem",
+                fontWeight: 700,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "var(--bark)",
+                marginBottom: "1rem",
+              }}
+            >
+              Kami Siap Melayani Anda
+            </p>
+            <p style={{ fontSize: "0.82rem", color: "var(--bark-muted)" }}>
+              Setiap hari 09.00–18.00 WIB
+              <br />
+              (kecuali hari libur nasional)
+            </p>
           </div>
         </div>
 
-        {/* ── Bottom bar ─────────────────────────────────────────── */}
+        {/* Bottom bar */}
         <div style={{ borderTop: "1px solid var(--line)", padding: "1.125rem 0" }}>
           <div
             className="max-w-[1400px] mx-auto px-5 lg:px-8"
-            style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "0.75rem" }}
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "0.75rem",
+            }}
           >
             <p style={{ fontSize: "0.78rem", color: "var(--bark-muted)" }}>
-              © {new Date().getFullYear()} DinoyoCraft. Seluruh hak cipta dilindungi.
+              © {new Date().getFullYear()} DinoyoCraft. Seluruh hak cipta
+              dilindungi.
             </p>
-            <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
-              {[
-                { href: "/#fitur", label: "Beranda" },
-                { href: "/customer/katalog", label: "Katalog" },
-                { href: "/customer/reservasi", label: "Reservasi" },
-                { href: "/customer/bantuan", label: "Bantuan" },
-                { href: "/auth", label: "Masuk" },
-              ].map(({ href, label }, i) => (
-                <span key={href} style={{ display: "flex", alignItems: "center" }}>
-                  {i > 0 && (
-                    <span aria-hidden style={{ color: "rgba(0,0,0,0.2)", fontSize: "0.5rem", margin: "0 0.05rem", userSelect: "none" }}>&bull;</span>
-                  )}
-                  <Link
-                    href={href}
-                    style={{ fontSize: "0.78rem", color: "var(--bark-muted)", textDecoration: "none", padding: "0 0.4rem", transition: "color 0.18s" }}
-                    onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--clay)")}
-                    onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "var(--bark-muted)")}
-                  >
-                    {label}
-                  </Link>
-                </span>
-              ))}
-            </div>
+            <p style={{ fontSize: "0.78rem", color: "var(--bark-muted)" }}>
+              Syarat & Ketentuan &bull; Kebijakan Privasi
+            </p>
           </div>
         </div>
       </footer>

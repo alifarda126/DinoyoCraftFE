@@ -16,7 +16,7 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
 
   async function handleSignOut() {
     clearDemoSession();
-    router.push("/auth");
+    router.push("/mitra/login");
   }
 
   const navItems = [

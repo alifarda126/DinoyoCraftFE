@@ -39,7 +39,7 @@ export default function AdminSchedulesPage() {
   const checkAdmin = async () => {
     const demo = getDemoSession();
     if (!demo || demo.role !== "admin") {
-      router.push("/auth");
+      router.push("/admin/login");
       return;
     }
   };

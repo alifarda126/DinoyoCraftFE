@@ -7,23 +7,24 @@ type Message = { role: "user" | "ai"; text: string };
 
 const GREETING: Message = {
   role: "ai",
-  text: "Halo! Saya AI Asisten DinoyoCraft. Saya bisa bantu info jadwal kelas, jenis kerajinan, atau panduan berkunjung ke Kampung Keramik Dinoyo. Ada yang bisa saya bantu?",
+  text: "Halo! Saya AI Asisten DinoyoCraft. Saya bisa bantu info program mitra, cara daftar, atau panduan bisnis dropship keramik. Ada yang bisa saya bantu?",
 };
 
-/* ─── Simulasi AI reply sederhana ───────────────────────────────────── */
 function getDemoReply(input: string): string {
   const q = input.toLowerCase();
-  if (q.includes("jadwal") || q.includes("kelas"))
-    return "Kelas keramik tersedia Senin–Sabtu, pukul 09.00–15.00 WIB. Untuk reservasi rombongan, silakan buka halaman Reservasi Kelas.";
-  if (q.includes("harga") || q.includes("biaya") || q.includes("tarif"))
-    return "Biaya kelas mulai dari Rp75.000/orang untuk sesi dasar. Suvenir kustom dihitung berdasarkan desain dan jumlah. Cek Katalog untuk detail lengkap.";
-  if (q.includes("alamat") || q.includes("lokasi") || q.includes("peta") || q.includes("gang"))
-    return "Kampung Keramik Dinoyo berada di Jl. Dinoyo, Kec. Lowokwaru, Kota Malang. Buka halaman Peta Gang untuk navigasi interaktif.";
-  if (q.includes("booking") || q.includes("pesan") || q.includes("reservasi"))
-    return "Untuk memesan, buka halaman Reservasi Kelas, pilih jadwal tersedia, isi data rombongan, lalu pilih metode pembayaran. Kode booking dikirim via email.";
-  if (q.includes("suvenir") || q.includes("kustom") || q.includes("custom") || q.includes("hadiah"))
-    return "Suvenir kustom bisa dipesan melalui halaman Katalog & Kustom. Kirimkan referensi desain dan kami akan terhubung dengan pengrajin yang sesuai.";
-  return "Terima kasih pertanyaannya! Untuk info lebih detail, silakan hubungi tim CS kami melalui halaman Bantuan, atau langsung datang ke gang keramik Dinoyo.";
+  if (q.includes("daftar") || q.includes("bergabung") || q.includes("registrasi"))
+    return "Untuk mendaftar jadi mitra, klik tombol 'Daftar Sekarang' di halaman beranda atau langsung kunjungi /mitra/login. Biaya bergabung cukup Rp350.000 sekali.";
+  if (q.includes("harga") || q.includes("biaya") || q.includes("modal") || q.includes("bayar"))
+    return "Biaya bergabung sekali saja Rp350.000 (promo, normal Rp500.000). Setelah itu tidak ada biaya bulanan. Kamu tidak perlu modal stok karena sistemnya full dropship.";
+  if (q.includes("dropship") || q.includes("stok") || q.includes("gudang"))
+    return "Sistem Mitra DinoyoCraft 100% dropship. Kamu tidak perlu menyetok barang atau punya gudang. Pesanan yang masuk otomatis diteruskan ke pengrajin supplier untuk disiapkan dan dikirim.";
+  if (q.includes("katalog") || q.includes("produk") || q.includes("keramik"))
+    return "Katalog mitra menyediakan lebih dari 100.000 produk keramik — vas, mug, piring, suvenir custom, dan lainnya. Produk terus bertambah seiring pengrajin baru bergabung.";
+  if (q.includes("packing") || q.includes("kirim") || q.includes("pengiriman"))
+    return "Setiap pesanan dikemas rapi menggunakan nama tokomu sendiri, tanpa identitas supplier. Pengiriman menggunakan JNE, SiCepat, atau ekspedisi lainnya.";
+  if (q.includes("omzet") || q.includes("pendapatan") || q.includes("untung"))
+    return "Margin jual bebas kamu tentukan di atas harga supplier. Banyak mitra sudah meraih omzet jutaan per bulan. Pantau laporan omzet real-time di dasbor mitra.";
+  return "Terima kasih pertanyaannya! Untuk info lebih detail, silakan hubungi Relationship Manager kami di cs@dinoyocraft.id, atau klik 'Daftar Sekarang' untuk bergabung.";
 }
 
 export default function FAB() {
@@ -34,12 +35,10 @@ export default function FAB() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  /* Scroll to bottom on new message */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
 
-  /* Focus input when chat opens */
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 120);
   }, [open]);
@@ -48,17 +47,11 @@ export default function FAB() {
     e?.preventDefault();
     const text = draft.trim();
     if (!text || typing) return;
-
     setMessages((prev) => [...prev, { role: "user", text }]);
     setDraft("");
     setTyping(true);
-
-    /* Simulate typing delay */
     setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { role: "ai", text: getDemoReply(text) },
-      ]);
+      setMessages((prev) => [...prev, { role: "ai", text: getDemoReply(text) }]);
       setTyping(false);
     }, 800 + Math.random() * 600);
   }
@@ -76,7 +69,6 @@ export default function FAB() {
         gap: "0.75rem",
       }}
     >
-      {/* ── Chat popup ──────────────────────────────────────────────── */}
       {open && (
         <div
           role="dialog"
@@ -91,11 +83,9 @@ export default function FAB() {
             flexDirection: "column",
             overflow: "hidden",
             fontFamily: "var(--font-outfit), sans-serif",
-            /* Slide-up entrance */
             animation: "fab-popup-in 0.22s cubic-bezier(0.34,1.56,0.64,1) both",
           }}
         >
-          {/* Header */}
           <div
             style={{
               display: "flex",
@@ -111,7 +101,7 @@ export default function FAB() {
                 AI Asisten
               </p>
               <p style={{ fontSize: "0.72rem", color: "var(--bark-muted)", marginTop: "0.1rem" }}>
-                Jadwal · Kerajinan · Panduan Kunjungan
+                Mitra · Dropship · Panduan Bisnis
               </p>
             </div>
             <button
@@ -119,12 +109,9 @@ export default function FAB() {
               onClick={() => setOpen(false)}
               style={{
                 display: "flex", alignItems: "center", justifyContent: "center",
-                width: 32, height: 32,
-                borderRadius: "9999px",
-                border: "none",
-                background: "transparent",
-                color: "var(--bark-muted)",
-                cursor: "pointer",
+                width: 32, height: 32, borderRadius: "9999px",
+                border: "none", background: "transparent",
+                color: "var(--bark-muted)", cursor: "pointer",
                 transition: "background 0.18s, color 0.18s",
               }}
               onMouseEnter={(e) => {
@@ -140,7 +127,6 @@ export default function FAB() {
             </button>
           </div>
 
-          {/* Messages */}
           <div
             style={{
               height: 280,
@@ -155,18 +141,13 @@ export default function FAB() {
             {messages.map((msg, i) => (
               <div
                 key={i}
-                style={{
-                  display: "flex",
-                  justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
-                }}
+                style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}
               >
                 <div
                   style={{
                     maxWidth: "82%",
                     padding: "0.6rem 0.875rem",
-                    borderRadius: msg.role === "user"
-                      ? "1rem 1rem 0.25rem 1rem"
-                      : "1rem 1rem 1rem 0.25rem",
+                    borderRadius: msg.role === "user" ? "1rem 1rem 0.25rem 1rem" : "1rem 1rem 1rem 0.25rem",
                     background: msg.role === "user" ? "var(--clay)" : "var(--surface-elevated)",
                     color: msg.role === "user" ? "#fff" : "var(--bark)",
                     fontSize: "0.82rem",
@@ -178,8 +159,6 @@ export default function FAB() {
                 </div>
               </div>
             ))}
-
-            {/* Typing indicator */}
             {typing && (
               <div style={{ display: "flex", justifyContent: "flex-start" }}>
                 <div
@@ -194,8 +173,7 @@ export default function FAB() {
                     <span
                       key={d}
                       style={{
-                        width: 6, height: 6,
-                        borderRadius: "9999px",
+                        width: 6, height: 6, borderRadius: "9999px",
                         background: "var(--bark-muted)",
                         animation: `typing-dot 1.2s ease-in-out ${d * 0.2}s infinite`,
                         display: "inline-block",
@@ -208,7 +186,6 @@ export default function FAB() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Input */}
           <form
             onSubmit={handleSend}
             style={{
@@ -263,7 +240,6 @@ export default function FAB() {
         </div>
       )}
 
-      {/* ── FAB Button ──────────────────────────────────────────────── */}
       <button
         id="fab-ai-chat-btn"
         aria-label={open ? "Tutup AI Asisten" : "Buka AI Asisten"}

@@ -41,7 +41,7 @@ export default function SellerRegistrationPage() {
           <p style={{ color: "var(--bark-muted)", fontSize: "0.9rem", lineHeight: 1.6, marginBottom: "2rem" }}>
             Terima kasih telah mendaftar sebagai Mitra Pengrajin. Tim Admin akan meninjau data Anda dalam 1x24 jam.
           </p>
-          <Link href="/auth" style={{
+          <Link href="/mitra/login" style={{
             display: "inline-block", padding: "0.8rem 2rem", borderRadius: "9999px",
             background: "var(--bark)", color: "#fff", textDecoration: "none", fontWeight: 700, fontSize: "0.9rem"
           }}>
@@ -56,7 +56,7 @@ export default function SellerRegistrationPage() {
     <div style={{ minHeight: "100dvh", background: "var(--surface)", fontFamily: "var(--font-outfit), sans-serif" }}>
       <header style={{ background: "#fff", borderBottom: "1px solid var(--line)", padding: "1rem 2rem" }}>
         <div style={{ maxWidth: "800px", margin: "0 auto", display: "flex", alignItems: "center", gap: "1rem" }}>
-          <Link href="/auth" style={{ color: "var(--bark-muted)" }}>
+          <Link href="/mitra/login" style={{ color: "var(--bark-muted)" }}>
             <ArrowLeft size={20} />
           </Link>
           <span style={{ fontWeight: 700, color: "var(--bark)" }}>Pendaftaran Mitra Pengrajin</span>

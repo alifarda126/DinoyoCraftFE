@@ -42,7 +42,7 @@ export default function PesananSellerPage() {
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "seller") {
-      router.push("/auth");
+      router.push("/mitra/login");
       return;
     }
 
@@ -136,7 +136,7 @@ export default function PesananSellerPage() {
           {tabs.map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id as "all" | OrderStatus)}
               className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-colors relative ${
                 activeTab === tab.id 
                   ? "text-zinc-900" 

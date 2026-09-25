@@ -16,7 +16,7 @@ export default function AdminPengaturanAIPage() {
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "admin") {
-      router.push("/auth");
+      router.push("/admin/login");
       return;
     }
     setLoading(false);

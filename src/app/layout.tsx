@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Outfit } from "next/font/google";
 import { Toaster } from "sonner";
-import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
 import "./globals.css";
 
 const outfit = Outfit({
@@ -55,7 +54,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             },
           }}
         />
-        <ServiceWorkerRegister />
       </body>
     </html>
   );

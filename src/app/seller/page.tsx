@@ -13,7 +13,7 @@ export default function SellerDashboardHome() {
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "seller") {
-      router.push("/auth");
+      router.push("/mitra/login");
     } else {
       setSellerName(session.profile.full_name);
       setLoading(false);
@@ -97,7 +97,7 @@ export default function SellerDashboardHome() {
             <h2 style={{ fontSize: "1.1rem", fontWeight: 700 }}>Tips AI Hari Ini</h2>
           </div>
           <p style={{ fontSize: "0.9rem", lineHeight: 1.6, opacity: 0.9, marginBottom: "1.5rem" }}>
-            "Produk Vas Keramik Minimalis-mu sedang tren! Coba tambahkan foto dengan pencahayaan alami untuk meningkatkan konversi hingga 20%."
+            &quot;Produk Vas Keramik Minimalis-mu sedang tren! Coba tambahkan foto dengan pencahayaan alami untuk meningkatkan konversi hingga 20%.&quot;
           </p>
           <button style={{
             background: "#fff", color: "var(--clay)", border: "none",

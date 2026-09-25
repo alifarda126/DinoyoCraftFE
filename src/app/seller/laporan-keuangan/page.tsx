@@ -16,7 +16,7 @@ export default function LaporanKeuanganPage() {
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "seller") {
-      router.push("/auth");
+      router.push("/mitra/login");
     } else {
       setLoading(false);
     }

@@ -30,15 +30,6 @@ export default function SellerCatalogPage() {
   const [imageUrl, setImageUrl] = useState("");
   const [stock, setStock] = useState("");
 
-  useEffect(() => {
-    const session = getDemoSession();
-    if (!session || session.role !== "seller") {
-      router.push("/auth");
-      return;
-    }
-    loadArtworks();
-  }, [router]);
-
   const loadArtworks = () => {
     setArtworks([
       {
@@ -62,6 +53,15 @@ export default function SellerCatalogPage() {
     ]);
   };
 
+  useEffect(() => {
+    const session = getDemoSession();
+    if (!session || session.role !== "seller") {
+      router.push("/mitra/login");
+      return;
+    }
+    loadArtworks();
+  }, [router]);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
@@ -69,8 +69,9 @@ export default function SellerCatalogPage() {
       await new Promise(resolve => setTimeout(resolve, 600));
       toast.success("Produk berhasil ditambahkan (Mock)");
       
+      const slug = (title || "produk").trim().toLowerCase().replace(/\s+/g, "-");
       const newProduct: Artwork = {
-        id: `prod-${Date.now()}`,
+        id: `prod-${slug}-${artworks.length + 1}`,
         title,
         description,
         price: parseInt(price),

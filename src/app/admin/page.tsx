@@ -13,7 +13,7 @@ export default function AdminDashboardHome() {
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "admin") {
-      router.push("/auth");
+      router.push("/admin/login");
     } else {
       setAdminName(session.profile.full_name);
       setLoading(false);
