@@ -5,6 +5,9 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle } from "@phosphor-icons/react";
+import { Plus_Jakarta_Sans } from "next/font/google";
+
+const pjs = Plus_Jakarta_Sans({ subsets: ["latin"] });
 
 export default function SellerRegistrationPage() {
   const router = useRouter();
@@ -28,7 +31,7 @@ export default function SellerRegistrationPage() {
     return (
       <div style={{
         minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center",
-        background: "var(--surface)", fontFamily: "var(--font-outfit), sans-serif", padding: "2rem"
+        background: "var(--surface)", fontFamily: pjs.style.fontFamily, padding: "2rem"
       }}>
         <div style={{
           background: "#fff", padding: "3rem 2rem", borderRadius: "1.5rem",
@@ -53,7 +56,7 @@ export default function SellerRegistrationPage() {
   }
 
   return (
-    <div style={{ minHeight: "100dvh", background: "var(--surface)", fontFamily: "var(--font-outfit), sans-serif" }}>
+    <div style={{ minHeight: "100dvh", background: "var(--surface)", fontFamily: pjs.style.fontFamily }}>
       <header style={{ background: "#fff", borderBottom: "1px solid var(--line)", padding: "1rem 2rem" }}>
         <div style={{ maxWidth: "800px", margin: "0 auto", display: "flex", alignItems: "center", gap: "1rem" }}>
           <Link href="/mitra/login" style={{ color: "var(--bark-muted)" }}>

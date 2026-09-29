@@ -12,11 +12,31 @@ export default function AdminLiveChatPage() {
   const [activeChat, setActiveChat] = useState(0);
   const [message, setMessage] = useState("");
 
-  const chats = [
-    { id: 1, name: "Budi Santoso", lastMsg: "Apakah bisa pesan suvenir custom 100 pcs?", time: "10:30", unread: 2, botHandled: true },
-    { id: 2, name: "Siti Aminah", lastMsg: "Terima kasih infonya min", time: "09:15", unread: 0, botHandled: false },
-    { id: 3, name: "Joko Anwar", lastMsg: "Lokasi tepatnya dimana ya?", time: "Kemarin", unread: 0, botHandled: true },
-  ];
+  type ChatMessage = { role: "user" | "admin"; text: string };
+
+  const [chats, setChats] = useState([
+    { id: 1, name: "Budi Santoso", lastMsg: "Apakah bisa pesan suvenir custom 100 pcs?", time: "10:30", unread: 2, botHandled: true,
+      messages: [
+        { role: "user" as const, text: "Halo, saya ingin bertanya tentang pemesanan suvenir pernikahan." },
+        { role: "admin" as const, text: "Halo Kak! Tentu bisa. Di DinoyoCraft, kami melayani pemesanan suvenir kustom untuk pernikahan. Apakah Kakak sudah ada referensi desain?" },
+        { role: "user" as const, text: "Apakah bisa pesan suvenir custom 100 pcs?" },
+      ]
+    },
+    { id: 2, name: "Siti Aminah", lastMsg: "Terima kasih infonya min", time: "09:15", unread: 0, botHandled: false,
+      messages: [
+        { role: "user" as const, text: "Min, berapa lama pengiriman ke Bandung?" },
+        { role: "admin" as const, text: "Halo, selamat siang. Untuk Bandung estimasi 2-3 hari kerja menggunakan JNE Reguler." },
+        { role: "user" as const, text: "Terima kasih infonya min" },
+      ]
+    },
+    { id: 3, name: "Joko Anwar", lastMsg: "Lokasi tepatnya dimana ya?", time: "Kemarin", unread: 0, botHandled: true,
+      messages: [
+        { role: "user" as const, text: "Lokasi tepatnya dimana ya?" },
+        { role: "admin" as const, text: "Kami berlokasi di Jl. Dinoyo, Kec. Lowokwaru, Kota Malang, Jawa Timur." },
+      ]
+    },
+  ]);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const session = getDemoSession();
@@ -30,7 +50,14 @@ export default function AdminLiveChatPage() {
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
-    toast.success("Pesan terkirim (Mock)");
+    setChats(prev => prev.map((chat, idx) => {
+      if (idx !== activeChat) return chat;
+      return {
+        ...chat,
+        lastMsg: message,
+        messages: [...chat.messages, { role: "admin" as const, text: message }],
+      };
+    }));
     setMessage("");
   };
 
@@ -49,17 +76,19 @@ export default function AdminLiveChatPage() {
           <div className="p-4 border-b border-zinc-200">
             <input 
               type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari percakapan..." 
               className="w-full px-4 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
             />
           </div>
           <div className="flex-1 overflow-y-auto">
-            {chats.map((chat, idx) => (
+            {chats.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase())).map((chat, idx) => (
               <div 
                 key={chat.id}
-                onClick={() => setActiveChat(idx)}
+                onClick={() => setActiveChat(chats.findIndex(c => c.id === chat.id))}
                 className={`p-4 border-b border-zinc-100 cursor-pointer transition-colors ${
-                  activeChat === idx ? "bg-zinc-100" : "hover:bg-zinc-100/50"
+                  activeChat === chats.findIndex(c => c.id === chat.id) ? "bg-zinc-100" : "hover:bg-zinc-100/50"
                 }`}
               >
                 <div className="flex justify-between items-start mb-1">
@@ -104,36 +133,19 @@ export default function AdminLiveChatPage() {
             )}
           </div>
 
-          {/* Chat Messages */}
+          {/* Chat Messages — dynamic from state */}
           <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-zinc-50/30">
-            <div className="flex justify-start">
-              <div className="bg-zinc-100 text-zinc-800 p-3 rounded-2xl rounded-tl-sm max-w-[75%] text-sm">
-                Halo, saya ingin bertanya tentang pemesanan suvenir pernikahan.
-              </div>
-            </div>
-            
-            {chats[activeChat].botHandled ? (
-              <div className="flex justify-end">
-                <div className="bg-white border border-zinc-200 text-zinc-800 p-3 rounded-2xl rounded-tr-sm max-w-[75%] text-sm relative">
-                  <div className="flex items-center gap-1.5 mb-1 text-xs font-semibold text-clay">
-                    <Robot size={14} /> Asisten AI
-                  </div>
-                  Halo Kak! Tentu bisa. Di DinoyoCraft, kami melayani pemesanan suvenir kustom untuk pernikahan. Apakah Kakak sudah ada referensi desain?
+            {chats[activeChat].messages.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === "user" ? "justify-start" : "justify-end"}`}>
+                <div className={`p-3 rounded-2xl max-w-[75%] text-sm ${
+                  msg.role === "user"
+                    ? "bg-zinc-100 text-zinc-800 rounded-tl-sm"
+                    : "bg-zinc-900 text-white rounded-tr-sm"
+                }`}>
+                  {msg.text}
                 </div>
               </div>
-            ) : (
-              <div className="flex justify-end">
-                <div className="bg-zinc-900 text-white p-3 rounded-2xl rounded-tr-sm max-w-[75%] text-sm">
-                  Halo, selamat siang. Tentu bisa, silahkan kirim referensinya.
-                </div>
-              </div>
-            )}
-            
-            <div className="flex justify-start">
-              <div className="bg-zinc-100 text-zinc-800 p-3 rounded-2xl rounded-tl-sm max-w-[75%] text-sm">
-                Apakah bisa pesan suvenir custom 100 pcs?
-              </div>
-            </div>
+            ))}
           </div>
 
           {/* Chat Input */}

@@ -6,6 +6,9 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { setDemoSession } from "@/lib/demo";
 import { ArrowLeft, ArrowRight, LockSimple } from "@phosphor-icons/react";
+import { Plus_Jakarta_Sans } from "next/font/google";
+
+const pjs = Plus_Jakarta_Sans({ subsets: ["latin"] });
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -40,7 +43,7 @@ export default function AdminLoginPage() {
         alignItems: "center",
         justifyContent: "center",
         background: "var(--surface)",
-        fontFamily: "var(--font-outfit), sans-serif",
+        fontFamily: pjs.style.fontFamily,
         padding: "2rem",
         position: "relative",
         overflow: "hidden",

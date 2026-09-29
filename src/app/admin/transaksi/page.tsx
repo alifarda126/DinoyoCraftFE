@@ -18,6 +18,7 @@ export default function AdminTransaksiPage() {
   const router = useRouter();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const session = getDemoSession();
@@ -36,6 +37,29 @@ export default function AdminTransaksiPage() {
     setLoading(false);
   }, [router]);
 
+  const filtered = transactions.filter(t =>
+    t.id.toLowerCase().includes(search.toLowerCase()) ||
+    t.customer.toLowerCase().includes(search.toLowerCase()) ||
+    t.store.toLowerCase().includes(search.toLowerCase())
+  );
+
+  function exportCSV() {
+    const header = ["Invoice","Mitra Pengrajin","Pelanggan","Tanggal","Nominal","Status"];
+    const rows = filtered.map(t => [
+      t.id, t.store, t.customer, t.date,
+      `Rp ${t.amount.toLocaleString("id-ID")}`,
+      t.status === "success" ? "Berhasil" : t.status === "failed" ? "Gagal" : "Tertunda"
+    ]);
+    const csv = [header, ...rows].map(r => r.join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `transaksi-${new Date().toISOString().slice(0,10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
   if (loading) return <div>Memuat...</div>;
 
   return (
@@ -45,7 +69,7 @@ export default function AdminTransaksiPage() {
           <h1 className="text-2xl font-bold text-zinc-900  mb-1">Transaksi Lintas Toko</h1>
           <p className="text-zinc-500 text-sm">Pantau perputaran uang dari seluruh Mitra Pengrajin.</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-white  border border-zinc-200  rounded-lg text-sm font-medium hover:bg-zinc-50 :bg-zinc-700 transition-colors">
+        <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2 bg-white  border border-zinc-200  rounded-lg text-sm font-medium hover:bg-zinc-50 transition-colors">
           <DownloadSimple size={18} />
           Ekspor CSV
         </button>
@@ -60,7 +84,9 @@ export default function AdminTransaksiPage() {
           <div className="relative">
             <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input 
-              type="text" 
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
               placeholder="Cari invoice atau nama..." 
               className="pl-9 pr-4 py-2 rounded-lg border border-zinc-200  bg-white  text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
             />
@@ -80,7 +106,7 @@ export default function AdminTransaksiPage() {
               </tr>
             </thead>
             <tbody>
-              {transactions.map((trx) => (
+              {filtered.map((trx) => (
                 <tr key={trx.id} className="border-b border-zinc-200  hover:bg-zinc-50 :bg-zinc-900/50 transition-colors">
                   <td className="p-4 font-medium text-zinc-900 ">{trx.id}</td>
                   <td className="p-4 text-sm text-zinc-600 ">{trx.store}</td>

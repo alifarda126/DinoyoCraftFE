@@ -396,6 +396,7 @@ export default function Home() {
 
       {/* ── APA ITU PROGRAM MITRA ──────────────────────────────────────── */}
       <section
+        id="apa-itu"
         style={{
           borderBottom: "1.5px solid var(--line)",
           position: "relative",
@@ -532,6 +533,7 @@ export default function Home() {
 
       {/* ── CARA KERJA ────────────────────────────────────────────────── */}
       <section
+        id="cara"
         style={{
           borderBottom: "1.5px solid var(--line)",
           position: "relative",
@@ -686,6 +688,7 @@ export default function Home() {
 
       {/* ── MITRA REGIONAL ────────────────────────────────────────────── */}
       <section
+        id="regional"
         style={{
           borderBottom: "1.5px solid var(--line)",
           position: "relative",
@@ -1058,6 +1061,7 @@ export default function Home() {
 
       {/* ── TESTIMONI ─────────────────────────────────────────────────── */}
       <section
+        id="testimoni"
         style={{
           borderBottom: "1.5px solid var(--line)",
           position: "relative",
@@ -1494,6 +1498,7 @@ export default function Home() {
 
       {/* ── FAQ ───────────────────────────────────────────────────────── */}
       <section
+        id="faq"
         style={{
           borderBottom: "1.5px solid var(--line)",
           position: "relative",
@@ -1817,12 +1822,16 @@ export default function Home() {
                 gap: "0.5rem",
               }}
             >
-              <p style={{ fontSize: "0.82rem", color: "var(--bark-muted)" }}>
+              <a href="https://wa.me/6281234567890" style={{ fontSize: "0.82rem", color: "var(--bark-muted)", textDecoration: "none", display: "block" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--clay)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--bark-muted)")}>
                 WhatsApp: +62 812-3456-7890
-              </p>
-              <p style={{ fontSize: "0.82rem", color: "var(--bark-muted)" }}>
+              </a>
+              <a href="mailto:cs@dinoyocraft.id" style={{ fontSize: "0.82rem", color: "var(--bark-muted)", textDecoration: "none", display: "block" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--clay)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--bark-muted)")}>
                 Email: cs@dinoyocraft.id
-              </p>
+              </a>
               <p style={{ fontSize: "0.82rem", color: "var(--bark-muted)" }}>
                 Jl. Dinoyo, Kec. Lowokwaru
                 <br />
@@ -1870,7 +1879,13 @@ export default function Home() {
               dilindungi.
             </p>
             <p style={{ fontSize: "0.78rem", color: "var(--bark-muted)" }}>
-              Syarat & Ketentuan &bull; Kebijakan Privasi
+              <a href="/syarat-ketentuan" style={{ color: "var(--bark-muted)", textDecoration: "none" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--clay)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--bark-muted)")}>Syarat &amp; Ketentuan</a>
+              {" "}&bull;{" "}
+              <a href="/kebijakan-privasi" style={{ color: "var(--bark-muted)", textDecoration: "none" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "var(--clay)")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "var(--bark-muted)")}>Kebijakan Privasi</a>
             </p>
           </div>
         </div>

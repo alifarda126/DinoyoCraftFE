@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { getDemoSession } from "@/lib/demo";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Plus, Trash, PencilSimple, X, Check, Image as ImageIcon, Link, UploadSimple } from "@phosphor-icons/react";
+import { Plus, Trash, PencilSimple, X, Check } from "@phosphor-icons/react";
 
 type Artwork = {
   id: string;
@@ -28,21 +28,7 @@ export default function SellerCatalogPage() {
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("");
   const [imageUrl, setImageUrl] = useState("");
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageSource, setImageSource] = useState<"upload" | "url">("upload");
-  const [isDragOver, setIsDragOver] = useState(false);
   const [stock, setStock] = useState("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileChange = useCallback((file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("File harus berupa gambar"); return;
-    }
-    const objectUrl = URL.createObjectURL(file);
-    setImagePreview(objectUrl);
-    setImageUrl(objectUrl);
-  }, []);
 
   // Edit state
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -118,7 +104,6 @@ export default function SellerCatalogPage() {
     setPrice("");
     setCategory("");
     setImageUrl("");
-    setImagePreview(null);
     setStock("");
   }
 
@@ -219,76 +204,9 @@ export default function SellerCatalogPage() {
             </select>
           </div>
 
-          {/* Image Upload Section — full row */}
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.5rem" }}>Foto Produk</label>
-            
-            {/* Tab switch */}
-            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
-              {(["upload", "url"] as const).map((src) => (
-                <button key={src} type="button" onClick={() => setImageSource(src)}
-                  style={{
-                    padding: "0.4rem 1rem", borderRadius: "9999px", border: "1px solid var(--line)",
-                    cursor: "pointer", fontWeight: 600, fontSize: "0.8rem",
-                    background: imageSource === src ? "var(--bark)" : "transparent",
-                    color: imageSource === src ? "#fff" : "var(--bark-muted)",
-                    display: "flex", alignItems: "center", gap: "0.35rem",
-                    transition: "all 0.15s"
-                  }}>
-                  {src === "upload" ? <><UploadSimple size={14} weight="bold" /> Upload dari Komputer</> : <><Link size={14} weight="bold" /> Tempel URL</>}
-                </button>
-              ))}
-            </div>
-
-            {imageSource === "upload" ? (
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
-                onDragLeave={() => setIsDragOver(false)}
-                onDrop={(e) => { e.preventDefault(); setIsDragOver(false); handleFileChange(e.dataTransfer.files[0] ?? null); }}
-                style={{
-                  border: `2px dashed ${isDragOver ? "var(--clay)" : "var(--line)"}`,
-                  borderRadius: "0.75rem", padding: "1.5rem",
-                  background: isDragOver ? "rgba(var(--clay-rgb, 150,80,50),0.05)" : "var(--surface)",
-                  textAlign: "center", cursor: "pointer", transition: "all 0.2s",
-                  display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem"
-                }}
-              >
-                {imagePreview ? (
-                  <div style={{ position: "relative", display: "inline-block" }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={imagePreview} alt="preview" style={{ height: 120, maxWidth: "100%", objectFit: "contain", borderRadius: "0.5rem" }} />
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setImagePreview(null); setImageUrl(""); }}
-                      style={{ position: "absolute", top: -8, right: -8, width: 24, height: 24, borderRadius: "50%", background: "#e53e3e", color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <X size={12} weight="bold" />
-                    </button>
-                    <p style={{ marginTop: "0.5rem", fontSize: "0.75rem", color: "var(--bark-muted)" }}>Klik untuk ganti gambar</p>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--line)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <ImageIcon size={24} weight="thin" color="var(--bark-muted)" />
-                    </div>
-                    <p style={{ fontWeight: 600, color: "var(--bark)", fontSize: "0.9rem" }}>Drag & drop atau klik untuk pilih foto</p>
-                    <p style={{ color: "var(--bark-muted)", fontSize: "0.75rem" }}>PNG, JPG, WEBP — maks. 5MB</p>
-                  </>
-                )}
-                <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }}
-                  onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)} />
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                <input type="url" value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); setImagePreview(e.target.value); }}
-                  placeholder="https://..." style={{ width: "100%", padding: "0.75rem", borderRadius: "0.5rem", border: "1px solid var(--line)", fontSize: "0.9rem" }} />
-                {imageUrl && (
-                  <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start", padding: "0.75rem", background: "var(--surface)", borderRadius: "0.5rem", border: "1px solid var(--line)" }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={imageUrl} alt="preview" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "0.5rem", flexShrink: 0 }} onError={(e) => (e.currentTarget.style.display = "none")} />
-                    <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", wordBreak: "break-all" }}>{imageUrl}</p>
-                  </div>
-                )}
-              </div>
-            )}
+          <div>
+            <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.5rem" }}>URL Foto Produk</label>
+            <input type="url" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://..." style={{ width: "100%", padding: "0.75rem", borderRadius: "0.5rem", border: "1px solid var(--line)" }} />
           </div>
 
           <div style={{ gridColumn: "1 / -1", display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>

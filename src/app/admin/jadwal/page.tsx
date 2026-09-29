@@ -60,9 +60,19 @@ export default function AdminSchedulesPage() {
     setLoading(true);
     try {
       await new Promise(resolve => setTimeout(resolve, 500));
-      toast.success("Jadwal berhasil ditambahkan (Mock)");
+      const newSchedule: Schedule = {
+        id: `s${Date.now()}`,
+        date: newDate,
+        start_time: startTime,
+        end_time: endTime,
+        max_capacity: maxCapacity,
+        current_bookings: 0,
+        is_locked: false,
+      };
+      setSchedules(prev => [...prev, newSchedule]);
+      toast.success("Jadwal berhasil ditambahkan!");
       setShowForm(false);
-      loadSchedules();
+      setNewDate("");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Terjadi kesalahan");
     } finally {
@@ -71,14 +81,14 @@ export default function AdminSchedulesPage() {
   }
 
   async function toggleLock(scheduleId: string, currentLock: boolean) {
-    toast.success(!currentLock ? "Jadwal dikunci (Mock)" : "Jadwal dibuka (Mock)");
-    loadSchedules();
+    setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, is_locked: !currentLock } : s));
+    toast.success(!currentLock ? "Jadwal dikunci" : "Jadwal dibuka");
   }
 
   async function deleteSchedule(scheduleId: string) {
     if (!confirm("Hapus jadwal ini?")) return;
-    toast.success("Jadwal dihapus (Mock)");
-    loadSchedules();
+    setSchedules(prev => prev.filter(s => s.id !== scheduleId));
+    toast.success("Jadwal berhasil dihapus!");
   }
 
   return (
