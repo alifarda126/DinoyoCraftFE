@@ -233,12 +233,23 @@ export default function MitraLoginPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Minimal 6 karakter"
+                  placeholder="Minimal 8 karakter"
                   className="input-earthy"
                   required
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
+
+              {mode === "signin" && (
+                <div style={{ textAlign: "right", marginTop: "-0.5rem" }}>
+                  <Link
+                    href="/mitra/lupa-kata-sandi"
+                    style={{ fontSize: "0.78rem", color: "var(--clay)", fontWeight: 600, textDecoration: "none" }}
+                  >
+                    Lupa kata sandi?
+                  </Link>
+                </div>
+              )}
 
               <button
                 type="submit"
