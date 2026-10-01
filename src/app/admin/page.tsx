@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getDemoSession } from "@/lib/demo";
+import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { Storefront, Receipt, Users, CurrencyCircleDollar, TrendUp, WarningCircle } from "@phosphor-icons/react";
 

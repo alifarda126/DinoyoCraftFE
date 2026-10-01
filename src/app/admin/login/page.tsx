@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { setDemoSession } from "@/lib/demo";
+import { setDemoSession } from "@/lib/utils/demo";
 import { ArrowLeft, ArrowRight, LockSimple } from "@phosphor-icons/react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 

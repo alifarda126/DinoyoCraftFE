@@ -6,13 +6,12 @@ import {
   ChartLineUp, 
   Storefront, 
   ShieldCheck, 
-  Calendar,
   ChatCircle,
   Robot,
   SignOut, 
   ArrowLeft 
 } from "@phosphor-icons/react";
-import { clearDemoSession } from "@/lib/demo";
+import { clearDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -32,7 +31,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: "/admin", icon: ChartLineUp, label: "Dasbor Admin" },
     { href: "/admin/transaksi", icon: Storefront, label: "Transaksi Lintas Toko" },
     { href: "/admin/verifikasi", icon: ShieldCheck, label: "Verifikasi Toko" },
-    { href: "/admin/jadwal", icon: Calendar, label: "Jadwal Wisata" },
     { href: "/admin/moderasi", icon: ShieldCheck, label: "Moderasi & Keamanan" },
     { href: "/admin/chat", icon: ChatCircle, label: "Live Chat" },
     { href: "/admin/pengaturan-ai", icon: Robot, label: "Pengaturan AI" },

@@ -64,7 +64,7 @@ export default function manifest(): MetadataRoute.Manifest {
         name: "Dasbor Mitra",
         short_name: "Dasbor",
         description: "Lihat dasbor mitra",
-        url: "/seller",
+        url: "/mitra/dashboard",
         icons: [{ src: "/icon-96.png", sizes: "96x96", type: "image/png" }],
       },
     ],

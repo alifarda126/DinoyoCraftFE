@@ -1,6 +1,6 @@
 "use client";
 
-import { getDemoSession } from "@/lib/demo";
+import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
-import { setDemoSession } from "@/lib/demo";
+import { setDemoSession } from "@/lib/utils/demo";
 import { ArrowLeft, ArrowRight, Storefront, Leaf } from "@phosphor-icons/react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
@@ -24,12 +24,12 @@ export default function MitraLoginPage() {
       await new Promise((resolve) => setTimeout(resolve, 800));
       if (mode === "signup") {
         toast.success("Akun berhasil dibuat! Silakan lengkapi profil toko.");
-        router.push("/seller/registrasi");
+        router.push("/mitra/dashboard/registrasi");
         return;
       }
       setDemoSession("seller");
       toast.success("Login Mitra berhasil!");
-      router.push("/seller");
+      router.push("/mitra/dashboard");
     } catch {
       toast.error("Terjadi kesalahan");
     } finally {
@@ -37,10 +37,18 @@ export default function MitraLoginPage() {
     }
   }
 
-  function handleDemoLogin() {
-    setDemoSession("seller");
-    toast.success("Masuk sebagai Mitra (Demo)");
-    router.push("/seller");
+  async function handleGoogleLogin() {
+    setLoading(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 900));
+      setDemoSession("seller");
+      toast.success("Login dengan Google berhasil!");
+      router.push("/mitra/dashboard");
+    } catch {
+      toast.error("Terjadi kesalahan");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -195,7 +203,7 @@ export default function MitraLoginPage() {
                 <p style={{ fontSize: "0.82rem", color: "var(--bark-muted)", margin: "0.2rem 0 0", lineHeight: 1.5 }}>
                   {mode === "signin"
                     ? "Kelola toko, katalog, dan pesananmu."
-                    : "Mulai bisnis dropship keramik Dinoyo."}
+                    : "Mulai bisnis keramik bersama DinoyoCraft."}
                 </p>
               </div>
             </div>
@@ -266,25 +274,56 @@ export default function MitraLoginPage() {
               </button>
             </form>
 
-            {/* Demo */}
+
+            {/* Divider */}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", margin: "1rem 0" }}>
+              <div style={{ flex: 1, height: 1, background: "var(--line-strong)" }} />
+              <span style={{ fontSize: "0.75rem", color: "var(--bark-muted)", fontWeight: 500, whiteSpace: "nowrap" }}>atau</span>
+              <div style={{ flex: 1, height: 1, background: "var(--line-strong)" }} />
+            </div>
+
+            {/* Google Login */}
             <button
-              onClick={handleDemoLogin}
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={loading}
               style={{
                 width: "100%",
-                marginTop: "1rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.6rem",
                 padding: "0.8rem",
                 borderRadius: "0.75rem",
                 border: "1.5px solid var(--line-strong)",
-                background: "transparent",
+                background: "#fff",
                 color: "var(--bark)",
                 fontWeight: 600,
-                fontSize: "0.85rem",
-                cursor: "pointer",
-                transition: "border-color 0.2s, background 0.2s",
+                fontSize: "0.875rem",
+                cursor: loading ? "not-allowed" : "pointer",
+                transition: "border-color 0.2s, box-shadow 0.2s",
                 fontFamily: pjs.style.fontFamily,
+                boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  (e.currentTarget as HTMLElement).style.borderColor = "#4285F4";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 8px rgba(66,133,244,0.18)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLElement).style.borderColor = "var(--line-strong)";
+                (e.currentTarget as HTMLElement).style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)";
               }}
             >
-              Masuk sebagai Mitra Demo
+              {/* Google "G" SVG */}
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+                <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z" fill="#4285F4"/>
+                <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853"/>
+                <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05"/>
+                <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58Z" fill="#EA4335"/>
+              </svg>
+              Lanjutkan dengan Google
             </button>
 
             <p style={{ marginTop: "1.5rem", fontSize: "0.75rem", color: "var(--bark-muted)", textAlign: "center", lineHeight: 1.6 }}>
@@ -304,8 +343,7 @@ export default function MitraLoginPage() {
                 }}
               >
                 Daftar Sekarang
-              </button>{" "}
-              — cukup Rp350.000 sekali.
+              </button>
             </p>
           </div>
 
