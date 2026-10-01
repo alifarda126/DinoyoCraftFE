@@ -14,6 +14,39 @@ import {
 import { clearDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 
+// ─── Badge notifikasi mock (angka nyata akan dari API) ───────────────────────
+const NAV_BADGES: Record<string, number> = {
+  "/admin/verifikasi": 2,   // 2 pengajuan toko menunggu
+  "/admin/moderasi": 5,     // 5 laporan belum ditangani
+  "/admin/chat": 3,         // 3 pesan belum dibaca
+};
+
+// ─── Komponen badge angka kecil ───────────────────────────────────────────────
+function NavBadge({ count }: { count: number }) {
+  if (!count) return null;
+  return (
+    <span style={{
+      marginLeft: "auto",
+      minWidth: 20,
+      height: 20,
+      borderRadius: 999,
+      background: "#ef4444",
+      color: "#fff",
+      fontSize: "0.68rem",
+      fontWeight: 800,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "0 5px",
+      lineHeight: 1,
+      flexShrink: 0,
+      boxShadow: "0 1px 4px rgba(239,68,68,0.4)",
+    }}>
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -53,6 +86,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
           {navItems.map((item) => {
             const isActive = pathname === item.href;
+            const badge = NAV_BADGES[item.href] ?? 0;
             return (
               <Link key={item.href} href={item.href} style={{
                 display: "flex", alignItems: "center", gap: "0.75rem",
@@ -61,12 +95,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 background: isActive ? "rgba(255,255,255,0.1)" : "transparent",
                 color: isActive ? "#ffffff" : "rgba(255,255,255,0.6)",
                 fontWeight: isActive ? 700 : 500,
-                transition: "background 0.2s"
+                transition: "background 0.2s",
               }}>
-                <item.icon size={20} weight={isActive ? "bold" : "regular"} />
-                {item.label}
+                <item.icon size={20} weight={isActive ? "bold" : "regular"} style={{ flexShrink: 0 }} />
+                <span style={{ flex: 1 }}>{item.label}</span>
+                <NavBadge count={badge} />
               </Link>
-            )
+            );
           })}
         </nav>
 

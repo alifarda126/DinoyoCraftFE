@@ -11,6 +11,37 @@ import { clearDemoSession, getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+// ─── Badge notifikasi mock (angka nyata akan dari API) ───────────────────────
+const NAV_BADGES: Record<string, number> = {
+  "/mitra/dashboard/pesanan": 4,   // 4 pesanan baru menunggu
+  "/mitra/dashboard/chat": 2,      // 2 pesan belum dibaca
+};
+
+function NavBadge({ count }: { count: number }) {
+  if (!count) return null;
+  return (
+    <span style={{
+      marginLeft: "auto",
+      minWidth: 20,
+      height: 20,
+      borderRadius: 999,
+      background: "#ef4444",
+      color: "#fff",
+      fontSize: "0.68rem",
+      fontWeight: 800,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "0 5px",
+      lineHeight: 1,
+      flexShrink: 0,
+      boxShadow: "0 1px 4px rgba(239,68,68,0.4)",
+    }}>
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 export default function SellerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -108,8 +139,9 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
                   }
                 }}
               >
-                <item.icon size={20} weight={isActive ? "bold" : "regular"} />
-                {item.label}
+              <item.icon size={20} weight={isActive ? "bold" : "regular"} style={{ flexShrink: 0 }} />
+                <span style={{ flex: 1 }}>{item.label}</span>
+                <NavBadge count={NAV_BADGES[item.href] ?? 0} />
               </Link>
             );
           })}

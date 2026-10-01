@@ -145,10 +145,10 @@ export default function AdminLoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Minimal 6 karakter"
+              placeholder="Minimal 8 karakter"
               className="input-earthy"
               required
-              minLength={6}
+              minLength={8}
             />
           </div>
 
