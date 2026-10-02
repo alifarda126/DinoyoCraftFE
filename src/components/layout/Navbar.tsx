@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { User, SignOut, ArrowRight } from "@phosphor-icons/react";
@@ -47,7 +48,19 @@ export default function Navbar() {
       className="navbar-glass"
     >
       <div className="max-w-[1400px] mx-auto px-5 lg:px-8 h-16 flex items-center justify-between gap-6">
-        <Link href="/" aria-label="DinoyoCraft — Halaman Utama" style={{ textDecoration: "none", flexShrink: 0 }}>
+        <Link
+          href="/"
+          aria-label="DinoyoCraft — Halaman Utama"
+          style={{ textDecoration: "none", flexShrink: 0, display: "flex", alignItems: "center", gap: "0.45rem" }}
+        >
+          <Image
+            src="/images/logo.png"
+            alt="DinoyoCraft Logo"
+            width={36}
+            height={36}
+            style={{ objectFit: "contain", flexShrink: 0 }}
+            priority
+          />
           <span style={{
             fontFamily: "var(--font-outfit), sans-serif",
             fontWeight: 800, fontSize: "1.15rem",
