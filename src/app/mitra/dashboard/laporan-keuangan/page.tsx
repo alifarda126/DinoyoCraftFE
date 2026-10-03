@@ -163,7 +163,7 @@ export default function LaporanKeuanganPage() {
       </div>
 
       {/* Financial Chart Placeholder */}
-      <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", padding: "1.5rem", marginBottom: "2.5rem", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+      <div className="card-shadow" style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", padding: "1.5rem", marginBottom: "2.5rem", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
         <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--bark)", marginBottom: "1.5rem" }}>Grafik Pendapatan 7 Hari Terakhir</h2>
         <div style={{ 
           height: "200px", background: "linear-gradient(to top, rgba(184,92,60,0.03), transparent)", 
@@ -184,7 +184,7 @@ export default function LaporanKeuanganPage() {
       </div>
 
       {/* Transaction History */}
-      <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+      <div className="card-shadow" style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
         <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
           <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--bark)", margin: 0 }}>Riwayat Transaksi</h2>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>

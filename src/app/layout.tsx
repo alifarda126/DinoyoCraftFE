@@ -45,12 +45,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="grain-overlay" aria-hidden="true" />
         {children}
         <Toaster
+          position="top-right"
           toastOptions={{
             style: {
               background: "#fff",
               color: "#2E1A0E",
               border: "1.5px solid rgba(61,43,31,0.12)",
               borderRadius: "0.875rem",
+              boxShadow: "0 4px 24px rgba(61,43,31,0.12), 0 1px 4px rgba(0,0,0,0.06)",
             },
           }}
         />

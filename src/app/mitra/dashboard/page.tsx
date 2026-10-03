@@ -81,7 +81,7 @@ export default function SellerDashboardHome() {
       {/* Stats Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.25rem", marginBottom: "2rem" }}>
         {stats.map((stat, i) => (
-          <div key={i} style={{
+          <div key={i} className="card-shadow" style={{
             background: "#fff", padding: "1.5rem", borderRadius: "1rem",
             border: "1px solid var(--line)", display: "flex", flexDirection: "column", gap: "1rem"
           }}>
@@ -117,7 +117,7 @@ export default function SellerDashboardHome() {
 
       {/* Quick Actions & Recent Orders */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem" }}>
-        <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", padding: "1.5rem" }}>
+        <div className="card-shadow" style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", padding: "1.5rem" }}>
           <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--bark)", marginBottom: "1.25rem" }}>Pesanan Terbaru</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             {[
