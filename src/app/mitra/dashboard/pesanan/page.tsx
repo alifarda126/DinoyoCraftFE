@@ -15,6 +15,7 @@ import {
   X,
   ChatCircle,
   PaperPlaneTilt,
+  Star,
 } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
 
@@ -37,6 +38,9 @@ type Order = {
   items: OrderItem[];
   resi?: string;
   kurir?: string;
+  rating?: number;
+  ulasan?: string;
+  balasanMitra?: string;
 };
 
 type ChatMsg = { from: "mitra" | "customer"; text: string; time: string };
@@ -71,6 +75,11 @@ export default function PesananSellerPage() {
   const [kurir, setKurir] = useState("JNE");
   const [resi, setResi] = useState("");
   const [isSubmittingShipping, setIsSubmittingShipping] = useState(false);
+
+  // Balasan ulasan state
+  const [replyOrder, setReplyOrder] = useState<Order | null>(null);
+  const [replyInput, setReplyInput] = useState("");
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
   useEffect(() => {
     const session = getDemoSession();
@@ -110,6 +119,32 @@ export default function PesananSellerPage() {
         kurir: "JNE",
         items: [
           { id: "p3", name: "Piring Hias Dinding", price: 250000, qty: 1, image: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?q=80&w=150&auto=format&fit=crop" }
+        ]
+      },
+      {
+        id: "ORD-20231020-004",
+        customerName: "Rina Marlina",
+        date: "20 Okt 2023 11:45",
+        status: "completed",
+        total: 180000,
+        resi: "SICEPAT987654",
+        kurir: "SiCepat",
+        rating: 5,
+        ulasan: "Kualitas sangat bagus dan pengemasan super aman! Terima kasih seller.",
+        items: [
+          { id: "p4", name: "Pot Terakota Kecil", price: 90000, qty: 2, image: "https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?q=80&w=150&auto=format&fit=crop" }
+        ]
+      },
+      {
+        id: "ORD-20231019-005",
+        customerName: "Tono Wijaya",
+        date: "19 Okt 2023 16:20",
+        status: "completed",
+        total: 320000,
+        resi: "JNT098765432",
+        kurir: "J&T",
+        items: [
+          { id: "p5", name: "Set Piring Makan Keramik", price: 320000, qty: 1, image: "https://images.unsplash.com/photo-1616428795551-7f91cc42eece?q=80&w=150&auto=format&fit=crop" }
         ]
       }
     ]);
@@ -184,6 +219,22 @@ export default function PesananSellerPage() {
     setResi("");
   }
 
+  async function submitReply(e: React.FormEvent) {
+    e.preventDefault();
+    if (!replyOrder || !replyInput.trim()) return;
+    setIsSubmittingReply(true);
+    await new Promise(r => setTimeout(r, 600));
+    setOrders(prev => prev.map(o =>
+      o.id === replyOrder.id
+        ? { ...o, balasanMitra: replyInput.trim() }
+        : o
+    ));
+    toast.success("Balasan ulasan berhasil dikirim.");
+    setReplyOrder(null);
+    setIsSubmittingReply(false);
+    setReplyInput("");
+  }
+
   const getStatusBadge = (status: OrderStatus) => {
     switch (status) {
       case "unpaid": return <div className="flex items-center gap-1.5 text-orange-600 bg-orange-50 px-2.5 py-1 rounded-md text-xs font-semibold"><Clock size={14} /> Belum Dibayar</div>;
@@ -253,9 +304,9 @@ export default function PesananSellerPage() {
           {filteredOrders.length > 0 ? (
             <div className="divide-y divide-zinc-200">
               {filteredOrders.map((order) => (
-                <div key={order.id} className="p-6 flex flex-col md:flex-row gap-6 hover:bg-zinc-50/50 transition-colors">
-
-                  {/* Left: Customer & Items */}
+                <div key={order.id} className="p-6 hover:bg-zinc-50/50 transition-colors">
+                  <div className="flex flex-col md:flex-row gap-6">
+                    {/* Left: Customer & Items */}
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="flex items-center gap-1.5 text-zinc-900 font-semibold">
@@ -348,7 +399,42 @@ export default function PesananSellerPage() {
                       </button>
                     </div>
                   </div>
+                  </div>
 
+                  {/* Tampilan Rating jika Selesai (Full Width di Bawah) */}
+                  {order.status === "completed" && (
+                    <div className="mt-6 pt-5 border-t border-zinc-100">
+                      <p className="text-sm font-bold text-zinc-900 mb-3">Ulasan dari pembeli</p>
+                      {order.rating ? (
+                        <div className="bg-orange-50/80 border border-orange-100 p-4 rounded-xl w-full text-left">
+                          <div className="flex gap-1 mb-2">
+                            {[...Array(5)].map((_, i) => (
+                              <Star key={i} size={15} weight={i < order.rating! ? "fill" : "regular"} color="#f59e0b" />
+                            ))}
+                          </div>
+                          {order.ulasan && <p className="text-sm text-zinc-800 italic mb-3 leading-relaxed">"{order.ulasan}"</p>}
+                          
+                          {order.balasanMitra ? (
+                            <div className="mt-3 pt-3 border-t border-orange-200/60">
+                              <p className="text-xs font-bold text-orange-800 mb-1">Balasan Anda:</p>
+                              <p className="text-sm text-orange-900 leading-relaxed">{order.balasanMitra}</p>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setReplyOrder(order); setReplyInput(""); }}
+                              className="text-xs font-bold text-orange-600 hover:text-orange-700 underline underline-offset-2 mt-1"
+                            >
+                              Balas Ulasan
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-sm text-center text-zinc-500 bg-zinc-50 py-4 rounded-xl border border-zinc-100">
+                          Belum ada ulasan
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -487,6 +573,76 @@ export default function PesananSellerPage() {
                 >
                   <Truck size={16} />
                   {isSubmittingShipping ? "Memproses..." : "Konfirmasi Pengiriman"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Balas Ulasan ── */}
+      {replyOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
+            <div style={{ background: "linear-gradient(135deg, #f59e0b, #d97706)", padding: "1.25rem 1.5rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div className="flex items-center gap-2">
+                <Star size={20} color="#fff" weight="fill" />
+                <h2 style={{ color: "#fff", fontWeight: 700, fontSize: "1rem", margin: 0 }}>Balas Ulasan</h2>
+              </div>
+              <button onClick={() => setReplyOrder(null)} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}>
+                <X size={14} weight="bold" />
+              </button>
+            </div>
+
+            <form onSubmit={submitReply} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+              <div style={{ background: "var(--surface)", borderRadius: "0.75rem", padding: "1rem", border: "1px solid var(--line)" }}>
+                <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", marginBottom: "0.5rem" }}>Ulasan dari {replyOrder.customerName}</p>
+                <div className="flex gap-1 mb-2">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} size={14} weight={i < (replyOrder.rating || 0) ? "fill" : "regular"} color="#f59e0b" />
+                  ))}
+                </div>
+                <p style={{ fontSize: "0.85rem", color: "var(--bark)", margin: 0, fontStyle: "italic" }}>"{replyOrder.ulasan}"</p>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.5rem" }}>Balasan Anda</label>
+                <textarea
+                  required
+                  value={replyInput}
+                  onChange={e => setReplyInput(e.target.value)}
+                  placeholder="Ketik balasan untuk pelanggan..."
+                  style={{
+                    width: "100%", padding: "0.75rem 1rem", borderRadius: "0.75rem",
+                    border: "1px solid var(--line)", fontSize: "0.9rem", minHeight: "100px", resize: "vertical",
+                    outline: "none", boxSizing: "border-box",
+                    fontFamily: "var(--font-outfit), sans-serif",
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.25rem" }}>
+                <button
+                  type="button"
+                  onClick={() => setReplyOrder(null)}
+                  style={{ flex: 1, padding: "0.8rem", borderRadius: "0.75rem", background: "#fff", border: "1px solid var(--line-strong)", color: "var(--bark)", fontWeight: 700, cursor: "pointer", fontFamily: "var(--font-outfit), sans-serif" }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingReply || !replyInput.trim()}
+                  style={{
+                    flex: 2, padding: "0.8rem", borderRadius: "0.75rem",
+                    background: isSubmittingReply ? "var(--clay-light)" : "var(--clay)",
+                    color: "#fff", fontWeight: 700, border: "none",
+                    cursor: isSubmittingReply ? "not-allowed" : "pointer",
+                    fontFamily: "var(--font-outfit), sans-serif",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem",
+                  }}
+                >
+                  <PaperPlaneTilt size={16} weight="fill" />
+                  {isSubmittingReply ? "Mengirim..." : "Kirim Balasan"}
                 </button>
               </div>
             </form>

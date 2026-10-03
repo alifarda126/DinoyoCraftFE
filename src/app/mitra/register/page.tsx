@@ -5,14 +5,22 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { setDemoSession } from "@/lib/utils/demo";
-import { ArrowLeft, ArrowRight, Storefront, Leaf } from "@phosphor-icons/react";
+import { ArrowLeft, ArrowRight, Storefront, Leaf, CheckCircle, CheckSquare } from "@phosphor-icons/react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
 const pjs = Plus_Jakarta_Sans({ subsets: ["latin"] });
 
+const SYARAT = [
+  "Fotokopi KTP pemilik usaha yang masih berlaku",
+  "Surat keterangan usaha / NIB (Nomor Induk Berusaha)",
+  "Foto produk keramik yang akan dijual (min. 3 foto)",
+  "Menyetujui SOP & ketentuan penjualan DinoyoCraft",
+  "Nomor WhatsApp aktif untuk koordinasi pesanan",
+];
+
 export default function MitraLoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">("signup");
 
   // Signin state
   const [email, setEmail] = useState("");
@@ -41,11 +49,24 @@ export default function MitraLoginPage() {
       if (!firstErrorField) firstErrorField = field;
     };
 
+    if (mode === "signup") {
+      if (!namaLengkap.trim()) addError("reg-nama", "Nama Lengkap wajib diisi");
+      if (!noWa.trim()) addError("reg-wa", "Nomor HP wajib diisi");
+    }
+
     if (!email.trim()) addError("mitra-email", "Email wajib diisi");
     else if (!/\S+@\S+\.\S+/.test(email)) addError("mitra-email", "Format email tidak valid");
 
     if (!password) addError("mitra-password", "Password wajib diisi");
     else if (password.length < 8) addError("mitra-password", "Password min. 8 karakter");
+
+    if (mode === "signup") {
+      if (!namaToko.trim()) addError("reg-toko", "Nama Toko wajib diisi");
+      if (!alamatToko.trim()) addError("reg-alamat", "Alamat Lengkap Workshop wajib diisi");
+      if (!tahunUsaha) addError("reg-tahun", "Tahun Mulai Usaha wajib diisi");
+      if (!konfirmasiPassword) addError("mitra-konfirmasi-password", "Konfirmasi password wajib diisi");
+      else if (password !== konfirmasiPassword) addError("mitra-konfirmasi-password", "Password tidak cocok");
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -57,9 +78,19 @@ export default function MitraLoginPage() {
       return;
     }
 
+    if (mode === "signup" && !agreed) {
+      toast.error("Harap centang persetujuan persyaratan terlebih dahulu.");
+      return;
+    }
+
     setLoading(true);
     try {
       await new Promise((resolve) => setTimeout(resolve, 800));
+      if (mode === "signup") {
+        toast.success("Akun berhasil dibuat! Tim admin akan meninjau dalam 1×24 jam.");
+        router.push("/mitra/dashboard");
+        return;
+      }
       setDemoSession("seller");
       toast.success("Login Mitra berhasil!");
       router.push("/mitra/dashboard");
@@ -188,7 +219,7 @@ export default function MitraLoginPage() {
 
       {/* ── Main ── */}
       <main style={{ flex: 1, overflowY: "auto", overscrollBehaviorY: "contain", padding: "3rem 2rem", position: "relative", zIndex: 10 }}>
-        <div style={{ width: "100%", maxWidth: 460, margin: "0 auto" }}>
+        <div style={{ width: "100%", maxWidth: mode === "signup" ? 520 : 460, margin: "0 auto" }}>
           <div style={{
             background: "rgba(255,255,255,0.92)",
             backdropFilter: "blur(16px)",
@@ -211,10 +242,12 @@ export default function MitraLoginPage() {
               </div>
               <div>
                 <h1 style={{ fontSize: "1.5rem", fontWeight: 800, letterSpacing: "-0.03em", color: "var(--bark)", margin: 0 }}>
-                  Masuk Mitra
+                  {mode === "signin" ? "Masuk Mitra" : "Daftar Mitra"}
                 </h1>
                 <p style={{ fontSize: "0.82rem", color: "var(--bark-muted)", margin: "0.2rem 0 0", lineHeight: 1.5 }}>
-                  Kelola toko, katalog, dan pesananmu.
+                  {mode === "signin"
+                    ? "Kelola toko, katalog, dan pesananmu."
+                    : "Mulai bisnis keramik bersama DinoyoCraft."}
                 </p>
               </div>
             </div>
@@ -222,7 +255,38 @@ export default function MitraLoginPage() {
             {/* ③ Form */}
             <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
 
+              {/* ── SIGNUP: Data Pribadi ── */}
+              {mode === "signup" && (
+                <>
+                  <p style={{ fontSize: "0.73rem", fontWeight: 700, color: "var(--bark)", letterSpacing: "0.05em", textTransform: "uppercase", margin: "0.25rem 0 -0.25rem" }}>
+                    Data Pribadi
+                  </p>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                      <label htmlFor="reg-nama" style={labelStyle}>Nama Lengkap</label>
+                      {errors["reg-nama"] && <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>{errors["reg-nama"]}</span>}
+                    </div>
+                    <input
+                      id="reg-nama" type="text"
+                      value={namaLengkap} onChange={(e) => { setNamaLengkap(e.target.value); if (errors["reg-nama"]) setErrors(p => ({ ...p, "reg-nama": "" })); }}
+                      placeholder="Sesuai KTP" style={{ ...inputStyle, borderColor: errors["reg-nama"] ? "#e53e3e" : "rgba(0,0,0,0.13)" }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                      <label htmlFor="reg-wa" style={labelStyle}>Nomor HP (WhatsApp)</label>
+                      {errors["reg-wa"] && <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>{errors["reg-wa"]}</span>}
+                    </div>
+                    <input
+                      id="reg-wa" type="tel"
+                      value={noWa} onChange={(e) => { setNoWa(e.target.value); if (errors["reg-wa"]) setErrors(p => ({ ...p, "reg-wa": "" })); }}
+                      placeholder="08..." style={{ ...inputStyle, borderColor: errors["reg-wa"] ? "#e53e3e" : "rgba(0,0,0,0.13)" }}
+                    />
+                  </div>
+                </>
+              )}
 
+              {/* ── Email (keduanya) ── */}
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                   <label htmlFor="mitra-email" style={labelStyle}>Email</label>
@@ -236,11 +300,56 @@ export default function MitraLoginPage() {
                 />
               </div>
 
+              {/* ── SIGNUP: Data Toko ── */}
+              {mode === "signup" && (
+                <>
+                  <p style={{ fontSize: "0.73rem", fontWeight: 700, color: "var(--bark)", letterSpacing: "0.05em", textTransform: "uppercase", margin: "0.25rem 0 -0.25rem" }}>
+                    Data Toko / Workshop
+                  </p>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                      <label htmlFor="reg-toko" style={labelStyle}>Nama Toko</label>
+                      {errors["reg-toko"] && <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>{errors["reg-toko"]}</span>}
+                    </div>
+                    <input
+                      id="reg-toko" type="text"
+                      value={namaToko} onChange={(e) => { setNamaToko(e.target.value); if (errors["reg-toko"]) setErrors(p => ({ ...p, "reg-toko": "" })); }}
+                      placeholder="Contoh: Studio Keramik Bumi" style={{ ...inputStyle, borderColor: errors["reg-toko"] ? "#e53e3e" : "rgba(0,0,0,0.13)" }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                      <label htmlFor="reg-alamat" style={labelStyle}>Alamat Lengkap Workshop</label>
+                      {errors["reg-alamat"] && <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>{errors["reg-alamat"]}</span>}
+                    </div>
+                    <textarea
+                      id="reg-alamat"
+                      value={alamatToko} onChange={(e) => { setAlamatToko(e.target.value); if (errors["reg-alamat"]) setErrors(p => ({ ...p, "reg-alamat": "" })); }}
+                      placeholder="Jalan, RT/RW, Kelurahan..."
+                      style={{ ...inputStyle, minHeight: "80px", resize: "vertical", borderColor: errors["reg-alamat"] ? "#e53e3e" : "rgba(0,0,0,0.13)" }}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                      <label htmlFor="reg-tahun" style={labelStyle}>Tahun Mulai Usaha</label>
+                      {errors["reg-tahun"] && <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>{errors["reg-tahun"]}</span>}
+                    </div>
+                    <input
+                      id="reg-tahun" type="number"
+                      value={tahunUsaha} onChange={(e) => { setTahunUsaha(e.target.value); if (errors["reg-tahun"]) setErrors(p => ({ ...p, "reg-tahun": "" })); }}
+                      placeholder="Contoh: 2018" min={1990} max={new Date().getFullYear()}
+                      style={{ ...inputStyle, borderColor: errors["reg-tahun"] ? "#e53e3e" : "rgba(0,0,0,0.13)" }}
+                    />
+                  </div>
+                </>
+              )}
 
-              {/* ── Password ── */}
+              {/* ── Password (keduanya) ── */}
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                  <label htmlFor="mitra-password" style={labelStyle}>Password</label>
+                  <label htmlFor="mitra-password" style={labelStyle}>
+                    Password{mode === "signup" && <span style={{ color: "var(--error, #e53e3e)", marginLeft: 2 }}>*</span>}
+                  </label>
                   {errors["mitra-password"] && <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>{errors["mitra-password"]}</span>}
                 </div>
                 <input
@@ -251,26 +360,93 @@ export default function MitraLoginPage() {
                 />
               </div>
 
-              {/* ── Lupa Password ── */}
-              <div style={{ textAlign: "right", marginTop: "-0.5rem" }}>
-                <Link href="/mitra/lupa-kata-sandi" style={{ fontSize: "0.78rem", color: "var(--clay)", fontWeight: 600, textDecoration: "none" }}>
-                  Lupa kata sandi?
-                </Link>
-              </div>
+              {/* ── SIGNUP: Konfirmasi Password ── */}
+              {mode === "signup" && (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                    <label htmlFor="mitra-konfirmasi-password" style={labelStyle}>
+                      Konfirmasi Password<span style={{ color: "var(--error, #e53e3e)", marginLeft: 2 }}>*</span>
+                    </label>
+                    {errors["mitra-konfirmasi-password"] && <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>{errors["mitra-konfirmasi-password"]}</span>}
+                  </div>
+                  <input
+                    id="mitra-konfirmasi-password" type="password"
+                    value={konfirmasiPassword} onChange={(e) => { setKonfirmasiPassword(e.target.value); if (errors["mitra-konfirmasi-password"]) setErrors(p => ({ ...p, "mitra-konfirmasi-password": "" })); }}
+                    placeholder="Masukkan ulang password" className="input-earthy"
+                    style={errors["mitra-konfirmasi-password"] ? { borderColor: "#e53e3e" } : {}}
+                  />
+                </div>
+              )}
+
+              {/* ── SIGNUP: Persyaratan ── */}
+              {mode === "signup" && (
+                <div style={{
+                  background: "linear-gradient(135deg, rgba(184,92,60,0.06), rgba(120,160,80,0.04))",
+                  border: "1.5px solid rgba(184,92,60,0.18)",
+                  borderRadius: "0.875rem",
+                  padding: "0.9rem 1rem",
+                }}>
+                  <p style={{
+                    fontSize: "0.73rem", fontWeight: 700, color: "var(--clay)",
+                    letterSpacing: "0.06em", textTransform: "uppercase",
+                    marginBottom: "0.6rem",
+                  }}>
+                    Persyaratan Daftar Mitra
+                  </p>
+                  {SYARAT.map((req, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: "0.45rem", marginBottom: i < SYARAT.length - 1 ? "0.4rem" : 0 }}>
+                      <CheckCircle size={14} weight="fill" color="var(--clay)" style={{ flexShrink: 0, marginTop: 1 }} />
+                      <span style={{ fontSize: "0.76rem", color: "var(--bark-muted)", lineHeight: 1.45 }}>{req}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* ── SIGNUP: Checkbox persetujuan ── */}
+              {mode === "signup" && (
+                <label style={{ display: "flex", alignItems: "flex-start", gap: "0.65rem", cursor: "pointer" }}>
+                  <div
+                    onClick={() => setAgreed(!agreed)}
+                    style={{
+                      width: 20, height: 20, borderRadius: "0.35rem",
+                      border: `2px solid ${agreed ? "var(--clay)" : "var(--line-strong)"}`,
+                      background: agreed ? "var(--clay)" : "#fff",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0, cursor: "pointer", transition: "all 0.15s", marginTop: "0.1rem",
+                    }}
+                  >
+                    {agreed && <CheckSquare size={12} color="#fff" weight="fill" />}
+                  </div>
+                  <span style={{ fontSize: "0.78rem", color: "var(--bark)", lineHeight: 1.6 }}>
+                    Saya menyetujui{" "}
+                    <Link href="#" style={{ color: "var(--clay)", fontWeight: 700 }}>Syarat & Ketentuan</Link>
+                    {" "}serta persyaratan pendaftaran Mitra DinoyoCraft.
+                  </span>
+                </label>
+              )}
+
+              {/* ── Lupa Password (signin only) ── */}
+              {mode === "signin" && (
+                <div style={{ textAlign: "right", marginTop: "-0.5rem" }}>
+                  <Link href="/mitra/lupa-kata-sandi" style={{ fontSize: "0.78rem", color: "var(--clay)", fontWeight: 600, textDecoration: "none" }}>
+                    Lupa kata sandi?
+                  </Link>
+                </div>
+              )}
 
               {/* ── Submit ── */}
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (mode === "signup" && !agreed)}
                 style={{
                   display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem",
                   padding: "0.85rem",
                   borderRadius: "0.75rem",
-                  background: loading ? "var(--clay-light, #d4956a)" : "linear-gradient(135deg, var(--bark), #2d2a26)",
-                  color: "#fff",
+                  background: loading ? "var(--clay-light, #d4956a)" : (mode === "signup" && !agreed) ? "#e5e7eb" : "linear-gradient(135deg, var(--bark), #2d2a26)",
+                  color: (mode === "signup" && !agreed) ? "#9ca3af" : "#fff",
                   fontWeight: 700, fontSize: "0.95rem", border: "none",
-                  cursor: loading ? "not-allowed" : "pointer",
-                  transition: "opacity 0.2s, background 0.2s",
+                  cursor: (loading || (mode === "signup" && !agreed)) ? "not-allowed" : "pointer",
+                  transition: "opacity 0.2s, background 0.2s, color 0.2s",
                   marginTop: "0.25rem",
                   letterSpacing: "-0.01em",
                   fontFamily: pjs.style.fontFamily,
@@ -280,7 +456,7 @@ export default function MitraLoginPage() {
                   <span style={{ display: "inline-block", width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "9999px", animation: "spin 0.75s linear infinite" }} />
                 ) : (
                   <>
-                    Masuk ke Dashboard
+                    {mode === "signin" ? "Masuk ke Dashboard" : "Buat Akun"}
                     <ArrowRight size={16} weight="bold" />
                   </>
                 )}
@@ -329,16 +505,16 @@ export default function MitraLoginPage() {
             </button>
 
             <p style={{ marginTop: "1.5rem", fontSize: "0.75rem", color: "var(--bark-muted)", textAlign: "center", lineHeight: 1.6 }}>
-              Belum jadi mitra?{" "}
+              Sudah punya akun?{" "}
               <Link
-                href="/mitra/register"
+                href="/mitra/login"
                 style={{
                   fontWeight: 700, color: "var(--clay)",
                   fontSize: "0.75rem",
                   textDecoration: "underline",
                 }}
               >
-                Daftar Sekarang
+                Masuk Sekarang
               </Link>
             </p>
           </div>

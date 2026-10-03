@@ -93,7 +93,9 @@ export default function Home() {
         fontFamily: "var(--font-outfit), sans-serif",
       }}
     >
-      <Navbar />
+      <div style={{ position: "sticky", top: 0, zIndex: 50 }}>
+        <Navbar />
+      </div>
 
       {/* ── HERO ───────────────────────────────────────────────────────── */}
       <section
@@ -247,7 +249,7 @@ export default function Home() {
                   }}
                 >
                   <Image
-                    src="https://picsum.photos/seed/dinoyo-mitra-pottery/600/750"
+                    src="/images/hero-1.jpg"
                     alt="Mitra DinoyoCraft memegang keramik karya pengrajin Dinoyo"
                     width={600}
                     height={750}
@@ -265,7 +267,7 @@ export default function Home() {
                   }}
                 >
                   <Image
-                    src="https://picsum.photos/seed/dinoyo-glaze-cup/600/600"
+                    src="/images/hero-2.jpg"
                     alt="Cangkir keramik glasir produk mitra"
                     width={600}
                     height={600}
@@ -284,7 +286,7 @@ export default function Home() {
                   }}
                 >
                   <Image
-                    src="https://picsum.photos/seed/dinoyo-packaging/600/600"
+                    src="/images/hero-3.jpg"
                     alt="Packing keramik dengan nama toko mitra"
                     width={600}
                     height={600}
@@ -301,7 +303,7 @@ export default function Home() {
                   }}
                 >
                   <Image
-                    src="https://picsum.photos/seed/dinoyo-workshop/600/750"
+                    src="/images/hero-4.jpg"
                     alt="Bengkel keramik Dinoyo tempat barang diproduksi dan dikirim"
                     width={600}
                     height={750}
@@ -1260,7 +1262,6 @@ export default function Home() {
           </div>
         </div>
       </footer>
-
     </div>
   );
 }

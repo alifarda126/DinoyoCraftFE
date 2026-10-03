@@ -94,7 +94,7 @@ export default function SellerRegistrationPage() {
 
   /* ── Main Form ── */
   return (
-    <div style={{ minHeight: "100dvh", background: "var(--surface)", fontFamily: pjs.style.fontFamily }}>
+    <div style={{ height: "100dvh", overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--surface)", fontFamily: pjs.style.fontFamily }}>
 
       {/* Header */}
       <header style={{ background: "#fff", borderBottom: "1px solid var(--line)", padding: "1rem 2rem" }}>
@@ -106,7 +106,7 @@ export default function SellerRegistrationPage() {
         </div>
       </header>
 
-      <main style={{ padding: "2.5rem 1.25rem" }}>
+      <main style={{ flex: 1, overflowY: "auto", overscrollBehaviorY: "contain", padding: "2.5rem 1.25rem" }}>
         <div style={{ maxWidth: "680px", margin: "0 auto" }}>
           <form onSubmit={handleSubmit}>
             <div style={{
