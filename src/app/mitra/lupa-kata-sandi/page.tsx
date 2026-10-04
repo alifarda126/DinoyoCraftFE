@@ -537,12 +537,10 @@ export default function LupaKataSandiPage() {
           </div>
 
           {/* Badge bawah */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", marginTop: "1.5rem", opacity: 0.6 }}>
-            <Leaf size={14} color="var(--moss)" />
-            <span style={{ fontSize: "0.72rem", color: "var(--bark-muted)", fontWeight: 500 }}>
-              Platform kerajinan keramik lokal Dinoyo, Malang
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginTop: "1.5rem" }}>
+            <span style={{ fontSize: "0.75rem", color: "var(--bark)", fontWeight: 600, opacity: 0.85 }}>
+              &copy; {new Date().getFullYear()} DinoyoCraft. Hak Cipta Dilindungi.
             </span>
-            <Leaf size={14} color="var(--moss)" />
           </div>
         </div>
       </main>

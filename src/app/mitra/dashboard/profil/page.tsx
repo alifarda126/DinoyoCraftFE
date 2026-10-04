@@ -52,7 +52,11 @@ export default function SellerProfilPage() {
   const [saved, setSaved] = useState(false);
   const [profile, setProfile] = useState<ProfileData>(INITIAL);
   const [preview, setPreview] = useState<string>("");
+  const [bannerPreview, setBannerPreview] = useState<string>(
+    "https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=1200&auto=format&fit=crop"
+  );
   const fileRef = useRef<HTMLInputElement>(null);
+  const bannerRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const session = getDemoSession();
@@ -75,6 +79,15 @@ export default function SellerProfilPage() {
     const url = URL.createObjectURL(file);
     setPreview(url);
     setSaved(false);
+  }
+
+  function handleBannerChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setBannerPreview(url);
+    setSaved(false);
+    toast.success("Banner toko berhasil diganti!");
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -107,51 +120,100 @@ export default function SellerProfilPage() {
 
           {/* ── Kolom Kiri: Foto & Pratinjau ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
-            {/* Avatar Card */}
+            {/* Avatar Card — matches toko-saya style */}
             <div style={{
               background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)",
               overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.03)",
             }}>
-              <div style={{ background: "linear-gradient(135deg, var(--clay), #a05a3b)", height: 80, position: "relative" }}>
+              {/* Banner */}
+              <div style={{
+                height: 120, position: "relative", overflow: "hidden",
+                background: `url('${bannerPreview}') center/cover`,
+                cursor: "pointer",
+              }}
+                onClick={() => bannerRef.current?.click()}
+                title="Klik untuk ganti banner"
+              >
+                {/* Dark overlay on hover hint */}
                 <div style={{
-                  position: "absolute", bottom: -36, left: "50%", transform: "translateX(-50%)",
-                  width: 72, height: 72, borderRadius: "50%",
-                  background: preview ? "transparent" : "linear-gradient(135deg, var(--clay), #c0673d)",
-                  border: "3px solid #fff",
+                  position: "absolute", inset: 0,
+                  background: "rgba(0,0,0,0.25)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "1.35rem", fontWeight: 800, color: "#fff",
-                  overflow: "hidden",
-                  boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                 }}>
-                  {preview
-                    ? <img src={preview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    : initials
-                  }
+                  <div style={{
+                    display: "inline-flex", alignItems: "center", gap: "0.35rem",
+                    background: "rgba(255,255,255,0.18)", backdropFilter: "blur(4px)",
+                    border: "1px solid rgba(255,255,255,0.35)",
+                    borderRadius: "9999px", padding: "0.3rem 0.7rem",
+                    color: "#fff", fontSize: "0.72rem", fontWeight: 700,
+                  }}>
+                    <Camera size={12} />
+                    Ganti Banner
+                  </div>
                 </div>
+                <input ref={bannerRef} type="file" accept="image/*" onChange={handleBannerChange} style={{ display: "none" }} />
               </div>
-              <div style={{ paddingTop: 44, paddingBottom: "1.5rem", textAlign: "center" }}>
+
+              {/* Avatar overlapping banner */}
+              <div style={{ padding: "0 1.25rem 1.25rem", position: "relative" }}>
+                <div style={{
+                  position: "relative", marginTop: -38, marginBottom: "0.75rem",
+                  display: "inline-block",
+                }}>
+                  <div style={{
+                    width: 76, height: 76, borderRadius: "50%",
+                    background: preview ? "transparent" : "linear-gradient(135deg, var(--clay), #c0673d)",
+                    border: "3px solid #fff",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "1.5rem", fontWeight: 800, color: "#fff",
+                    overflow: "hidden",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                  }}>
+                    {preview
+                      ? <img src={preview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      : initials
+                    }
+                  </div>
+                  {/* Avatar edit button */}
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    title="Ganti foto profil"
+                    style={{
+                      position: "absolute", bottom: 0, right: 0,
+                      width: 24, height: 24, borderRadius: "50%",
+                      background: "var(--clay)", border: "2px solid #fff",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Camera size={11} color="#fff" weight="bold" />
+                  </button>
+                </div>
+
                 <p style={{ fontWeight: 700, fontSize: "1rem", color: "var(--bark)", margin: "0 0 0.15rem" }}>
                   {profile.storeName || "Nama Toko"}
                 </p>
-                <p style={{ fontSize: "0.78rem", color: "var(--bark-muted)", margin: "0 0 1rem" }}>
+                <p style={{ fontSize: "0.78rem", color: "var(--bark-muted)", margin: "0 0 0.75rem" }}>
                   {profile.kategori}
                 </p>
+
                 <input ref={fileRef} type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: "none" }} />
                 <button
                   type="button"
                   onClick={() => fileRef.current?.click()}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: "0.4rem",
-                    padding: "0.5rem 1rem", borderRadius: "0.6rem",
+                    padding: "0.45rem 0.9rem", borderRadius: "0.6rem",
                     border: "1px solid var(--line-strong)", background: "#fff",
-                    color: "var(--bark)", fontSize: "0.8rem", fontWeight: 600,
+                    color: "var(--bark)", fontSize: "0.78rem", fontWeight: 600,
                     cursor: "pointer", transition: "background 0.2s",
                     fontFamily: "var(--font-outfit), sans-serif",
                   }}
                   onMouseEnter={e => (e.currentTarget.style.background = "var(--surface)")}
                   onMouseLeave={e => (e.currentTarget.style.background = "#fff")}
                 >
-                  <Camera size={15} />
+                  <Camera size={14} />
                   Ganti Foto
                 </button>
               </div>

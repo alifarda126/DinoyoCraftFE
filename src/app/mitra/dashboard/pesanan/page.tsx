@@ -27,6 +27,8 @@ type OrderItem = {
   price: number;
   qty: number;
   image: string;
+  variantName?: string;
+  variantHex?: string;
 };
 
 type Order = {
@@ -40,6 +42,8 @@ type Order = {
   kurir?: string;
   rating?: number;
   ulasan?: string;
+  ulasanAvatar?: string;
+  ulasanFoto?: string;
   balasanMitra?: string;
 };
 
@@ -96,7 +100,7 @@ export default function PesananSellerPage() {
         status: "unpaid",
         total: 150000,
         items: [
-          { id: "p1", name: "Vas Bunga Minimalis", price: 75000, qty: 2, image: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=150&auto=format&fit=crop" }
+          { id: "p1", name: "Vas Bunga Minimalis", price: 75000, qty: 2, image: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=150&auto=format&fit=crop", variantName: "Sand White", variantHex: "#f0ebe3" }
         ]
       },
       {
@@ -106,7 +110,7 @@ export default function PesananSellerPage() {
         status: "packed",
         total: 85000,
         items: [
-          { id: "p2", name: "Mug Teh Klasik", price: 85000, qty: 1, image: "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?q=80&w=150&auto=format&fit=crop" }
+          { id: "p2", name: "Mug Teh Klasik", price: 85000, qty: 1, image: "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?q=80&w=150&auto=format&fit=crop", variantName: "Charcoal Ash", variantHex: "#3d3d3d" }
         ]
       },
       {
@@ -118,7 +122,7 @@ export default function PesananSellerPage() {
         resi: "JNE1234567890",
         kurir: "JNE",
         items: [
-          { id: "p3", name: "Piring Hias Dinding", price: 250000, qty: 1, image: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?q=80&w=150&auto=format&fit=crop" }
+          { id: "p3", name: "Piring Hias Dinding", price: 250000, qty: 1, image: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?q=80&w=150&auto=format&fit=crop", variantName: "Raw Speckle", variantHex: "#d4cfc8" }
         ]
       },
       {
@@ -130,9 +134,11 @@ export default function PesananSellerPage() {
         resi: "SICEPAT987654",
         kurir: "SiCepat",
         rating: 5,
-        ulasan: "Kualitas sangat bagus dan pengemasan super aman! Terima kasih seller.",
+        ulasan: "Kualitas sangat bagus dan pengemasan super aman! Pot terakotanya cantik dan kokoh, warnanya persis seperti foto. Terima kasih seller, pasti order lagi!",
+        ulasanAvatar: "https://i.pravatar.cc/48?img=31",
+        ulasanFoto: "https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?auto=format&fit=crop&w=300&q=80",
         items: [
-          { id: "p4", name: "Pot Terakota Kecil", price: 90000, qty: 2, image: "https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?q=80&w=150&auto=format&fit=crop" }
+          { id: "p4", name: "Pot Terakota Kecil", price: 90000, qty: 2, image: "https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?q=80&w=150&auto=format&fit=crop", variantName: "Terracotta", variantHex: "#c1694f" }
         ]
       },
       {
@@ -143,8 +149,28 @@ export default function PesananSellerPage() {
         total: 320000,
         resi: "JNT098765432",
         kurir: "J&T",
+        rating: 5,
+        ulasan: "Set piringnya luar biasa! Motif speckle-nya unik dan terasa premium. Sangat puas dengan kualitas pengrajin lokal Dinoyo. Sudah saya rekomendasikan ke teman-teman.",
+        ulasanAvatar: "https://i.pravatar.cc/48?img=8",
+        ulasanFoto: "https://images.unsplash.com/photo-1616428795551-7f91cc42eece?auto=format&fit=crop&w=300&q=80",
         items: [
-          { id: "p5", name: "Set Piring Makan Keramik", price: 320000, qty: 1, image: "https://images.unsplash.com/photo-1616428795551-7f91cc42eece?q=80&w=150&auto=format&fit=crop" }
+          { id: "p5", name: "Set Piring Makan Keramik", price: 320000, qty: 1, image: "https://images.unsplash.com/photo-1616428795551-7f91cc42eece?q=80&w=150&auto=format&fit=crop", variantName: "Raw Speckle", variantHex: "#d4cfc8" }
+        ]
+      },
+      {
+        id: "ORD-20231015-006",
+        customerName: "Mochammad Al Mizan",
+        date: "15 Okt 2023 08:30",
+        status: "completed",
+        total: 85000,
+        resi: "ANTERAJA556677",
+        kurir: "Anteraja",
+        rating: 5,
+        ulasan: "Glasirnya sangat halus dan rapi, warna aslinya lebih estetik daripada di foto. Pengemasan sangat kokoh dan aman sampai rumah tanpa retak sedikitpun. Bangga beli produk keramik lokal Dinoyo!",
+        ulasanAvatar: "https://i.pravatar.cc/48?img=11",
+        ulasanFoto: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=300&q=80",
+        items: [
+          { id: "p6", name: "Vas Minimalis", price: 85000, qty: 1, image: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=150&auto=format&fit=crop", variantName: "Sand White", variantHex: "#f0ebe3" }
         ]
       }
     ]);
@@ -326,6 +352,12 @@ export default function PesananSellerPage() {
                           <div>
                             <h3 className="font-medium text-zinc-900 mb-1">{item.name}</h3>
                             <p className="text-sm text-zinc-500 mb-1">{item.qty} barang x Rp {item.price.toLocaleString("id-ID")}</p>
+                            {item.variantName && (
+                              <div style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", background: "#f5f5f5", borderRadius: "999px", padding: "0.2rem 0.6rem 0.2rem 0.35rem", border: "1px solid #e5e5e5" }}>
+                                <span style={{ width: 12, height: 12, borderRadius: "50%", background: item.variantHex, border: "1.5px solid rgba(0,0,0,0.12)", flexShrink: 0, display: "inline-block" }} />
+                                <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#52525b" }}>{item.variantName}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       ))}
@@ -401,19 +433,44 @@ export default function PesananSellerPage() {
                   </div>
                   </div>
 
-                  {/* Tampilan Rating jika Selesai (Full Width di Bawah) */}
+                  {/* Ulasan jika Selesai */}
                   {order.status === "completed" && (
                     <div className="mt-6 pt-5 border-t border-zinc-100">
                       <p className="text-sm font-bold text-zinc-900 mb-3">Ulasan dari pembeli</p>
                       {order.rating ? (
                         <div className="bg-orange-50/80 border border-orange-100 p-4 rounded-xl w-full text-left">
-                          <div className="flex gap-1 mb-2">
-                            {[...Array(5)].map((_, i) => (
-                              <Star key={i} size={15} weight={i < order.rating! ? "fill" : "regular"} color="#f59e0b" />
-                            ))}
+                          {/* Reviewer row */}
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.65rem", marginBottom: "0.75rem" }}>
+                            {order.ulasanAvatar ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={order.ulasanAvatar} alt={order.customerName}
+                                style={{ width: 36, height: 36, borderRadius: "50%", objectFit: "cover", border: "1.5px solid rgba(0,0,0,0.1)", flexShrink: 0 }} />
+                            ) : (
+                              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--clay)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.8rem", flexShrink: 0 }}>
+                                {order.customerName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase()}
+                              </div>
+                            )}
+                            <div>
+                              <p style={{ fontWeight: 700, fontSize: "0.85rem", color: "#1c1917", margin: 0 }}>{order.customerName}</p>
+                              <div style={{ display: "flex", gap: 2, marginTop: 2 }}>
+                                {[...Array(5)].map((_, i) => (
+                                  <Star key={i} size={12} weight={i < order.rating! ? "fill" : "regular"} color="#f59e0b" />
+                                ))}
+                              </div>
+                            </div>
                           </div>
+
                           {order.ulasan && <p className="text-sm text-zinc-800 italic mb-3 leading-relaxed">"{order.ulasan}"</p>}
-                          
+
+                          {/* Foto ulasan */}
+                          {order.ulasanFoto && (
+                            <div style={{ marginBottom: "0.75rem" }}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={order.ulasanFoto} alt="Foto ulasan"
+                                style={{ width: 90, height: 72, objectFit: "cover", borderRadius: "0.5rem", border: "1px solid rgba(0,0,0,0.08)" }} />
+                            </div>
+                          )}
+
                           {order.balasanMitra ? (
                             <div className="mt-3 pt-3 border-t border-orange-200/60">
                               <p className="text-xs font-bold text-orange-800 mb-1">Balasan Anda:</p>

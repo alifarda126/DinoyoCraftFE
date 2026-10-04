@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   Star, MagnifyingGlass, MapPin, PencilSimple, ShareNetwork,
-  X, Heart, ChatCircle, ThumbsUp, CaretRight, Storefront
+  X, Heart, ChatCircle, ThumbsUp, CaretRight, Storefront, Fire
 } from "@phosphor-icons/react";
 import Link from "next/link";
 
@@ -16,35 +17,125 @@ const PRODUCTS = [
   { id: 4, name: "Piring Artisan", price: 95000, rating: 4.9, isHot: false, image: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?q=80&w=300&auto=format&fit=crop" },
 ];
 
+const PRODUCT_VARIANTS: Record<number, { name: string; hex: string; label: string }[]> = {
+  1: [
+    { name: "Sand White",   hex: "#f0ebe3", label: "Glossy Finish" },
+    { name: "Terracotta",   hex: "#c1694f", label: "Matte Earthy"  },
+    { name: "Raw Speckle",  hex: "#d4cfc8", label: "Bintik Alami"  },
+    { name: "Charcoal Ash", hex: "#3d3d3d", label: "Tekstur Abu"   },
+  ],
+  2: [
+    { name: "Cream White",  hex: "#f5f0e8", label: "Halus Matte"   },
+    { name: "Sage Green",   hex: "#8aad8a", label: "Natural Moss"  },
+  ],
+  3: [
+    { name: "Sand White",   hex: "#f0ebe3", label: "Glossy Finish" },
+    { name: "Cobalt Blue",  hex: "#3b5fa0", label: "Deep Ocean"    },
+    { name: "Terracotta",   hex: "#c1694f", label: "Matte Earthy"  },
+  ],
+  4: [
+    { name: "Raw Speckle",  hex: "#d4cfc8", label: "Bintik Alami"  },
+    { name: "Charcoal Ash", hex: "#3d3d3d", label: "Tekstur Abu"   },
+    { name: "Sage Green",   hex: "#8aad8a", label: "Natural Moss"  },
+  ],
+};
+
+const PRODUCT_REVIEWS: Record<number, {
+  id: number; customerName: string; avatar: string;
+  date: string; rating: number; content: string; variantName: string;
+  photo?: string; reply: string; isEditing: boolean; editDraft: string;
+}[]> = {
+  1: [
+    {
+      id: 1, customerName: "Mochammad Al Mizan",
+      avatar: "https://i.pravatar.cc/48?img=11",
+      date: "12 Feb 2025", rating: 5, variantName: "Sand White — Glossy Finish",
+      content: "Glasirnya sangat halus dan rapi, warna aslinya lebih estetik daripada di foto. Pengemasan kayu sangat kokoh dan aman sampai rumah tanpa retak sedikitpun. Sangat bangga dengan karya pengrajin Dinoyo Malang!",
+      photo: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=300&q=80",
+      reply: "Terima kasih banyak Mas Mizan atas apresiasinya! Semoga vas keramiknya mempercantik ruangan rumah.",
+      isEditing: false, editDraft: "",
+    },
+    {
+      id: 2, customerName: "Anisa Nur Azizah",
+      avatar: "https://i.pravatar.cc/48?img=47",
+      date: "10 Feb 2025", rating: 5, variantName: "Terracotta — Matte Earthy",
+      content: "Tekstur tanah liatnya terasa otentik dan berbobot pas di tangan saat minum kopi seduh manual. Finishing matte-nya nyaman banget dipegang. Recommended untuk penikmat tembikar seni.",
+      photo: "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=300&q=80",
+      reply: "",
+      isEditing: false, editDraft: "",
+    },
+    {
+      id: 3, customerName: "Budi Santoso",
+      avatar: "https://i.pravatar.cc/48?img=12",
+      date: "5 Feb 2025", rating: 4, variantName: "Charcoal Ash — Tekstur Abu",
+      content: "Kualitas sangat bagus untuk harganya. Sedikit berbeda warnanya dari foto tapi masih oke. Pengiriman cepat dan dikemas sangat aman.",
+      reply: "",
+      isEditing: false, editDraft: "",
+    },
+  ],
+  2: [
+    {
+      id: 1, customerName: "Rina Kusuma",
+      avatar: "https://i.pravatar.cc/48?img=23",
+      date: "8 Feb 2025", rating: 5, variantName: "Cream White — Halus Matte",
+      content: "Cangkirnya cantik banget! Cocok buat kopi pagi. Sudah dipesan 3 kali dan kualitasnya selalu konsisten.",
+      photo: "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=300&q=80",
+      reply: "Wah senang sekali dengarnya Kak Rina! Terima kasih sudah setia bersama kami 🙏",
+      isEditing: false, editDraft: "",
+    },
+    {
+      id: 2, customerName: "Agung Prasetyo",
+      avatar: "https://i.pravatar.cc/48?img=8",
+      date: "3 Feb 2025", rating: 5, variantName: "Sage Green — Natural Moss",
+      content: "Warnanya persis seperti foto, tidak mengecewakan. Teman-teman di kantor pada nanya beli di mana haha.",
+      reply: "",
+      isEditing: false, editDraft: "",
+    },
+  ],
+  3: [
+    {
+      id: 1, customerName: "Sari Dewi",
+      avatar: "https://i.pravatar.cc/48?img=31",
+      date: "15 Jan 2025", rating: 5, variantName: "Sand White — Glossy Finish",
+      content: "Mangkuknya padat dan berat, terasa premium. Glasir glossy-nya sangat bersih dan mudah dicuci. Sangat puas!",
+      photo: "https://images.unsplash.com/photo-1616428795551-7f91cc42eece?auto=format&fit=crop&w=300&q=80",
+      reply: "",
+      isEditing: false, editDraft: "",
+    },
+  ],
+  4: [
+    {
+      id: 1, customerName: "Dian Safitri",
+      avatar: "https://i.pravatar.cc/48?img=5",
+      date: "20 Jan 2025", rating: 5, variantName: "Raw Speckle — Bintik Alami",
+      content: "Piring artisannya cantik sekali! Bintik-bintik alaminya menambah kesan rustic yang saya cari. Ukurannya juga pas.",
+      photo: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=300&q=80",
+      reply: "Senang sekali Kak Dian suka! Motif speckle memang ciri khas pengrajin kami 🏺",
+      isEditing: false, editDraft: "",
+    },
+    {
+      id: 2, customerName: "Hendra Wijaya",
+      avatar: "https://i.pravatar.cc/48?img=15",
+      date: "18 Jan 2025", rating: 4, variantName: "Charcoal Ash — Tekstur Abu",
+      content: "Kualitas pengerjaan sangat rapi. Sedikit lebih kecil dari ekspektasi tapi overall sangat memuaskan.",
+      reply: "",
+      isEditing: false, editDraft: "",
+    },
+  ],
+};
+
 export default function TokoSayaPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [ownerName, setOwnerName] = useState("Mitra");
   const [selectedProduct, setSelectedProduct] = useState<typeof PRODUCTS[0] | null>(null);
-
-  const [reviews, setReviews] = useState([
-    {
-      id: 1,
-      customerName: "Mochammad Al Mizan",
-      date: "12 Feb 2025",
-      rating: 5,
-      content: "Glasirnya sangat halus dan rapi, warna aslinya lebih estetik daripada di foto. Pengemasan kayu sangat kokoh dan aman sampai rumah tanpa retak sedikitpun. Sangat bangga dengan karya pengrajin Dinoyo Malang!",
-      reply: "Terima kasih banyak Mas Mizan atas apresiasinya! Semoga vas keramiknya mempercantik ruangan rumah.",
-      isEditing: false,
-      editDraft: "Terima kasih banyak Mas Mizan atas apresiasinya! Semoga vas keramiknya mempercantik ruangan rumah."
-    },
-    {
-      id: 2,
-      customerName: "Anisa Nur Azizah",
-      date: "10 Feb 2025",
-      rating: 5,
-      content: "Tekstur tanah liatnya terasa otentik dan berbobot pas di tangan saat minum kopi seduh manual. Finishing matte-nya nyaman banget dipegang. Recomended untuk penikmat tembikar seni.",
-      reply: "",
-      isEditing: false,
-      editDraft: ""
-    }
-  ]);
+  const [selectedVariant, setSelectedVariant] = useState<{ name: string; hex: string; label: string } | null>(null);
+  const [reviews, setReviews] = useState(PRODUCT_REVIEWS[1]);
+  const [bannerUrl, setBannerUrl] = useState(
+    "https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=1200&auto=format&fit=crop"
+  );
+  const bannerInputRef = useRef<HTMLInputElement>(null);
 
   const toggleEditReply = (id: number, isEditing: boolean) => {
     setReviews(prev => prev.map(r => r.id === id ? { ...r, isEditing, editDraft: r.reply } : r));
@@ -57,6 +148,30 @@ export default function TokoSayaPage() {
   const updateDraft = (id: number, text: string) => {
     setReviews(prev => prev.map(r => r.id === id ? { ...r, editDraft: text } : r));
   };
+
+  function openProduct(product: typeof PRODUCTS[0]) {
+    setSelectedProduct(product);
+    const variants = PRODUCT_VARIANTS[product.id] ?? [];
+    setSelectedVariant(variants[0] ?? null);
+    setReviews(PRODUCT_REVIEWS[product.id] ?? []);
+  }
+
+  function handleBannerChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setBannerUrl(url);
+    toast.success("Banner toko berhasil diperbarui!");
+  }
+
+  function handleShare() {
+    const url = window.location.href.replace("/dashboard/toko-saya", "/toko/dinoyo-ceramic-studio");
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => toast.success("Link toko disalin ke clipboard!"));
+    } else {
+      toast.success("Link toko: " + url);
+    }
+  }
 
   useEffect(() => {
     const session = getDemoSession();
@@ -88,25 +203,32 @@ export default function TokoSayaPage() {
         <div style={{
           height: "240px",
           width: "100%",
-          background: "url('https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=1200&auto=format&fit=crop') center/cover",
+          background: `url('${bannerUrl}') center/cover`,
           position: "relative"
         }}>
           {/* Action buttons */}
           <div style={{ position: "absolute", top: "1rem", right: "1rem", display: "flex", gap: "0.5rem" }}>
-            <button style={{
-              background: "rgba(255,255,255,0.9)", border: "none", borderRadius: "50%",
-              width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", color: "var(--bark)", boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
-            }}>
+            <button
+              onClick={handleShare}
+              title="Salin link toko"
+              style={{
+                background: "rgba(255,255,255,0.9)", border: "none", borderRadius: "50%",
+                width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", color: "var(--bark)", boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
+              }}>
               <ShareNetwork size={18} weight="bold" />
             </button>
-            <button style={{
-              background: "rgba(255,255,255,0.9)", border: "none", borderRadius: "50%",
-              width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", color: "var(--bark)", boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
-            }} title="Edit Banner">
+            <button
+              onClick={() => bannerInputRef.current?.click()}
+              title="Ganti foto banner toko"
+              style={{
+                background: "rgba(255,255,255,0.9)", border: "none", borderRadius: "50%",
+                width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
+                cursor: "pointer", color: "var(--bark)", boxShadow: "0 2px 5px rgba(0,0,0,0.1)"
+              }}>
               <PencilSimple size={18} weight="bold" />
             </button>
+            <input ref={bannerInputRef} type="file" accept="image/*" onChange={handleBannerChange} style={{ display: "none" }} />
           </div>
         </div>
 
@@ -208,7 +330,7 @@ export default function TokoSayaPage() {
         }}>
           {filteredProducts.map(product => (
             <div key={product.id} 
-              onClick={() => setSelectedProduct(product)}
+              onClick={() => openProduct(product)}
               style={{
               background: "#fff", borderRadius: "1rem",
               border: "1px solid var(--line)", overflow: "hidden",
@@ -230,11 +352,12 @@ export default function TokoSayaPage() {
                 <div style={{ position: "absolute", top: "0.75rem", left: "0.75rem", display: "flex", gap: "0.5rem" }}>
                   {product.isHot && (
                     <span style={{
-                      background: "rgba(0,0,0,0.75)", color: "#fff",
-                      fontSize: "0.72rem", fontWeight: 700, padding: "0.3rem 0.6rem",
-                      borderRadius: "0.3rem", display: "flex", alignItems: "center", gap: "0.2rem"
+                      background: "#333", color: "#fff",
+                      fontSize: "0.72rem", fontWeight: 700, padding: "0.35rem 0.75rem",
+                      borderRadius: "9999px", display: "flex", alignItems: "center", gap: "0.3rem",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.15)"
                     }}>
-                      🔥 Hot
+                      <Fire size={14} weight="fill" color="#f97316" /> Hot
                     </span>
                   )}
                 </div>
@@ -345,6 +468,43 @@ export default function TokoSayaPage() {
                   </div>
                 </div>
 
+                {/* ── Color Variants ── */}
+                {(PRODUCT_VARIANTS[selectedProduct.id] ?? []).length > 0 && (
+                  <div style={{ marginBottom: "1.5rem" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.6rem" }}>
+                      <h3 style={{ fontSize: "0.72rem", fontWeight: 800, color: "var(--bark)", margin: 0, letterSpacing: "0.06em", textTransform: "uppercase" }}>Pilihan Warna / Glaze</h3>
+                      {selectedVariant && (
+                        <span style={{ fontSize: "0.78rem", color: "var(--bark-muted)", fontWeight: 600 }}>
+                          {selectedVariant.name} {selectedVariant.label}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+                      {(PRODUCT_VARIANTS[selectedProduct.id] ?? []).map(v => {
+                        const active = selectedVariant?.name === v.name;
+                        return (
+                          <button key={v.name} onClick={() => setSelectedVariant(v)} style={{
+                            display: "flex", alignItems: "center", gap: "0.75rem",
+                            padding: "0.75rem 1rem", borderRadius: "0.75rem",
+                            border: `2px solid ${active ? "var(--bark)" : "rgba(0,0,0,0.1)"}`,
+                            background: active ? "rgba(0,0,0,0.03)" : "#fff",
+                            cursor: "pointer", textAlign: "left", transition: "all 0.15s",
+                          }}>
+                            <span style={{
+                              width: 32, height: 32, borderRadius: "50%", flexShrink: 0,
+                              background: v.hex, border: "2px solid rgba(0,0,0,0.12)",
+                            }} />
+                            <div>
+                              <p style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--bark)", margin: 0 }}>{v.name}</p>
+                              <p style={{ fontSize: "0.72rem", color: "var(--bark-muted)", margin: 0 }}>{v.label}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
                 {/* Description & Spec */}
                 <h3 style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--bark)", marginBottom: "0.5rem" }}>Deskripsi Produk</h3>
                 <p style={{ fontSize: "0.9rem", color: "var(--bark-muted)", lineHeight: 1.6, marginBottom: "1.5rem" }}>
@@ -402,29 +562,31 @@ export default function TokoSayaPage() {
                   {/* Reviews List */}
                   {reviews.map(review => (
                     <div key={review.id} style={{ padding: "1.25rem", border: "1px solid var(--line)", borderRadius: "1rem", marginBottom: "1rem" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.5rem" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0.65rem" }}>
                         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-                          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "var(--clay)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "0.85rem" }}>
-                            {review.customerName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase()}
-                          </div>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={review.avatar} alt={review.customerName}
+                            style={{ width: 38, height: 38, borderRadius: "50%", objectFit: "cover", border: "1.5px solid var(--line)", flexShrink: 0 }} />
                           <div>
-                            <p style={{ fontWeight: 700, fontSize: "0.9rem", color: "var(--bark)", margin: 0 }}>{review.customerName}</p>
-                            <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", margin: 0 }}>{review.date}</p>
+                            <p style={{ fontWeight: 700, fontSize: "0.88rem", color: "var(--bark)", margin: 0 }}>{review.customerName}</p>
+                            <p style={{ fontSize: "0.72rem", color: "var(--bark-muted)", margin: 0 }}>{review.date}</p>
                           </div>
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: "2px", color: "#f59e0b", marginBottom: "0.5rem" }}>
+                      <div style={{ display: "flex", gap: "2px", color: "#f59e0b", marginBottom: "0.35rem" }}>
                         {[1, 2, 3, 4, 5].map(i => <Star key={i} size={12} weight={i <= review.rating ? "fill" : "regular"} />)}
                       </div>
-                      <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", marginBottom: "0.5rem", margin: "0 0 0.5rem" }}>
-                        Varian: <strong>{selectedProduct.name}</strong>
+                      <p style={{ fontSize: "0.72rem", color: "var(--bark-muted)", margin: "0 0 0.6rem" }}>
+                        Varian: <strong style={{ color: "var(--clay)" }}>{review.variantName}</strong>
                       </p>
-                      <p style={{ fontSize: "0.9rem", color: "var(--bark)", lineHeight: 1.5, margin: "0 0 1rem" }}>
+                      <p style={{ fontSize: "0.88rem", color: "var(--bark)", lineHeight: 1.55, margin: "0 0 0.75rem" }}>
                         {review.content}
                       </p>
-                      {review.id === 1 && (
-                        <div style={{ display: "flex", gap: "0.5rem" }}>
-                          <img src={selectedProduct.image} style={{ width: 80, height: 80, borderRadius: "0.5rem", objectFit: "cover", border: "1px solid var(--line)" }} />
+                      {review.photo && (
+                        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={review.photo} alt="Foto ulasan"
+                            style={{ width: 88, height: 72, borderRadius: "0.5rem", objectFit: "cover", border: "1px solid var(--line)" }} />
                         </div>
                       )}
                       
