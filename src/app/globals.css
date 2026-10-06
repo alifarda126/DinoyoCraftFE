@@ -1,0 +1,393 @@
+@import "tailwindcss";
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DinoyoCraft — Modern White + Terracotta Design System
+   Palette: Putih bersih · Terracotta aksen · Abu-abu netral tipografi
+   ══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Surfaces (Pure Minimalist White) */
+  --surface:          #FFFFFF;   /* Pure white */
+  --surface-elevated: #FAFAFA;   /* Very light gray for contrast */
+  --surface-raised:   #F5F5F5;   /* Light gray */
+  --surface-dark:     #000000;   /* Pure black */
+
+  /* ── Brand / Primary (Monochrome Black) */
+  --clay:             #000000;   /* Pure Black for buttons/accents */
+  --clay-dark:        #222222;   /* Dark gray for hover */
+  --clay-light:       #555555;   /* Mid gray */
+  --clay-muted:       rgba(0, 0, 0, 0.05); /* Ghost bg */
+
+  /* ── Text (High Contrast) */
+  --bark:             #000000;   /* Pure Black text */
+  --bark-mid:         #404040;   /* Neutral Gray */
+  --bark-muted:       #737373;   /* Light text */
+
+  /* ── Borders (Ultra subtle) */
+  --line:             #E5E5E5;
+  --line-strong:      #CCCCCC;
+
+  /* ── Legacy aliases */
+  --bone:             var(--bark);
+  --bone-muted:       var(--bark-muted);
+  --amber:            var(--clay);
+  --amber-dark:       var(--clay-dark);
+}
+
+@theme inline {
+  /* Surfaces */
+  --color-surface:          var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-raised:   var(--surface-raised);
+  --color-surface-dark:     var(--surface-dark);
+
+  /* Brand */
+  --color-clay:             var(--clay);
+  --color-clay-dark:        var(--clay-dark);
+  --color-clay-light:       var(--clay-light);
+  --color-clay-muted:       var(--clay-muted);
+
+  /* Text */
+  --color-bark:             var(--bark);
+  --color-bark-mid:         var(--bark-mid);
+  --color-bark-muted:       var(--bark-muted);
+
+  /* Borders */
+  --color-line:             var(--line);
+  --color-line-strong:      var(--line-strong);
+
+  /* Legacy aliases */
+  --color-bone:             var(--bark);
+  --color-bone-muted:       var(--bark-muted);
+  --color-amber-brand:      var(--clay);
+  --color-amber-dark:       var(--clay-dark);
+
+  /* Fonts */
+  --font-sans:  var(--font-outfit), var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono:  var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Base
+   ══════════════════════════════════════════════════════════════════════════ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--surface);
+  color: var(--bark);
+  font-family: var(--font-sans);
+
+  /* Clean pure white modern background */
+  background-image: none;
+  background-attachment: fixed;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Grain / Noise overlay — ceramic / clay feel
+   ══════════════════════════════════════════════════════════════════════════ */
+.grain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 200px 200px;
+  opacity: 0.032;
+  mix-blend-mode: multiply;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Card hover glow — terracotta tinted
+   ══════════════════════════════════════════════════════════════════════════ */
+.card-hover-glow {
+  box-shadow: 0 1px 4px rgba(61,43,31,0.07), 0 0 0 1px rgba(61,43,31,0.06);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease,
+    background-color 0.25s ease, transform 0.2s ease;
+}
+.card-hover-glow:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 0 0 1px rgba(184, 92, 60, 0.18),
+    0 8px 32px rgba(61, 43, 31, 0.12),
+    inset 0 0 20px rgba(184, 92, 60, 0.04);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Global card shadow — subtle lift for all white cards on light backgrounds
+   ══════════════════════════════════════════════════════════════════════════ */
+.card-shadow {
+  box-shadow: 0 1px 6px rgba(61,43,31,0.08), 0 0 0 1px rgba(61,43,31,0.05) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Ambient section glow — warm clay
+   ══════════════════════════════════════════════════════════════════════════ */
+.ambient-glow {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(var(--blur, 100px));
+  pointer-events: none;
+  background: rgba(184, 92, 60, var(--opacity, 0.08));
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Reveal scroll animation
+   ══════════════════════════════════════════════════════════════════════════ */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal {
+      opacity: 1;
+      transform: none;
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+  }
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Navbar
+   ══════════════════════════════════════════════════════════════════════════ */
+.navbar-glass {
+  background: rgba(255, 255, 255, 0.92);   /* pure white glass */
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+  border-bottom-color: var(--line) !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Mobile Nav Drawer
+   ══════════════════════════════════════════════════════════════════════════ */
+.nav-drawer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.nav-drawer.open {
+  max-height: 400px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   FAB Chatbot
+   ══════════════════════════════════════════════════════════════════════════ */
+@keyframes fab-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(184, 92, 60, 0.45); }
+  50%       { box-shadow: 0 0 0 10px rgba(184, 92, 60, 0); }
+}
+
+.fab-btn {
+  animation: fab-pulse 2.5s ease infinite;
+}
+.fab-btn:hover {
+  animation: none;
+  transform: scale(1.08);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Form inputs — earthy style
+   ══════════════════════════════════════════════════════════════════════════ */
+.input-earthy {
+  width: 100%;
+  padding: 0.65rem 1rem;
+  border-radius: 0.625rem;
+  border: 1.5px solid var(--line-strong);
+  background: #fff;
+  color: var(--bark);
+  font-size: 0.95rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  font-family: var(--font-sans);
+}
+.input-earthy::placeholder {
+  color: var(--bark-muted);
+}
+.input-earthy:focus {
+  border-color: var(--clay);
+  box-shadow: 0 0 0 3px rgba(184, 92, 60, 0.12);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Buttons — earthy variants
+   ══════════════════════════════════════════════════════════════════════════ */
+.btn-clay {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.4rem;
+  border-radius: 9999px;
+  background: var(--clay);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  text-decoration: none;
+}
+.btn-clay:hover {
+  background: var(--clay-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(184,92,60,0.28);
+}
+.btn-clay:active {
+  transform: translateY(0);
+}
+
+.btn-clay-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.4rem;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--clay);
+  font-weight: 600;
+  font-size: 0.9rem;
+  border: 1.5px solid var(--clay);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  text-decoration: none;
+}
+.btn-clay-outline:hover {
+  background: var(--clay-muted);
+  transform: translateY(-1px);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Dashboard card
+   ══════════════════════════════════════════════════════════════════════════ */
+.dash-card {
+  background: #fff;
+  border: 1.5px solid var(--line);
+  border-radius: 1.25rem;
+  padding: 1.5rem;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.dash-card:hover {
+  border-color: var(--clay-light);
+  box-shadow: 0 6px 24px rgba(184, 92, 60, 0.10);
+  transform: translateY(-2px);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Payment method selector
+   ══════════════════════════════════════════════════════════════════════════ */
+.payment-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem 1.125rem;
+  border-radius: 0.875rem;
+  border: 1.5px solid var(--line-strong);
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
+  text-align: left;
+  width: 100%;
+}
+.payment-option:hover,
+.payment-option.selected {
+  border-color: var(--clay);
+  background: rgba(184, 92, 60, 0.04);
+  box-shadow: 0 0 0 3px rgba(184, 92, 60, 0.10);
+}
+.payment-option.selected .payment-radio {
+  background: var(--clay);
+  border-color: var(--clay);
+}
+.payment-radio {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  border: 2px solid var(--line-strong);
+  flex-shrink: 0;
+  transition: background 0.2s, border-color 0.2s;
+  position: relative;
+}
+.payment-radio::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 9999px;
+  background: #fff;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Badge / Chip
+   ══════════════════════════════════════════════════════════════════════════ */
+.badge-clay {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 9999px;
+  background: var(--clay-muted);
+  color: var(--clay-dark);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* ── EarthySelect dropdown animation ── */
+@keyframes earthyDropIn {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   Utilities
+   ══════════════════════════════════════════════════════════════════════════ */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar::-webkit-scrollbar-track {
+  display: none !important;
+  background: transparent !important;
+}
+.no-scrollbar::-webkit-scrollbar-thumb {
+  display: none !important;
+  background: transparent !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}

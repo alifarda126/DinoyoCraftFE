@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 100">
+  <rect width="300" height="100" fill="#003B71" rx="8"/>
+  <text x="150" y="65" text-anchor="middle" fill="white" font-size="52" font-weight="900" font-family="Arial, sans-serif" letter-spacing="4">BNI</text>
+  <text x="150" y="85" text-anchor="middle" fill="#F9B826" font-size="14" font-weight="600" font-family="Arial, sans-serif" letter-spacing="2">BANK NEGARA INDONESIA</text>
+</svg>
