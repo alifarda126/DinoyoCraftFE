@@ -9,6 +9,7 @@ import {
   Image as ImageIcon, Link as LinkIcon, UploadSimple,
   Star, Palette,
 } from "@phosphor-icons/react";
+import { EarthySelect } from "@/components/ui/EarthySelect";
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
 
@@ -405,13 +406,18 @@ export default function SellerCatalogPage() {
 
           <div>
             <label style={labelStyle}>Kategori</label>
-            <select value={category} onChange={e => setCategory(e.target.value)} required style={{ ...inputStyle, background: "#fff" }}>
-              <option value="">Pilih Kategori</option>
-              <option value="Dekorasi">Dekorasi</option>
-              <option value="Peralatan Makan">Peralatan Makan</option>
-              <option value="Souvenir">Souvenir</option>
-              <option value="Pot">Pot Tanaman</option>
-            </select>
+            <EarthySelect
+              value={category}
+              onChange={setCategory}
+              placeholder="Pilih Kategori"
+              options={[
+                { value: "Dekorasi", label: "Dekorasi" },
+                { value: "Peralatan Makan", label: "Peralatan Makan" },
+                { value: "Souvenir", label: "Souvenir" },
+                { value: "Pot", label: "Pot Tanaman" },
+              ]}
+              style={{ width: "100%" }}
+            />
           </div>
 
           {/* Foto Produk */}
@@ -611,12 +617,18 @@ export default function SellerCatalogPage() {
                 </div>
                 <div>
                   <label style={labelStyle}>Kategori</label>
-                  <select value={editCategory} onChange={e => setEditCategory(e.target.value)} style={{ ...inputStyle, background: "#fff" }}>
-                    <option value="Dekorasi">Dekorasi</option>
-                    <option value="Peralatan Makan">Peralatan Makan</option>
-                    <option value="Souvenir">Souvenir</option>
-                    <option value="Pot">Pot Tanaman</option>
-                  </select>
+                  <EarthySelect
+                    value={editCategory}
+                    onChange={setEditCategory}
+                    placeholder="Pilih Kategori"
+                    options={[
+                      { value: "Dekorasi", label: "Dekorasi" },
+                      { value: "Peralatan Makan", label: "Peralatan Makan" },
+                      { value: "Souvenir", label: "Souvenir" },
+                      { value: "Pot", label: "Pot Tanaman" },
+                    ]}
+                    style={{ width: "100%" }}
+                  />
                 </div>
 
                 {/* Color Variants in Edit */}
