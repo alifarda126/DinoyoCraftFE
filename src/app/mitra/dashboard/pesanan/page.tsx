@@ -89,7 +89,7 @@ export default function PesananSellerPage() {
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "seller") {
-      router.push("/mitra/login");
+      router.push("/auth/login");
       return;
     }
 

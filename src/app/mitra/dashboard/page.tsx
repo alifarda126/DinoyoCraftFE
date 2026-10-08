@@ -36,7 +36,7 @@ export default function SellerDashboardHome() {
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "seller") {
-      router.push("/mitra/login");
+      router.push("/auth/login");
     } else {
       setSellerName(session.profile.full_name);
       setLoading(false);

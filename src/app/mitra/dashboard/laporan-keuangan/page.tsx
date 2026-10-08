@@ -16,11 +16,13 @@ export default function LaporanKeuanganPage() {
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [filterTrxType, setFilterTrxType] = useState("semua");
   const [filterTrxStatus, setFilterTrxStatus] = useState("semua");
+  const [chartPeriod, setChartPeriod] = useState<"7hari" | "30hari">("7hari");
+  const [hoveredBar, setHoveredBar] = useState<number | null>(null);
 
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "seller") {
-      router.push("/mitra/login");
+      router.push("/auth/login");
     } else {
       setLoading(false);
     }
@@ -72,6 +74,36 @@ export default function LaporanKeuanganPage() {
     const matchStatus = filterTrxStatus === "semua" || t.status === filterTrxStatus;
     return matchType && matchStatus;
   });
+
+  const data7 = [
+    { label: "Sen", value: 30, amount: "Rp 300.000" },
+    { label: "Sel", value: 50, amount: "Rp 500.000" },
+    { label: "Rab", value: 40, amount: "Rp 400.000" },
+    { label: "Kam", value: 70, amount: "Rp 700.000" },
+    { label: "Jum", value: 60, amount: "Rp 600.000" },
+    { label: "Sab", value: 90, amount: "Rp 900.000" },
+    { label: "Min", value: 80, amount: "Rp 800.000" },
+  ];
+  
+  const data30 = [
+    {label: '1 Okt', value: 35, amount: 'Rp 350.000'}, {label: '2 Okt', value: 40, amount: 'Rp 400.000'},
+    {label: '3 Okt', value: 30, amount: 'Rp 300.000'}, {label: '4 Okt', value: 55, amount: 'Rp 550.000'},
+    {label: '5 Okt', value: 60, amount: 'Rp 600.000'}, {label: '6 Okt', value: 45, amount: 'Rp 450.000'},
+    {label: '7 Okt', value: 50, amount: 'Rp 500.000'}, {label: '8 Okt', value: 75, amount: 'Rp 750.000'},
+    {label: '9 Okt', value: 80, amount: 'Rp 800.000'}, {label: '10 Okt', value: 65, amount: 'Rp 650.000'},
+    {label: '11 Okt', value: 70, amount: 'Rp 700.000'}, {label: '12 Okt', value: 95, amount: 'Rp 950.000'},
+    {label: '13 Okt', value: 90, amount: 'Rp 900.000'}, {label: '14 Okt', value: 85, amount: 'Rp 850.000'},
+    {label: '15 Okt', value: 100, amount: 'Rp 1.000.000'}, {label: '16 Okt', value: 40, amount: 'Rp 400.000'}, 
+    {label: '17 Okt', value: 50, amount: 'Rp 500.000'}, {label: '18 Okt', value: 65, amount: 'Rp 650.000'}, 
+    {label: '19 Okt', value: 45, amount: 'Rp 450.000'}, {label: '20 Okt', value: 55, amount: 'Rp 550.000'}, 
+    {label: '21 Okt', value: 80, amount: 'Rp 800.000'}, {label: '22 Okt', value: 70, amount: 'Rp 700.000'}, 
+    {label: '23 Okt', value: 90, amount: 'Rp 900.000'}, {label: '24 Okt', value: 85, amount: 'Rp 850.000'}, 
+    {label: '25 Okt', value: 60, amount: 'Rp 600.000'}, {label: '26 Okt', value: 75, amount: 'Rp 750.000'}, 
+    {label: '27 Okt', value: 95, amount: 'Rp 950.000'}, {label: '28 Okt', value: 100, amount: 'Rp 1.000.000'}, 
+    {label: '29 Okt', value: 85, amount: 'Rp 850.000'}, {label: '30 Okt', value: 110, amount: 'Rp 1.100.000'}
+  ];
+
+  const currentChartData = chartPeriod === "7hari" ? data7 : data30;
 
   return (
     <div style={{ animation: "fadeIn 0.5s ease-out" }}>
@@ -164,22 +196,104 @@ export default function LaporanKeuanganPage() {
 
       {/* Financial Chart Placeholder */}
       <div className="card-shadow" style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", padding: "1.5rem", marginBottom: "2.5rem", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
-        <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--bark)", marginBottom: "1.5rem" }}>Grafik Pendapatan 7 Hari Terakhir</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", position: "relative", flexWrap: "wrap", gap: "1rem" }}>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--bark)", margin: 0, zIndex: 1 }}>
+            Grafik Pendapatan {chartPeriod === "7hari" ? "Mingguan" : "Bulanan"}
+          </h2>
+          
+          <div style={{ 
+            position: "absolute", left: "50%", transform: "translateX(-50%)",
+            fontSize: "0.85rem", fontWeight: 800, color: "var(--clay)", padding: "0.3rem 1rem",
+            background: "rgba(184,92,60,0.1)", borderRadius: "999px", zIndex: 0,
+            letterSpacing: "0.05em"
+          }} className="hidden sm:block">
+            TAHUN {new Date().getFullYear()}
+          </div>
+
+          <div style={{ display: "flex", gap: "0.5rem", background: "var(--surface)", padding: "0.25rem", borderRadius: "0.5rem", zIndex: 1 }}>
+            <button
+              onClick={() => setChartPeriod("7hari")}
+              style={{
+                padding: "0.4rem 0.8rem", borderRadius: "0.375rem", fontSize: "0.75rem", fontWeight: 600,
+                border: "none", cursor: "pointer", transition: "all 0.2s",
+                background: chartPeriod === "7hari" ? "#fff" : "transparent",
+                color: chartPeriod === "7hari" ? "var(--bark)" : "var(--bark-muted)",
+                boxShadow: chartPeriod === "7hari" ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
+              }}
+            >
+              7 Hari
+            </button>
+            <button
+              onClick={() => setChartPeriod("30hari")}
+              style={{
+                padding: "0.4rem 0.8rem", borderRadius: "0.375rem", fontSize: "0.75rem", fontWeight: 600,
+                border: "none", cursor: "pointer", transition: "all 0.2s",
+                background: chartPeriod === "30hari" ? "#fff" : "transparent",
+                color: chartPeriod === "30hari" ? "var(--bark)" : "var(--bark-muted)",
+                boxShadow: chartPeriod === "30hari" ? "0 1px 3px rgba(0,0,0,0.1)" : "none"
+              }}
+            >
+              30 Hari
+            </button>
+          </div>
+        </div>
         <div style={{ 
-          height: "200px", background: "linear-gradient(to top, rgba(184,92,60,0.03), transparent)", 
+          height: "260px", background: "linear-gradient(to top, rgba(184,92,60,0.03), transparent)", 
           borderRadius: "0.5rem", border: "1px dashed var(--line-light)",
-          display: "flex", alignItems: "flex-end", padding: "1rem", gap: "1rem"
+          display: "flex", alignItems: "flex-end", padding: "1rem", gap: "0.2rem",
+          position: "relative"
         }}>
-          {/* Simple CSS Bar Chart Mockup */}
-          {[30, 50, 40, 70, 60, 90, 80].map((h, i) => (
-            <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", gap: "0.75rem", height: "100%" }}>
-              <div style={{ 
-                width: "100%", maxWidth: "40px", height: `${h}%`, background: h === 90 ? "var(--clay)" : "var(--clay-light)", 
-                borderRadius: "6px 6px 0 0", transition: "height 1s ease-out" 
-              }} />
-              <span style={{ fontSize: "0.75rem", color: "var(--bark-muted)", fontWeight: 600 }}>H-{6-i}</span>
-            </div>
-          ))}
+          {currentChartData.map((d, i) => {
+            const isHighest = d.value === Math.max(...currentChartData.map(c => c.value));
+            return (
+              <div 
+                key={i} 
+                onMouseEnter={() => setHoveredBar(i)}
+                onMouseLeave={() => setHoveredBar(null)}
+                style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", gap: "0.5rem", height: "100%", position: "relative", cursor: "pointer" }}
+              >
+                {/* Tooltip */}
+                {hoveredBar === i && (
+                  <div style={{
+                    position: "absolute", bottom: `calc(${d.value}% + 10px)`, zIndex: 10,
+                    background: "var(--bark)", color: "#fff", padding: "0.5rem 0.75rem",
+                    borderRadius: "0.5rem", fontSize: "0.75rem", fontWeight: 600,
+                    whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    pointerEvents: "none", animation: "fadeIn 0.2s ease-out"
+                  }}>
+                    <div style={{ color: "var(--clay)", fontSize: "0.65rem", marginBottom: "0.1rem" }}>{d.label}</div>
+                    {d.amount}
+                    {/* Tooltip arrow */}
+                    <div style={{
+                      position: "absolute", bottom: "-4px", left: "50%", transform: "translateX(-50%) rotate(45deg)",
+                      width: "8px", height: "8px", background: "var(--bark)"
+                    }} />
+                  </div>
+                )}
+                
+                {/* Bar */}
+                <div style={{ 
+                  width: "100%", maxWidth: "100%", height: `${d.value}%`, 
+                  background: hoveredBar === i ? "var(--clay-dark)" : (isHighest ? "var(--clay)" : "var(--clay-light)"), 
+                  borderRadius: "4px 4px 0 0", transition: "height 0.8s ease-out, background 0.2s",
+                  opacity: hoveredBar !== null && hoveredBar !== i ? 0.6 : 1
+                }} />
+                
+                {/* X-Axis Label */}
+                <span style={{ 
+                  fontSize: chartPeriod === "7hari" ? "0.65rem" : "0.5rem", 
+                  color: "var(--bark-muted)", 
+                  fontWeight: 600, 
+                  whiteSpace: "nowrap",
+                  writingMode: chartPeriod === "30hari" ? "vertical-rl" : "horizontal-tb",
+                  transform: chartPeriod === "30hari" ? "rotate(180deg)" : "none",
+                  marginTop: chartPeriod === "30hari" ? "0.25rem" : "0"
+                }}>
+                  {d.label}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 

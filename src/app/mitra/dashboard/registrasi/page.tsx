@@ -81,7 +81,7 @@ export default function SellerRegistrationPage() {
           <p style={{ color: "var(--bark-muted)", fontSize: "0.9rem", lineHeight: 1.6, marginBottom: "2rem" }}>
             Terima kasih telah mendaftar sebagai Mitra DinoyoCraft. Tim Admin akan meninjau data Anda dalam 1×24 jam.
           </p>
-          <Link href="/mitra/login" style={{
+          <Link href="/auth/login" style={{
             display: "inline-block", padding: "0.8rem 2rem", borderRadius: "9999px",
             background: "var(--bark)", color: "#fff", textDecoration: "none", fontWeight: 700, fontSize: "0.9rem",
           }}>
@@ -99,7 +99,7 @@ export default function SellerRegistrationPage() {
       {/* Header */}
       <header style={{ background: "#fff", borderBottom: "1px solid var(--line)", padding: "1rem 2rem" }}>
         <div style={{ maxWidth: "680px", margin: "0 auto", display: "flex", alignItems: "center", gap: "1rem" }}>
-          <Link href="/mitra/login" style={{ color: "var(--bark-muted)", display: "flex" }}>
+          <Link href="/auth/login" style={{ color: "var(--bark-muted)", display: "flex" }}>
             <ArrowLeft size={20} />
           </Link>
           <span style={{ fontWeight: 700, color: "var(--bark)" }}>Pendaftaran Mitra DinoyoCraft</span>

@@ -55,7 +55,7 @@ export default function AdminSidebar() {
 
   async function handleSignOut() {
     clearDemoSession();
-    router.push("/admin/login");
+    router.push("/auth/login");
   }
 
   const navItems = [
@@ -104,7 +104,7 @@ export default function AdminSidebar() {
               padding: isCollapsed ? "0.75rem 0" : "0.75rem 1rem", borderRadius: "0.5rem",
               textDecoration: "none", position: "relative",
               background: isActive ? "rgba(255,255,255,0.1)" : "transparent",
-              color: isActive ? "#ffffff" : "rgba(255,255,255,0.6)",
+              color: isActive ? "#ffffff" : "rgba(255,255,255,0.8)",
               fontWeight: isActive ? 700 : 500,
               transition: "background 0.2s",
             }}>

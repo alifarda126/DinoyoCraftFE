@@ -13,7 +13,7 @@ const GREETING: Message = {
 function getDemoReply(input: string): string {
   const q = input.toLowerCase();
   if (q.includes("daftar") || q.includes("bergabung") || q.includes("registrasi"))
-    return "Untuk mendaftar jadi mitra, klik tombol 'Daftar Sekarang' di halaman beranda atau langsung kunjungi /mitra/login. Biaya bergabung cukup Rp350.000 sekali.";
+    return "Untuk mendaftar jadi mitra, klik tombol 'Daftar Sekarang' di halaman beranda atau langsung kunjungi /auth/login. Biaya bergabung cukup Rp350.000 sekali.";
   if (q.includes("harga") || q.includes("biaya") || q.includes("modal") || q.includes("bayar"))
     return "Biaya bergabung sekali saja Rp350.000 (promo, normal Rp500.000). Setelah itu tidak ada biaya bulanan. Kamu tidak perlu modal stok karena sistemnya full dropship.";
   if (q.includes("dropship") || q.includes("stok") || q.includes("gudang"))

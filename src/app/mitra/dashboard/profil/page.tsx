@@ -61,7 +61,7 @@ export default function SellerProfilPage() {
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "seller") {
-      router.push("/mitra/login");
+      router.push("/auth/login");
       return;
     }
     setProfile(prev => ({ ...prev, ownerName: session.profile.full_name || prev.ownerName }));

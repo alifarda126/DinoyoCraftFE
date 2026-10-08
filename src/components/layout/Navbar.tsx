@@ -135,7 +135,7 @@ export default function Navbar() {
             </div>
           ) : (
             <Link
-              href="/mitra/login"
+              href="/auth/login"
               id="navbar-masuk-btn"
               style={{
                 display: "inline-flex", alignItems: "center", gap: "0.4rem",
@@ -158,7 +158,7 @@ export default function Navbar() {
                 (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
               }}
             >
-              Masuk Mitra
+              Masuk Portal
               <ArrowRight size={14} weight="bold" />
             </Link>
           )}

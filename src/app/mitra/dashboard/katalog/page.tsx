@@ -152,7 +152,7 @@ export default function SellerCatalogPage() {
 
   useEffect(() => {
     const session = getDemoSession();
-    if (!session || session.role !== "seller") { router.push("/mitra/login"); return; }
+    if (!session || session.role !== "seller") { router.push("/auth/login"); return; }
     loadArtworks();
   }, [router]);
 

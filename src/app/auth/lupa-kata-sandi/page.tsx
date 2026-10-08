@@ -222,7 +222,7 @@ export default function LupaKataSandiPage() {
         position: "relative", zIndex: 10,
       }}>
         <div style={{ maxWidth: 1100, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Link href="/mitra/login" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", textDecoration: "none" }}>
+          <Link href="/auth/login" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", textDecoration: "none" }}>
             <ArrowLeft size={16} style={{ color: "var(--bark-muted)" }} />
             <span style={{ fontWeight: 700, color: "var(--bark)", fontSize: "0.9rem" }}>Kembali ke Login</span>
           </Link>
@@ -337,10 +337,10 @@ export default function LupaKataSandiPage() {
                 <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
                   <div style={{
                     width: 56, height: 56, borderRadius: "1rem",
-                    background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                    background: "linear-gradient(135deg, var(--clay), #c0673d)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     margin: "0 auto 1rem",
-                    boxShadow: "0 4px 12px rgba(59,130,246,0.25)",
+                    boxShadow: "0 4px 12px rgba(180,90,50,0.25)",
                   }}>
                     <span style={{ fontSize: "1.5rem" }}>📩</span>
                   </div>
@@ -396,10 +396,10 @@ export default function LupaKataSandiPage() {
                 <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
                   <div style={{
                     width: 56, height: 56, borderRadius: "1rem",
-                    background: "linear-gradient(135deg, #10b981, #059669)",
+                    background: "linear-gradient(135deg, var(--clay), #c0673d)",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     margin: "0 auto 1rem",
-                    boxShadow: "0 4px 12px rgba(16,185,129,0.25)",
+                    boxShadow: "0 4px 12px rgba(180,90,50,0.25)",
                   }}>
                     <Lock size={28} weight="fill" color="#fff" />
                   </div>
@@ -525,7 +525,7 @@ export default function LupaKataSandiPage() {
                   Silakan masuk dengan kata sandi baru.
                 </p>
                 <button
-                  onClick={() => router.push("/mitra/login")}
+                  onClick={() => router.push("/auth/login")}
                   style={btnPrimaryStyle(false)}
                 >
                   <ArrowRight size={16} weight="bold" />

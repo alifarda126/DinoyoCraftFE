@@ -42,7 +42,7 @@ export default function AdminVerifikasiPage() {
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "admin") {
-      router.push("/admin/login");
+      router.push("/auth/login");
       return;
     }
 
@@ -253,7 +253,7 @@ export default function AdminVerifikasiPage() {
       {selectedReg && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 200,
-          background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
+          background: "rgba(0,0,0,0.3)", backdropFilter: "blur(6px)",
           display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem",
         }}>
           <div style={{
@@ -362,6 +362,18 @@ export default function AdminVerifikasiPage() {
                       }}>
                         {ok ? <Check size={15} weight="bold" /> : <X size={15} weight="bold" />}
                         {ok ? "Terpenuhi" : "Tidak Terpenuhi"}
+                        <button 
+                          title="Lihat Dokumen" 
+                          style={{
+                            background: "transparent", border: "none", cursor: "pointer", 
+                            color: "#6b7280", display: "flex", alignItems: "center", padding: "0.2rem", marginLeft: "0.5rem",
+                            borderRadius: "0.3rem", transition: "background 0.2s"
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = "rgba(0,0,0,0.05)"}
+                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                        >
+                          <Eye size={18} weight="bold" />
+                        </button>
                       </div>
                     </div>
                   );

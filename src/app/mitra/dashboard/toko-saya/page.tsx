@@ -178,7 +178,7 @@ export default function TokoSayaPage() {
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "seller") {
-      router.push("/mitra/login");
+      router.push("/auth/login");
       return;
     }
     setOwnerName(session.profile.full_name || "Mitra");

@@ -28,7 +28,7 @@ export default function AdminTransaksiPage() {
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "admin") {
-      router.push("/admin/login");
+      router.push("/auth/login");
       return;
     }
 
