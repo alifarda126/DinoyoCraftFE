@@ -244,11 +244,11 @@ export default function AdminLiveChatPage() {
             </div>
 
             {/* Chat Messages */}
-            <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-zinc-50/30">
+            <div className="flex-1 p-4 pr-6 overflow-y-auto overflow-x-hidden flex flex-col gap-4 bg-zinc-50/30">
               {activeChatData.messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === "user" ? "justify-start" : "justify-end"}`}>
-                  <div>
-                    <div className={`p-3 rounded-2xl max-w-[75%] text-sm ${
+                  <div className={`flex flex-col max-w-[75%] ${msg.role === "user" ? "items-start" : "items-end"}`}>
+                    <div className={`p-3 rounded-2xl text-sm inline-block ${
                       msg.role === "user"
                         ? "bg-zinc-100 text-zinc-800 rounded-tl-sm"
                         : "bg-zinc-900 text-white rounded-tr-sm"
@@ -256,7 +256,7 @@ export default function AdminLiveChatPage() {
                       {msg.text}
                     </div>
                     {msg.time && (
-                      <p className={`text-[10px] text-zinc-400 mt-1 ${msg.role === "user" ? "text-left" : "text-right"}`}>{msg.time}</p>
+                      <p className="text-[10px] text-zinc-400 mt-1">{msg.time}</p>
                     )}
                   </div>
                 </div>

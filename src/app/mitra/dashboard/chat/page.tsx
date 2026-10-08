@@ -261,11 +261,11 @@ export default function SellerChatPage() {
             </div>
 
             {/* Pesan */}
-            <div className="flex-1 p-4 overflow-y-auto flex flex-col gap-4 bg-zinc-50/30">
+            <div className="flex-1 p-4 pr-6 overflow-y-auto overflow-x-hidden flex flex-col gap-4 bg-zinc-50/30">
               {activeChatData.messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}>
-                  <div>
-                    <div className={`p-3 rounded-2xl max-w-[75%] text-sm ${
+                  <div className={`flex flex-col max-w-[75%] ${msg.from === "me" ? "items-end" : "items-start"}`}>
+                    <div className={`p-3 rounded-2xl text-sm inline-block ${
                       msg.from === "me"
                         ? "bg-zinc-900 text-white rounded-tr-sm"
                         : "bg-zinc-100 text-zinc-800 rounded-tl-sm"
@@ -273,7 +273,7 @@ export default function SellerChatPage() {
                       {msg.text}
                     </div>
                     {msg.time && (
-                      <p className={`text-[10px] text-zinc-400 mt-1 ${msg.from === "me" ? "text-right" : "text-left"}`}>
+                      <p className="text-[10px] text-zinc-400 mt-1">
                         {msg.time}
                       </p>
                     )}

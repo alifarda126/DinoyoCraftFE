@@ -52,7 +52,7 @@ const btnPrimaryStyle = (disabled: boolean): React.CSSProperties => ({
 
 /* ─── OTP digit input ─── */
 function OtpInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const digits = value.padEnd(6, "").split("").slice(0, 6);
+  const digits = value.padEnd(6, " ").split("").slice(0, 6);
 
   function handleKey(i: number, e: React.KeyboardEvent<HTMLInputElement>) {
     const inp = e.currentTarget;

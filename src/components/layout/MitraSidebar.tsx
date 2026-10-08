@@ -69,7 +69,7 @@ export default function MitraSidebar() {
 
   return (
     <aside style={{
-      width: isCollapsed ? "80px" : "250px", 
+      width: isCollapsed ? "80px" : "280px", 
       background: "var(--surface-dark)", 
       borderRight: "1px solid var(--line)",
       display: "flex", flexDirection: "column", padding: "1.5rem 1rem", flexShrink: 0,
@@ -154,7 +154,7 @@ export default function MitraSidebar() {
               }}
             >
             <item.icon size={20} weight={isActive ? "bold" : "regular"} style={{ flexShrink: 0 }} />
-              {!isCollapsed && <span style={{ flex: 1, whiteSpace: "nowrap" }}>{item.label}</span>}
+              {!isCollapsed && <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.label}>{item.label}</span>}
               {!isCollapsed && <NavBadge count={NAV_BADGES[item.href] ?? 0} />}
               {isCollapsed && (NAV_BADGES[item.href] ?? 0) > 0 && (
                 <div style={{ position: "absolute", top: 4, right: 12, width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
