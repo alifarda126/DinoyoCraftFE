@@ -155,9 +155,9 @@ export default function AdminLiveChatPage() {
         </div>
       </div>
 
-      <div className="flex-1 bg-white border border-zinc-200 rounded-xl overflow-hidden flex">
+      <div className="flex-1 bg-white border border-zinc-200 rounded-xl overflow-hidden flex flex-col md:flex-row">
         {/* Chat List Sidebar */}
-        <div className="w-80 border-r border-zinc-200 flex flex-col bg-zinc-50/50">
+        <div className="w-full md:w-80 h-1/3 md:h-auto min-h-[160px] md:min-h-0 border-b md:border-b-0 md:border-r border-zinc-200 flex flex-col bg-zinc-50/50 shrink-0">
           <div className="p-4 border-b border-zinc-200">
             <input
               type="text"

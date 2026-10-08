@@ -75,6 +75,7 @@ export default function AdminSidebar() {
       display: "flex", flexDirection: "column", padding: "1.5rem 1rem", flexShrink: 0, 
       overflowY: "auto", overflowX: "hidden", overscrollBehavior: "none",
       transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+      height: "100%",
     }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: isCollapsed ? "center" : "space-between", marginBottom: "2rem" }}>
         {!isCollapsed && (
