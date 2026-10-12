@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import {
   ArrowLeft, CheckCircle, Warning,
-  IdentificationCard, Storefront, FileText, CheckSquare,
+  IdentificationCard, Storefront, FileText, Check,
 } from "@phosphor-icons/react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
@@ -248,23 +248,34 @@ export default function SellerRegistrationPage() {
                 <div style={{ marginBottom: "1.5rem" }}>
                   <label style={{
                     display: "flex", alignItems: "flex-start", gap: "0.75rem",
-                    cursor: "pointer",
+                    cursor: "pointer", userSelect: "none",
                   }}>
+                    <input
+                      type="checkbox"
+                      checked={agreed}
+                      onChange={(e) => setAgreed(e.target.checked)}
+                      style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                    />
                     <div
-                      onClick={() => setAgreed(!agreed)}
                       style={{
                         width: 22, height: 22, borderRadius: "0.4rem",
-                        border: `2px solid ${agreed ? "var(--clay)" : "var(--line-strong)"}`,
+                        border: agreed ? "1.5px solid var(--clay)" : "1.5px solid var(--line-strong)",
                         background: agreed ? "var(--clay)" : "#fff",
                         display: "flex", alignItems: "center", justifyContent: "center",
-                        flexShrink: 0, cursor: "pointer", transition: "all 0.15s", marginTop: "0.1rem",
+                        flexShrink: 0, cursor: "pointer", transition: "all 0.15s ease", marginTop: "0.1rem",
                       }}
                     >
-                      {agreed && <CheckSquare size={14} color="#fff" weight="fill" />}
+                      {agreed && <Check size={15} color="#fff" weight="bold" />}
                     </div>
                     <span style={{ fontSize: "0.83rem", color: "var(--bark)", lineHeight: 1.65 }}>
                       Saya telah membaca dan menyetujui seluruh persyaratan pendaftaran serta{" "}
-                      <Link href="#" style={{ color: "var(--clay)", fontWeight: 700 }}>Syarat & Ketentuan</Link>
+                      <Link
+                        href="#"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ color: "var(--clay)", fontWeight: 700 }}
+                      >
+                        Syarat &amp; Ketentuan
+                      </Link>
                       {" "}yang berlaku.
                     </span>
                   </label>

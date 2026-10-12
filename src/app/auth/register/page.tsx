@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { setDemoSession } from "@/lib/utils/demo";
-import { ArrowRight, Storefront, Leaf, CheckCircle, CheckSquare } from "@phosphor-icons/react";
+import { ArrowRight, Storefront, Leaf, CheckCircle, Check } from "@phosphor-icons/react";
 import Image from "next/image";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
@@ -542,22 +542,40 @@ export default function MitraRegisterPage() {
               </div>
 
               {/* Checkbox persetujuan */}
-              <label style={{ display: "flex", alignItems: "flex-start", gap: "0.65rem", cursor: "pointer" }}>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: "0.65rem", cursor: "pointer", userSelect: "none" }}>
+                <input
+                  type="checkbox"
+                  checked={agreed}
+                  onChange={(e) => setAgreed(e.target.checked)}
+                  style={{ position: "absolute", opacity: 0, width: 0, height: 0, pointerEvents: "none" }}
+                />
                 <div
-                  onClick={() => setAgreed(!agreed)}
                   style={{
-                    width: 20, height: 20, borderRadius: "0.35rem",
-                    border: `2px solid ${agreed ? "var(--clay)" : "var(--line-strong)"}`,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "0.35rem",
+                    border: agreed ? "1.5px solid var(--clay)" : "1.5px solid var(--line-strong)",
                     background: agreed ? "var(--clay)" : "#fff",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    flexShrink: 0, cursor: "pointer", transition: "all 0.15s", marginTop: "0.1rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    marginTop: "0.1rem",
                   }}
                 >
-                  {agreed && <CheckSquare size={12} color="#fff" weight="fill" />}
+                  {agreed && <Check size={14} color="#fff" weight="bold" />}
                 </div>
                 <span style={{ fontSize: "0.78rem", color: "var(--bark)", lineHeight: 1.6 }}>
                   Saya menyetujui{" "}
-                  <Link href="/syarat-ketentuan" style={{ color: "var(--clay)", fontWeight: 700 }}>Syarat &amp; Ketentuan</Link>
+                  <Link
+                    href="/syarat-ketentuan"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ color: "var(--clay)", fontWeight: 700 }}
+                  >
+                    Syarat &amp; Ketentuan
+                  </Link>
                   {" "}serta persyaratan pendaftaran Mitra DinoyoCraft.
                 </span>
               </label>
