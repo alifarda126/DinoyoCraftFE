@@ -1,9 +1,19 @@
 import api from "../lib/axios";
-import { LoginPayload, AuthResponse } from "../types/auth";
+import { LoginPayload, RegisterPayload, GoogleAuthPayload, AuthResponse } from "../types/auth";
 
 export const authService = {
   login: async (payload: LoginPayload): Promise<AuthResponse> => {
     const response = await api.post<AuthResponse>("/auth/login", payload);
+    return response.data;
+  },
+
+  register: async (payload: RegisterPayload): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>("/auth/register", payload);
+    return response.data;
+  },
+
+  googleLogin: async (payload: GoogleAuthPayload): Promise<AuthResponse> => {
+    const response = await api.post<AuthResponse>("/auth/google", payload);
     return response.data;
   },
 
@@ -13,7 +23,6 @@ export const authService = {
   },
 
   logout: async () => {
-    // Backend mungkin butuh endpoint logout jika menyimpan invalid token list
     const response = await api.post("/auth/logout");
     return response.data;
   },

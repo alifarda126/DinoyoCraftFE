@@ -25,6 +25,13 @@ type ProfileData = {
   avatar: string;
 };
 
+type RegistrationData = {
+  fileKTP: File | null;
+  fileNIB: File | null;
+  fileProduk: File[];
+  agreed: boolean;
+};
+
 const INITIAL: ProfileData = {
   ownerName: "Budi Santoso",
   storeName: "Studio Keramik Dinoyo",
@@ -55,6 +62,14 @@ export default function SellerProfilPage() {
   const [bannerPreview, setBannerPreview] = useState<string>(
     "https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=1200&auto=format&fit=crop"
   );
+  const [isNewRegistration, setIsNewRegistration] = useState(false);
+  const [regData, setRegData] = useState<RegistrationData>({
+    fileKTP: null,
+    fileNIB: null,
+    fileProduk: [],
+    agreed: false,
+  });
+  const [regErrors, setRegErrors] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const bannerRef = useRef<HTMLInputElement>(null);
 
@@ -65,6 +80,7 @@ export default function SellerProfilPage() {
       return;
     }
     setProfile(prev => ({ ...prev, ownerName: session.profile.full_name || prev.ownerName }));
+    setIsNewRegistration(session.isNewRegistration || false);
     setLoading(false);
   }, [router]);
 
@@ -92,6 +108,12 @@ export default function SellerProfilPage() {
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    
+    if (isNewRegistration) {
+      handleRegistrationSubmit(e);
+      return;
+    }
+    
     setSaving(true);
     await new Promise(r => setTimeout(r, 1000));
     setSaving(false);
@@ -99,9 +121,217 @@ export default function SellerProfilPage() {
     toast.success("Profil toko berhasil disimpan!");
   }
 
+  async function handleRegistrationSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setRegErrors({});
+    let newErrors: Record<string, string> = {};
+    let firstErrorField = "";
+
+    const addError = (field: string, msg: string) => {
+      newErrors[field] = msg;
+      if (!firstErrorField) firstErrorField = field;
+    };
+
+    if (!profile.ownerName.trim()) addError("reg-nama", "Nama Lengkap wajib diisi");
+    if (!profile.phone.trim()) addError("reg-wa", "Nomor HP wajib diisi");
+    if (!profile.storeName.trim()) addError("reg-toko", "Nama Toko wajib diisi");
+    if (!profile.address.trim()) addError("reg-alamat", "Alamat Lengkap wajib diisi");
+    if (!profile.yearStarted) addError("reg-tahun", "Tahun Mulai Usaha wajib diisi");
+
+    const MAX_MB = 5;
+    const MAX_SIZE = MAX_MB * 1024 * 1024;
+
+    if (!regData.fileKTP) addError("reg-ktp", "Dokumen KTP wajib diunggah");
+    else if (regData.fileKTP.size > MAX_SIZE) addError("reg-ktp", `Ukuran file maks ${MAX_MB}MB`);
+
+    if (!regData.fileNIB) addError("reg-nib", "Dokumen NIB/Usaha wajib diunggah");
+    else if (regData.fileNIB.size > MAX_SIZE) addError("reg-nib", `Ukuran file maks ${MAX_MB}MB`);
+
+    if (regData.fileProduk.length === 0) addError("reg-produk", "Foto produk wajib diunggah");
+    else if (regData.fileProduk.length < 3) addError("reg-produk", "Pilih minimal 3 foto");
+    else {
+      let isOverSize = false;
+      for (let i = 0; i < regData.fileProduk.length; i++) {
+        if (regData.fileProduk[i].size > MAX_SIZE) isOverSize = true;
+      }
+      if (isOverSize) addError("reg-produk", `Tiap foto maks ${MAX_MB}MB`);
+    }
+
+    if (!regData.agreed) addError("reg-agree", "Harap centang persetujuan terlebih dahulu");
+
+    if (Object.keys(newErrors).length > 0) {
+      setRegErrors(newErrors);
+      toast.error("Mohon lengkapi semua data yang wajib diisi");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await new Promise(r => setTimeout(r, 1000));
+      toast.success("Pendaftaran berhasil! Selamat datang di DinoyoCraft.");
+      router.push("/mitra/dashboard");
+    } catch {
+      toast.error("Terjadi kesalahan saat pendaftaran");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const initials = profile.ownerName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
 
   if (loading) return <div>Memuat...</div>;
+
+  if (isNewRegistration) {
+    return (
+      <div style={{ animation: "fadeIn 0.4s ease-out" }}>
+        <header style={{ marginBottom: "2rem" }}>
+          <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--bark)", marginBottom: "0.25rem", letterSpacing: "-0.02em" }}>
+            Lengkapi Profil Mitra
+          </h1>
+          <p style={{ color: "var(--bark-muted)", fontSize: "0.95rem" }}>
+            Selesaikan pendaftaran Anda dengan data lengkap dan dokumen yang diperlukan.
+          </p>
+        </header>
+
+        <form onSubmit={handleSave} style={{ maxWidth: "720px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            {/* Data Pribadi */}
+            <Section title="Data Pribadi" icon={<User size={18} color="var(--clay)" />}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <Field label="Nama Lengkap" required>
+                  <input
+                    type="text" required value={profile.ownerName}
+                    onChange={e => { setProfile(prev => ({ ...prev, ownerName: e.target.value })); if (regErrors["reg-nama"]) setRegErrors(p => ({ ...p, "reg-nama": "" })); }}
+                    placeholder="Sesuai KTP"
+                    style={{ ...inputStyle, borderColor: regErrors["reg-nama"] ? "#e53e3e" : "1px solid var(--line)" }}
+                  />
+                  {regErrors["reg-nama"] && <span style={{ fontSize: "0.75rem", color: "#e53e3e", marginTop: "0.25rem" }}>{regErrors["reg-nama"]}</span>}
+                </Field>
+                <Field label="Nomor HP (WhatsApp)" required>
+                  <input
+                    type="tel" required value={profile.phone}
+                    onChange={e => { setProfile(prev => ({ ...prev, phone: e.target.value })); if (regErrors["reg-wa"]) setRegErrors(p => ({ ...p, "reg-wa": "" })); }}
+                    placeholder="08xxxxxxxxxx"
+                    style={{ ...inputStyle, borderColor: regErrors["reg-wa"] ? "#e53e3e" : "1px solid var(--line)" }}
+                  />
+                  {regErrors["reg-wa"] && <span style={{ fontSize: "0.75rem", color: "#e53e3e", marginTop: "0.25rem" }}>{regErrors["reg-wa"]}</span>}
+                </Field>
+              </div>
+            </Section>
+
+            {/* Data Toko */}
+            <Section title="Data Toko / Workshop" icon={<Storefront size={18} color="var(--clay)" />}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                <Field label="Nama Toko" required>
+                  <input
+                    type="text" required value={profile.storeName}
+                    onChange={e => { setProfile(prev => ({ ...prev, storeName: e.target.value })); if (regErrors["reg-toko"]) setRegErrors(p => ({ ...p, "reg-toko": "" })); }}
+                    placeholder="Contoh: Studio Keramik Bumi"
+                    style={{ ...inputStyle, borderColor: regErrors["reg-toko"] ? "#e53e3e" : "1px solid var(--line)" }}
+                  />
+                  {regErrors["reg-toko"] && <span style={{ fontSize: "0.75rem", color: "#e53e3e", marginTop: "0.25rem" }}>{regErrors["reg-toko"]}</span>}
+                </Field>
+                <Field label="Tahun Mulai Usaha" required>
+                  <input
+                    type="number" required min="1990" max={new Date().getFullYear()}
+                    value={profile.yearStarted}
+                    onChange={e => { setProfile(prev => ({ ...prev, yearStarted: e.target.value })); if (regErrors["reg-tahun"]) setRegErrors(p => ({ ...p, "reg-tahun": "" })); }}
+                    placeholder="2018"
+                    style={{ ...inputStyle, borderColor: regErrors["reg-tahun"] ? "#e53e3e" : "1px solid var(--line)" }}
+                  />
+                  {regErrors["reg-tahun"] && <span style={{ fontSize: "0.75rem", color: "#e53e3e", marginTop: "0.25rem" }}>{regErrors["reg-tahun"]}</span>}
+                </Field>
+              </div>
+              <Field label="Alamat Lengkap Workshop" required style={{ marginTop: "1rem" }}>
+                <textarea
+                  required value={profile.address}
+                  onChange={e => { setProfile(prev => ({ ...prev, address: e.target.value })); if (regErrors["reg-alamat"]) setRegErrors(p => ({ ...p, "reg-alamat": "" })); }}
+                  rows={3}
+                  placeholder="Jalan, RT/RW, Kelurahan..."
+                  style={{ ...inputStyle, resize: "vertical", minHeight: 80, borderColor: regErrors["reg-alamat"] ? "#e53e3e" : "1px solid var(--line)" }}
+                />
+                {regErrors["reg-alamat"] && <span style={{ fontSize: "0.75rem", color: "#e53e3e", marginTop: "0.25rem" }}>{regErrors["reg-alamat"]}</span>}
+              </Field>
+            </Section>
+
+            {/* Unggah Dokumen */}
+            <Section title="Unggah Dokumen" icon={<IdentificationCard size={18} color="var(--clay)" />}>
+              <p style={{ fontSize: "0.85rem", color: "var(--bark-muted)", marginBottom: "1rem" }}>Maks 5MB per file</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+                <Field label="KTP Pemilik Usaha" required>
+                  <input
+                    type="file" required accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={e => { setRegData(p => ({ ...p, fileKTP: e.target.files?.[0] || null })); if (regErrors["reg-ktp"]) setRegErrors(prev => ({ ...prev, "reg-ktp": "" })); }}
+                    style={{ ...inputStyle, padding: "0.45rem", borderColor: regErrors["reg-ktp"] ? "#e53e3e" : "1px solid var(--line)" }}
+                  />
+                  {regErrors["reg-ktp"] && <span style={{ fontSize: "0.75rem", color: "#e53e3e", marginTop: "0.25rem" }}>{regErrors["reg-ktp"]}</span>}
+                </Field>
+                <Field label="Surat Keterangan Usaha / NIB" required>
+                  <input
+                    type="file" required accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={e => { setRegData(p => ({ ...p, fileNIB: e.target.files?.[0] || null })); if (regErrors["reg-nib"]) setRegErrors(prev => ({ ...prev, "reg-nib": "" })); }}
+                    style={{ ...inputStyle, padding: "0.45rem", borderColor: regErrors["reg-nib"] ? "#e53e3e" : "1px solid var(--line)" }}
+                  />
+                  {regErrors["reg-nib"] && <span style={{ fontSize: "0.75rem", color: "#e53e3e", marginTop: "0.25rem" }}>{regErrors["reg-nib"]}</span>}
+                </Field>
+                <Field label="Foto Produk (Min. 3 Foto)" required>
+                  <input
+                    type="file" required multiple accept=".jpg,.jpeg,.png"
+                    onChange={e => { setRegData(p => ({ ...p, fileProduk: e.target.files ? Array.from(e.target.files) : [] })); if (regErrors["reg-produk"]) setRegErrors(prev => ({ ...prev, "reg-produk": "" })); }}
+                    style={{ ...inputStyle, padding: "0.45rem", borderColor: regErrors["reg-produk"] ? "#e53e3e" : "1px solid var(--line)" }}
+                  />
+                  {regData.fileProduk.length > 0 && <span style={{ fontSize: "0.75rem", color: "var(--clay)", marginTop: "0.25rem", fontWeight: 600 }}>{regData.fileProduk.length} foto terpilih</span>}
+                  {regErrors["reg-produk"] && <span style={{ fontSize: "0.75rem", color: "#e53e3e", marginTop: "0.25rem" }}>{regErrors["reg-produk"]}</span>}
+                </Field>
+              </div>
+            </Section>
+
+            {/* Persetujuan */}
+            <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", padding: "1.25rem" }}>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: "0.65rem", cursor: "pointer", userSelect: "none" }}>
+                <input
+                  type="checkbox"
+                  checked={regData.agreed}
+                  onChange={e => { setRegData(p => ({ ...p, agreed: e.target.checked })); if (regErrors["reg-agree"]) setRegErrors(prev => ({ ...prev, "reg-agree": "" })); }}
+                  style={{ marginTop: "0.25rem", width: 18, height: 18, cursor: "pointer" }}
+                />
+                <span style={{ fontSize: "0.85rem", color: "var(--bark)", lineHeight: 1.6 }}>
+                  Saya menyetujui <a href="/syarat-ketentuan" style={{ color: "var(--clay)", fontWeight: 700, textDecoration: "none" }}>Syarat &amp; Ketentuan</a> serta persyaratan pendaftaran Mitra DinoyoCraft.
+                </span>
+              </label>
+              {regErrors["reg-agree"] && <span style={{ fontSize: "0.75rem", color: "#e53e3e", marginTop: "0.5rem", display: "block" }}>{regErrors["reg-agree"]}</span>}
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={saving}
+              style={{
+                width: "100%", padding: "0.875rem",
+                borderRadius: "0.75rem",
+                background: saving ? "var(--clay-light, #d4956a)" : "var(--clay)",
+                color: "#fff", fontWeight: 700, fontSize: "0.95rem",
+                border: "none", cursor: saving ? "not-allowed" : "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem",
+                transition: "background 0.3s",
+              }}
+            >
+              {saving ? (
+                <span style={{ display: "inline-block", width: 16, height: 16, border: "2.5px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+              ) : (
+                <>Selesaikan Pendaftaran</>
+              )}
+            </button>
+          </div>
+        </form>
+
+        <style>{`
+          @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+          @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div style={{ animation: "fadeIn 0.4s ease-out" }}>

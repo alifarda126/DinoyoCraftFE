@@ -23,6 +23,7 @@ export interface DemoSession {
   role: DemoRole;
   user: DemoUser;
   profile: DemoProfile;
+  isNewRegistration?: boolean;
 }
 
 const DEMO_SESSIONS: Record<DemoRole, DemoSession> = {
@@ -73,8 +74,9 @@ export function getDemoSession(): DemoSession | null {
   }
 }
 
-export function setDemoSession(role: DemoRole): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(DEMO_SESSIONS[role]));
+export function setDemoSession(role: DemoRole, extra?: { isNewRegistration?: boolean }): void {
+  const session = { ...DEMO_SESSIONS[role], ...extra };
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
 }
 
 export function clearDemoSession(): void {

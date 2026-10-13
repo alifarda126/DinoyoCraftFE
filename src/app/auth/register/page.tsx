@@ -4,8 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
+import { authService } from "@/services/auth.service";
+import api from "@/lib/axios";
 import { setDemoSession } from "@/lib/utils/demo";
 import { ArrowRight, Storefront, Leaf, CheckCircle, Check } from "@phosphor-icons/react";
+import { GoogleOAuthProvider, GoogleLogin } from "@react-oauth/google";
 import Image from "next/image";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
@@ -56,10 +59,13 @@ export default function MitraRegisterPage() {
     if (!namaToko.trim()) addError("reg-toko", "Nama Toko wajib diisi");
     if (!alamatToko.trim()) addError("reg-alamat", "Alamat Lengkap Workshop wajib diisi");
     if (!tahunUsaha) addError("reg-tahun", "Tahun Mulai Usaha wajib diisi");
-    if (!password) addError("mitra-password", "Password wajib diisi");
-    else if (password.length < 8) addError("mitra-password", "Password min. 8 karakter");
-    if (!konfirmasiPassword) addError("mitra-konfirmasi-password", "Konfirmasi password wajib diisi");
-    else if (password !== konfirmasiPassword) addError("mitra-konfirmasi-password", "Password tidak cocok");
+    
+    if (!googleAuthSuccess) {
+      if (!password) addError("mitra-password", "Password wajib diisi");
+      else if (password.length < 8) addError("mitra-password", "Password min. 8 karakter");
+      if (!konfirmasiPassword) addError("mitra-konfirmasi-password", "Konfirmasi password wajib diisi");
+      else if (password !== konfirmasiPassword) addError("mitra-konfirmasi-password", "Password tidak cocok");
+    }
 
     const MAX_MB = 5;
     const MAX_SIZE = MAX_MB * 1024 * 1024;
@@ -97,25 +103,73 @@ export default function MitraRegisterPage() {
 
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      toast.success("Akun berhasil dibuat! Tim admin akan meninjau dalam 1×24 jam.");
-      router.push("/mitra/dashboard");
-    } catch {
-      toast.error("Terjadi kesalahan");
+      if (googleAuthSuccess) {
+        // Google auth flow - simpan shop data terlebih dahulu
+        await new Promise((resolve) => setTimeout(resolve, 900));
+        
+        // TODO: Save shop data ke backend jika diperlukan
+        // Untuk sekarang, cukup redirect ke dashboard
+        setDemoSession("seller");
+        toast.success("Pendaftaran dengan Google berhasil! Selamat datang.");
+        router.push("/mitra/dashboard");
+      } else {
+        const response = await authService.register({
+          name: namaLengkap.trim(),
+          email,
+          password,
+          role: "mitra",
+        });
+        
+        if (response.success && response.data?.token) {
+          // Simpan token ke localStorage
+          localStorage.setItem('token', response.data.token);
+          setDemoSession("seller");
+          toast.success(response.message || "Pendaftaran mitra berhasil! Selamat datang.");
+          router.push("/mitra/dashboard");
+        } else {
+          toast.error(response.message || "Pendaftaran gagal");
+        }
+      }
+    } catch (error: any) {
+      console.error("Register error:", error);
+      
+      if (error.response?.data?.message) {
+        if (error.response.data.message.includes("email")) {
+          setErrors({ "mitra-email": "Email sudah terdaftar" });
+        } else {
+          toast.error(error.response.data.message);
+        }
+      } else {
+        toast.error("Terjadi kesalahan saat pendaftaran");
+      }
     } finally {
       setLoading(false);
     }
   }
 
-  async function handleGoogleRegister() {
-    setLoading(true);
+  const [googleAuthSuccess, setGoogleAuthSuccess] = useState(false);
+  const [googleEmail, setGoogleEmail] = useState("");
+
+  async function handleGoogleRegister(credentialResponse: any) {
     try {
-      await new Promise((resolve) => setTimeout(resolve, 900));
-      setDemoSession("seller");
-      toast.success("Daftar dengan Google berhasil!");
-      router.push("/mitra/dashboard");
-    } catch {
-      toast.error("Terjadi kesalahan");
+      setLoading(true);
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      
+      const decodedToken = JSON.parse(atob(credentialResponse.credential.split('.')[1]));
+      setGoogleEmail(decodedToken.email);
+      setGoogleAuthSuccess(true);
+      setEmail(decodedToken.email);
+      
+      toast.success("Google authentication berhasil! Selesaikan data Anda.");
+      setTimeout(() => {
+        const el = document.getElementById("reg-nama");
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.focus();
+        }
+      }, 300);
+    } catch (error) {
+      toast.error("Terjadi kesalahan dengan Google authentication");
     } finally {
       setLoading(false);
     }
@@ -385,6 +439,22 @@ export default function MitraRegisterPage() {
 
 
             <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
+              {googleAuthSuccess && (
+                <div style={{
+                  background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: "0.875rem",
+                  padding: "0.9rem 1rem", display: "flex", alignItems: "flex-start", gap: "0.6rem",
+                }}>
+                  <CheckCircle size={18} color="#16a34a" weight="fill" style={{ flexShrink: 0, marginTop: "0.1rem" }} />
+                  <div>
+                    <p style={{ fontSize: "0.85rem", fontWeight: 700, color: "#15803d", margin: "0 0 0.2rem" }}>
+                      Google Authentication Berhasil!
+                    </p>
+                    <p style={{ fontSize: "0.75rem", color: "#166534", margin: 0 }}>
+                      Email {googleEmail} sudah terdaftar. Selesaikan data di bawah untuk melanjutkan.
+                    </p>
+                  </div>
+                </div>
+              )}
               {/* Data Pribadi */}
               <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--bark)", letterSpacing: "0.05em", textTransform: "uppercase", margin: "0.1rem 0 -0.2rem" }}>
                 Data Pribadi
@@ -409,17 +479,23 @@ export default function MitraRegisterPage() {
                   placeholder="08..." style={{ ...inputStyle, borderColor: errors["reg-wa"] ? "#e53e3e" : "rgba(0,0,0,0.13)" }}
                 />
               </div>
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                  <label htmlFor="mitra-email" style={labelStyle}>Email</label>
-                  {errors["mitra-email"] && <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>{errors["mitra-email"]}</span>}
-                </div>
-                <input id="mitra-email" type="email" value={email}
-                  onChange={(e) => { setEmail(e.target.value); if (errors["mitra-email"]) setErrors(p => ({ ...p, "mitra-email": "" })); }}
-                  placeholder="nama@email.com" className="input-earthy"
-                  style={errors["mitra-email"] ? { borderColor: "#e53e3e" } : {}}
-                />
-              </div>
+               <div>
+                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                   <label htmlFor="mitra-email" style={labelStyle}>Email</label>
+                   {errors["mitra-email"] && <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>{errors["mitra-email"]}</span>}
+                 </div>
+                 <input id="mitra-email" type="email" value={email}
+                   onChange={(e) => { if (!googleAuthSuccess) setEmail(e.target.value); if (errors["mitra-email"]) setErrors(p => ({ ...p, "mitra-email": "" })); }}
+                   placeholder="nama@email.com" className="input-earthy"
+                   readOnly={googleAuthSuccess}
+                   style={{
+                     ...inputStyle,
+                     borderColor: errors["mitra-email"] ? "#e53e3e" : "rgba(0,0,0,0.13)",
+                     background: googleAuthSuccess ? "#f3f4f6" : "#fafaf9",
+                     cursor: googleAuthSuccess ? "not-allowed" : "auto"
+                   }}
+                 />
+               </div>
 
               {/* Data Toko */}
               <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--bark)", letterSpacing: "0.05em", textTransform: "uppercase", margin: "0.25rem 0 -0.2rem" }}>
@@ -496,32 +572,36 @@ export default function MitraRegisterPage() {
                 {fileProduk.length > 0 && <div style={{ fontSize: "0.75rem", color: "var(--clay)", marginTop: "0.35rem", fontWeight: 600 }}>{fileProduk.length} foto terpilih</div>}
               </div>
 
-              {/* Password */}
-              <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--bark)", letterSpacing: "0.05em", textTransform: "uppercase", margin: "0.25rem 0 -0.2rem" }}>
-                Keamanan Akun
-              </p>
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                  <label htmlFor="mitra-password" style={labelStyle}>Password<span style={{ color: "#e53e3e", marginLeft: 2 }}>*</span></label>
-                  {errors["mitra-password"] && <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>{errors["mitra-password"]}</span>}
-                </div>
-                <input id="mitra-password" type="password" value={password}
-                  onChange={(e) => { setPassword(e.target.value); if (errors["mitra-password"]) setErrors(p => ({ ...p, "mitra-password": "" })); }}
-                  placeholder="Minimal 8 karakter" className="input-earthy"
-                  style={errors["mitra-password"] ? { borderColor: "#e53e3e" } : {}}
-                />
-              </div>
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                  <label htmlFor="mitra-konfirmasi-password" style={labelStyle}>Konfirmasi Password<span style={{ color: "#e53e3e", marginLeft: 2 }}>*</span></label>
-                  {errors["mitra-konfirmasi-password"] && <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>{errors["mitra-konfirmasi-password"]}</span>}
-                </div>
-                <input id="mitra-konfirmasi-password" type="password" value={konfirmasiPassword}
-                  onChange={(e) => { setKonfirmasiPassword(e.target.value); if (errors["mitra-konfirmasi-password"]) setErrors(p => ({ ...p, "mitra-konfirmasi-password": "" })); }}
-                  placeholder="Masukkan ulang password" className="input-earthy"
-                  style={errors["mitra-konfirmasi-password"] ? { borderColor: "#e53e3e" } : {}}
-                />
-              </div>
+              {!googleAuthSuccess && (
+                <>
+                  {/* Password */}
+                  <p style={{ fontSize: "0.72rem", fontWeight: 700, color: "var(--bark)", letterSpacing: "0.05em", textTransform: "uppercase", margin: "0.25rem 0 -0.2rem" }}>
+                    Keamanan Akun
+                  </p>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                      <label htmlFor="mitra-password" style={labelStyle}>Password<span style={{ color: "#e53e3e", marginLeft: 2 }}>*</span></label>
+                      {errors["mitra-password"] && <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>{errors["mitra-password"]}</span>}
+                    </div>
+                    <input id="mitra-password" type="password" value={password}
+                      onChange={(e) => { setPassword(e.target.value); if (errors["mitra-password"]) setErrors(p => ({ ...p, "mitra-password": "" })); }}
+                      placeholder="Minimal 8 karakter" className="input-earthy"
+                      style={errors["mitra-password"] ? { borderColor: "#e53e3e" } : {}}
+                    />
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                      <label htmlFor="mitra-konfirmasi-password" style={labelStyle}>Konfirmasi Password<span style={{ color: "#e53e3e", marginLeft: 2 }}>*</span></label>
+                      {errors["mitra-konfirmasi-password"] && <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>{errors["mitra-konfirmasi-password"]}</span>}
+                    </div>
+                    <input id="mitra-konfirmasi-password" type="password" value={konfirmasiPassword}
+                      onChange={(e) => { setKonfirmasiPassword(e.target.value); if (errors["mitra-konfirmasi-password"]) setErrors(p => ({ ...p, "mitra-konfirmasi-password": "" })); }}
+                      placeholder="Masukkan ulang password" className="input-earthy"
+                      style={errors["mitra-konfirmasi-password"] ? { borderColor: "#e53e3e" } : {}}
+                    />
+                  </div>
+                </>
+              )}
 
               {/* Persyaratan */}
               <div style={{
@@ -600,50 +680,32 @@ export default function MitraRegisterPage() {
               >
                 {loading ? (
                   <span style={{ display: "inline-block", width: 16, height: 16, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "9999px", animation: "spin 0.75s linear infinite" }} />
+                ) : googleAuthSuccess ? (
+                  <>Lengkapi & Daftar <ArrowRight size={16} weight="bold" /></>
                 ) : (
                   <>Buat Akun <ArrowRight size={16} weight="bold" /></>
                 )}
               </button>
             </form>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", margin: "1rem 0" }}>
-              <div style={{ flex: 1, height: 1, background: "var(--line-strong)" }} />
-              <span style={{ fontSize: "0.72rem", color: "var(--bark-muted)", fontWeight: 600, whiteSpace: "nowrap", letterSpacing: "0.05em" }}>ATAU</span>
-              <div style={{ flex: 1, height: 1, background: "var(--line-strong)" }} />
-            </div>
+            {!googleAuthSuccess && (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", margin: "1rem 0" }}>
+                  <div style={{ flex: 1, height: 1, background: "var(--line-strong)" }} />
+                  <span style={{ fontSize: "0.72rem", color: "var(--bark-muted)", fontWeight: 600, whiteSpace: "nowrap", letterSpacing: "0.05em" }}>ATAU</span>
+                  <div style={{ flex: 1, height: 1, background: "var(--line-strong)" }} />
+                </div>
 
-            <button
-              type="button"
-              onClick={handleGoogleRegister}
-              disabled={loading}
-              style={{
-                width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.6rem",
-                padding: "0.8rem", borderRadius: "0.75rem",
-                border: "1.5px solid var(--line-strong)", background: "#fff",
-                color: "var(--bark)", fontWeight: 600, fontSize: "0.875rem",
-                cursor: loading ? "not-allowed" : "pointer",
-                transition: "border-color 0.2s, box-shadow 0.2s",
-                fontFamily: pjs.style.fontFamily, boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
-              }}
-              onMouseEnter={(e) => {
-                if (!loading) {
-                  (e.currentTarget as HTMLElement).style.borderColor = "#4285F4";
-                  (e.currentTarget as HTMLElement).style.boxShadow = "0 2px 8px rgba(66,133,244,0.18)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.borderColor = "var(--line-strong)";
-                (e.currentTarget as HTMLElement).style.boxShadow = "0 1px 4px rgba(0,0,0,0.06)";
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-                <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z" fill="#4285F4" />
-                <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18Z" fill="#34A853" />
-                <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332Z" fill="#FBBC05" />
-                <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58Z" fill="#EA4335" />
-              </svg>
-              Daftar dengan Google
-            </button>
+                <GoogleOAuthProvider clientId={process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""}>
+                  <GoogleLogin
+                    onSuccess={handleGoogleRegister}
+                    onError={() => toast.error("Daftar dengan Google gagal")}
+                    text="signup_with"
+                    width="100%"
+                  />
+                </GoogleOAuthProvider>
+              </>
+            )}
 
             <p style={{ marginTop: "1rem", fontSize: "0.7rem", color: "var(--bark-muted)", textAlign: "center", lineHeight: 1.6 }}>
               Dengan mendaftar, kamu menyetujui{" "}
