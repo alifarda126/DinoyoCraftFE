@@ -13,10 +13,6 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  if (pathname === "/mitra/dashboard/registrasi") {
-    return <>{children}</>;
-  }
-
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-white" style={{ fontFamily: "var(--font-outfit), sans-serif" }}>
       
