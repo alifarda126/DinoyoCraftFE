@@ -13,7 +13,12 @@ import { EarthySelect } from "@/components/ui/EarthySelect";
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
 
-type ColorVariant = { name: string; hex: string; label: string };
+type ColorVariant = {
+  name: string;
+  hex: string;
+  label: string;
+  stock?: number;
+};
 
 type Review = {
   id: string;
@@ -36,12 +41,12 @@ type Artwork = {
 /* ── Preset colors ──────────────────────────────────────────────────────── */
 
 const PRESET_COLORS: ColorVariant[] = [
-  { name: "Sand White", hex: "#f0ebe3", label: "Glossy Finish" },
-  { name: "Terracotta", hex: "#c1694f", label: "Matte Earthy" },
-  { name: "Raw Speckle", hex: "#d4cfc8", label: "Bintik Alami" },
-  { name: "Charcoal Ash", hex: "#3d3d3d", label: "Tekstur Abu" },
-  { name: "Sage Green", hex: "#8aad8a", label: "Natural Moss" },
-  { name: "Cobalt Blue", hex: "#3b5fa0", label: "Deep Ocean" },
+  { name: "Sand White", hex: "#f0ebe3", label: "Glossy Finish", stock: 5 },
+  { name: "Terracotta", hex: "#c1694f", label: "Matte Earthy", stock: 5 },
+  { name: "Raw Speckle", hex: "#d4cfc8", label: "Bintik Alami", stock: 5 },
+  { name: "Charcoal Ash", hex: "#3d3d3d", label: "Tekstur Abu", stock: 5 },
+  { name: "Sage Green", hex: "#8aad8a", label: "Natural Moss", stock: 5 },
+  { name: "Cobalt Blue", hex: "#3b5fa0", label: "Deep Ocean", stock: 5 },
 ];
 
 /* ── Component ───────────────────────────────────────────────────────────── */
@@ -66,6 +71,7 @@ export default function SellerCatalogPage() {
   const [customColorName, setCustomColorName] = useState("");
   const [customColorHex, setCustomColorHex] = useState("#b85c3c");
   const [customColorLabel, setCustomColorLabel] = useState("");
+  const [customColorStock, setCustomColorStock] = useState<number>(5);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* Edit state */
@@ -79,6 +85,7 @@ export default function SellerCatalogPage() {
   const [editCustomName, setEditCustomName] = useState("");
   const [editCustomHex, setEditCustomHex] = useState("#b85c3c");
   const [editCustomLabel, setEditCustomLabel] = useState("");
+  const [editCustomStock, setEditCustomStock] = useState<number>(5);
 
   const handleFileChange = useCallback((file: File | null) => {
     if (!file) return;
@@ -98,7 +105,12 @@ export default function SellerCatalogPage() {
         category: "Dekorasi",
         stock: 12,
         image_url: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=400&q=80",
-        variants: [PRESET_COLORS[0], PRESET_COLORS[1], PRESET_COLORS[2], PRESET_COLORS[3]],
+        variants: [
+          { ...PRESET_COLORS[0], stock: 4 },
+          { ...PRESET_COLORS[1], stock: 3 },
+          { ...PRESET_COLORS[2], stock: 3 },
+          { ...PRESET_COLORS[3], stock: 2 },
+        ],
         reviews: [
           { id: "r1", author: "Sari", rating: 5 },
           { id: "r2", author: "Budi", rating: 5 },
@@ -114,7 +126,10 @@ export default function SellerCatalogPage() {
         category: "Peralatan Makan",
         stock: 5,
         image_url: "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=400&q=80",
-        variants: [PRESET_COLORS[0], PRESET_COLORS[4]],
+        variants: [
+          { ...PRESET_COLORS[0], stock: 3 },
+          { ...PRESET_COLORS[4], stock: 2 },
+        ],
         reviews: [
           { id: "r1", author: "Sari", rating: 5 },
           { id: "r2", author: "Budi", rating: 4 },
@@ -128,7 +143,10 @@ export default function SellerCatalogPage() {
         category: "Peralatan Makan",
         stock: 8,
         image_url: "https://images.unsplash.com/photo-1530006498959-b7884e829a04?auto=format&fit=crop&w=400&q=80",
-        variants: [PRESET_COLORS[0], PRESET_COLORS[3]],
+        variants: [
+          { ...PRESET_COLORS[0], stock: 5 },
+          { ...PRESET_COLORS[3], stock: 3 },
+        ],
         reviews: [
           { id: "r1", author: "Andi", rating: 5 },
         ],
@@ -141,7 +159,9 @@ export default function SellerCatalogPage() {
         category: "Peralatan Makan",
         stock: 3,
         image_url: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=400&q=80",
-        variants: [PRESET_COLORS[2]],
+        variants: [
+          { ...PRESET_COLORS[2], stock: 3 },
+        ],
         reviews: [
           { id: "r1", author: "Maya", rating: 5 },
           { id: "r2", author: "Leo", rating: 5 },
@@ -151,30 +171,65 @@ export default function SellerCatalogPage() {
   };
 
   useEffect(() => {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     const session = getDemoSession();
-    if (!session || session.role !== "seller") { router.push("/auth/login"); return; }
+    if (!storedToken && (!session || session.role !== "seller")) {
+      router.push("/login");
+      return;
+    }
     loadArtworks();
   }, [router]);
+
+  // Otomatis sinkron total stok saat varian ditambah/diubah
+  useEffect(() => {
+    if (selectedColors.length > 0) {
+      const total = selectedColors.reduce((sum, v) => sum + (v.stock ?? 0), 0);
+      setStock(String(total));
+    }
+  }, [selectedColors]);
+
+  useEffect(() => {
+    if (editColors.length > 0) {
+      const total = editColors.reduce((sum, v) => sum + (v.stock ?? 0), 0);
+      setEditStock(String(total));
+    }
+  }, [editColors]);
 
   /* ── Color helpers ───────────────────────────────────────────────────── */
 
   function toggleColor(c: ColorVariant, list: ColorVariant[], setList: (v: ColorVariant[]) => void) {
-    setList(list.find(x => x.name === c.name) ? list.filter(x => x.name !== c.name) : [...list, c]);
+    const existing = list.find(x => x.name === c.name);
+    if (existing) {
+      setList(list.filter(x => x.name !== c.name));
+    } else {
+      setList([...list, { ...c, stock: c.stock ?? 5 }]);
+    }
   }
 
   function addCustomColor(
     list: ColorVariant[], setList: (v: ColorVariant[]) => void,
-    name: string, hex: string, label: string,
-    setName: (v: string) => void, setLabel: (v: string) => void, setHex: (v: string) => void
+    name: string, hex: string, label: string, stockQty: number,
+    setName: (v: string) => void, setLabel: (v: string) => void, setHex: (v: string) => void,
+    setStockQty?: (v: number) => void
   ) {
     if (!name.trim()) { toast.error("Nama warna wajib diisi"); return; }
     if (list.find(x => x.name === name)) { toast.error("Warna sudah ada"); return; }
-    setList([...list, { name, hex, label: label || "Custom" }]);
+    setList([...list, { name, hex, label: label || "Custom", stock: stockQty || 5 }]);
     setName(""); setLabel(""); setHex("#b85c3c");
+    if (setStockQty) setStockQty(5);
   }
 
   function removeColor(name: string, list: ColorVariant[], setList: (v: ColorVariant[]) => void) {
     setList(list.filter(x => x.name !== name));
+  }
+
+  function updateVariantStock(
+    variantName: string,
+    newStock: number,
+    list: ColorVariant[],
+    setList: (v: ColorVariant[]) => void
+  ) {
+    setList(list.map(v => v.name === variantName ? { ...v, stock: Math.max(0, newStock) } : v));
   }
 
   /* ── Form handlers ───────────────────────────────────────────────────── */
@@ -185,11 +240,15 @@ export default function SellerCatalogPage() {
     try {
       await new Promise(resolve => setTimeout(resolve, 600));
       const slug = (title || "produk").trim().toLowerCase().replace(/\s+/g, "-");
+      const finalStock = selectedColors.length > 0
+        ? selectedColors.reduce((sum, v) => sum + (v.stock || 0), 0)
+        : parseInt(stock) || 0;
+
       const newProduct: Artwork = {
         id: `prod-${slug}-${artworks.length + 1}`,
         title, description,
-        price: parseInt(price),
-        category, stock: parseInt(stock),
+        price: parseInt(price) || 0,
+        category, stock: finalStock,
         image_url: imageUrl || "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=400&q=80",
         variants: selectedColors,
         reviews: [],
@@ -209,6 +268,7 @@ export default function SellerCatalogPage() {
     setTitle(""); setDescription(""); setPrice(""); setCategory("");
     setImageUrl(""); setImagePreview(null); setStock(""); setSelectedColors([]);
     setCustomColorName(""); setCustomColorLabel(""); setCustomColorHex("#b85c3c");
+    setCustomColorStock(5);
   }
 
   function handleDelete(id: string) {
@@ -223,16 +283,24 @@ export default function SellerCatalogPage() {
     setEditTitle(item.title); setEditDescription(item.description);
     setEditPrice(String(item.price)); setEditCategory(item.category);
     setEditStock(String(item.stock));
-    setEditColors([...item.variants]);
+    const variantsWithStock = (item.variants || []).map(v => ({
+      ...v,
+      stock: v.stock !== undefined ? v.stock : Math.max(1, Math.floor(item.stock / (item.variants.length || 1))),
+    }));
+    setEditColors(variantsWithStock);
     setShowForm(false);
   }
 
   function handleEditSave(e: React.FormEvent) {
     e.preventDefault();
+    const finalStock = editColors.length > 0
+      ? editColors.reduce((sum, v) => sum + (v.stock || 0), 0)
+      : parseInt(editStock) || 0;
+
     setArtworks(prev => prev.map(a => a.id === editingId ? {
       ...a, title: editTitle, description: editDescription,
-      price: parseInt(editPrice), category: editCategory,
-      stock: parseInt(editStock), variants: editColors,
+      price: parseInt(editPrice) || 0, category: editCategory,
+      stock: finalStock, variants: editColors,
     } : a));
     setEditingId(null);
     toast.success("Produk berhasil diperbarui!");
@@ -260,22 +328,41 @@ export default function SellerCatalogPage() {
     customName, setCustomName,
     customHex, setCustomHex,
     customLabel, setCustomLabel,
+    customStock, setCustomStock,
   }: {
     list: ColorVariant[]; setList: (v: ColorVariant[]) => void;
     customName: string; setCustomName: (v: string) => void;
     customHex: string; setCustomHex: (v: string) => void;
     customLabel: string; setCustomLabel: (v: string) => void;
+    customStock: number; setCustomStock: (v: number) => void;
   }) {
+    const totalVariantStock = list.reduce((sum, v) => sum + (v.stock || 0), 0);
+
     return (
       <div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.65rem" }}>
-          <Palette size={15} color="var(--clay)" weight="fill" />
-          <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--bark)" }}>Varian Warna / Glaze</span>
-          <span style={{ fontSize: "0.7rem", color: "var(--bark-muted)", fontWeight: 500 }}>(opsional)</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.65rem" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Palette size={16} color="var(--clay)" weight="fill" />
+            <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--bark)" }}>Varian Warna &amp; Stok</span>
+            <span style={{ fontSize: "0.72rem", color: "var(--bark-muted)", fontWeight: 500 }}>(opsional)</span>
+          </div>
+          {list.length > 0 && (
+            <span style={{
+              fontSize: "0.74rem",
+              fontWeight: 700,
+              color: "var(--clay)",
+              background: "rgba(184,92,60,0.08)",
+              padding: "0.2rem 0.65rem",
+              borderRadius: "999px",
+              border: "1px solid rgba(184,92,60,0.18)",
+            }}>
+              Total Stok Varian: {totalVariantStock} Unit
+            </span>
+          )}
         </div>
 
         {/* Preset chips */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "0.65rem" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "0.75rem" }}>
           {PRESET_COLORS.map(c => {
             const active = !!list.find(x => x.name === c.name);
             return (
@@ -297,9 +384,9 @@ export default function SellerCatalogPage() {
 
         {/* Custom color row */}
         <div style={{
-          display: "grid", gridTemplateColumns: "44px 1fr 1fr auto", gap: "0.5rem",
+          display: "grid", gridTemplateColumns: "44px 1.2fr 1fr 85px auto", gap: "0.5rem",
           alignItems: "flex-end", background: "var(--surface)", borderRadius: "0.6rem",
-          padding: "0.65rem", border: "1px solid var(--line)",
+          padding: "0.75rem", border: "1px solid var(--line)", marginBottom: "0.75rem",
         }}>
           <div>
             <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--bark-muted)", marginBottom: "0.3rem" }}>Warna</p>
@@ -316,35 +403,102 @@ export default function SellerCatalogPage() {
             <input type="text" value={customLabel} onChange={e => setCustomLabel(e.target.value)}
               placeholder="mis. Glossy" style={{ ...inputStyle, fontSize: "0.8rem" }} />
           </div>
+          <div>
+            <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--bark-muted)", marginBottom: "0.3rem" }}>Stok Awal</p>
+            <input type="number" min={0} value={customStock} onChange={e => setCustomStock(parseInt(e.target.value) || 0)}
+              style={{ ...inputStyle, fontSize: "0.8rem", textAlign: "center" }} />
+          </div>
           <button type="button"
-            onClick={() => addCustomColor(list, setList, customName, customHex, customLabel, setCustomName, setCustomLabel, setCustomHex)}
+            onClick={() => addCustomColor(list, setList, customName, customHex, customLabel, customStock, setCustomName, setCustomLabel, setCustomHex, setCustomStock)}
             style={{
               padding: "0.55rem 0.9rem", borderRadius: "0.5rem",
               background: "var(--clay)", color: "#fff", border: "none",
-              fontWeight: 700, fontSize: "0.78rem", cursor: "pointer", whiteSpace: "nowrap",
+              fontWeight: 700, fontSize: "0.78rem", cursor: "pointer", whiteSpace: "nowrap", height: 35,
             }}>
             + Tambah
           </button>
         </div>
 
-        {/* Selected tags */}
+        {/* Selected variants with individual stock management */}
         {list.length > 0 && (
-          <div style={{ marginTop: "0.55rem", display: "flex", flexWrap: "wrap", gap: "0.35rem" }}>
-            {list.map(c => (
-              <span key={c.name} style={{
-                display: "inline-flex", alignItems: "center", gap: "0.35rem",
-                background: "#fff", border: "1px solid var(--line)",
-                borderRadius: "999px", padding: "0.25rem 0.6rem 0.25rem 0.35rem",
-                fontSize: "0.73rem", fontWeight: 600, color: "var(--bark)",
-              }}>
-                <span style={{ width: 12, height: 12, borderRadius: "50%", background: c.hex, border: "1px solid rgba(0,0,0,0.14)" }} />
-                {c.name}
-                <button type="button" onClick={() => removeColor(c.name, list, setList)}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--bark-muted)", padding: 0, display: "flex", lineHeight: 1 }}>
-                  <X size={10} weight="bold" />
-                </button>
-              </span>
-            ))}
+          <div style={{
+            background: "#fff",
+            border: "1.5px solid var(--line)",
+            borderRadius: "0.75rem",
+            padding: "0.85rem 1rem",
+            boxShadow: "0 1px 4px rgba(0,0,0,0.02)",
+          }}>
+            <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "var(--bark)", marginBottom: "0.6rem" }}>
+              Atur Stok Tiap Varian:
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.55rem" }}>
+              {list.map(c => (
+                <div key={c.name} style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "0.5rem",
+                  padding: "0.45rem 0.65rem",
+                  background: "var(--surface)",
+                  borderRadius: "0.55rem",
+                  border: "1px solid var(--line)",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", minWidth: 0, flex: 1 }}>
+                    <span style={{
+                      width: 14, height: 14, borderRadius: "50%",
+                      background: c.hex, border: "1.5px solid rgba(0,0,0,0.15)", flexShrink: 0,
+                    }} />
+                    <div style={{ minWidth: 0, overflow: "hidden" }}>
+                      <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "var(--bark)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {c.name}
+                      </p>
+                      <p style={{ fontSize: "0.65rem", color: "var(--bark-muted)", margin: 0 }}>
+                        {c.label || "Standar"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", flexShrink: 0 }}>
+                    <span style={{ fontSize: "0.7rem", color: "var(--bark-muted)", fontWeight: 600 }}>Stok:</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={c.stock ?? 0}
+                      onChange={e => updateVariantStock(c.name, parseInt(e.target.value) || 0, list, setList)}
+                      style={{
+                        width: 55,
+                        padding: "0.25rem 0.35rem",
+                        borderRadius: "0.35rem",
+                        border: "1.5px solid var(--line-strong)",
+                        background: "#fff",
+                        fontSize: "0.8rem",
+                        fontWeight: 700,
+                        color: "var(--bark)",
+                        textAlign: "center",
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeColor(c.name, list, setList)}
+                      title={`Hapus varian ${c.name}`}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--bark-muted)",
+                        padding: "0.2rem",
+                        display: "flex",
+                        alignItems: "center",
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.color = "#e53e3e")}
+                      onMouseLeave={e => (e.currentTarget.style.color = "var(--bark-muted)")}
+                    >
+                      <X size={13} weight="bold" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -400,8 +554,29 @@ export default function SellerCatalogPage() {
           </div>
 
           <div>
-            <label style={labelStyle}>Stok</label>
-            <input type="number" value={stock} onChange={e => setStock(e.target.value)} required style={inputStyle} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.45rem" }}>
+              <label style={{ ...labelStyle, marginBottom: 0 }}>Total Stok</label>
+              {selectedColors.length > 0 && (
+                <span style={{ fontSize: "0.68rem", color: "var(--clay)", fontWeight: 700 }}>
+                  (Otomatis dari varian)
+                </span>
+              )}
+            </div>
+            <input
+              type="number"
+              value={stock}
+              onChange={e => setStock(e.target.value)}
+              required
+              readOnly={selectedColors.length > 0}
+              placeholder="Contoh: 15"
+              style={{
+                ...inputStyle,
+                background: selectedColors.length > 0 ? "var(--surface)" : "#fff",
+                cursor: selectedColors.length > 0 ? "not-allowed" : "text",
+                color: selectedColors.length > 0 ? "var(--bark-muted)" : "var(--bark)",
+                fontWeight: selectedColors.length > 0 ? 700 : 400,
+              }}
+            />
           </div>
 
           <div>
@@ -493,6 +668,7 @@ export default function SellerCatalogPage() {
               customName={customColorName} setCustomName={setCustomColorName}
               customHex={customColorHex} setCustomHex={setCustomColorHex}
               customLabel={customColorLabel} setCustomLabel={setCustomColorLabel}
+              customStock={customColorStock} setCustomStock={setCustomColorStock}
             />
           </div>
 
@@ -534,22 +710,58 @@ export default function SellerCatalogPage() {
                       <p style={{ fontWeight: 700, color: "var(--bark)" }}>Rp {item.price.toLocaleString("id-ID")}</p>
                     </div>
                     <div>
-                      <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)" }}>Stok</p>
+                      <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)" }}>Total Stok</p>
                       <p style={{ fontWeight: 700, color: "var(--bark)" }}>{item.stock} Unit</p>
                     </div>
                     {item.variants.length > 0 && (
                       <div>
-                        <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)" }}>Varian Warna</p>
-                        <div style={{ display: "flex", gap: "0.25rem", marginTop: "0.25rem" }}>
-                          {item.variants.slice(0, 5).map(v => (
-                            <span key={v.name} title={v.name} style={{
-                              width: 18, height: 18, borderRadius: "50%",
-                              background: v.hex, border: "1.5px solid rgba(0,0,0,0.15)",
-                            }} />
+                        <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", marginBottom: "0.25rem" }}>
+                          Varian &amp; Stok
+                        </p>
+                        <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                          {item.variants.map(v => (
+                            <span
+                              key={v.name}
+                              title={`${v.name}: ${v.stock ?? 0} unit (${v.label || "Standar"})`}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "0.35rem",
+                                background: "#fff",
+                                border: "1px solid var(--line)",
+                                borderRadius: "999px",
+                                padding: "0.2rem 0.55rem 0.2rem 0.35rem",
+                                fontSize: "0.72rem",
+                                fontWeight: 600,
+                                color: "var(--bark)",
+                                boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: 12,
+                                  height: 12,
+                                  borderRadius: "50%",
+                                  background: v.hex,
+                                  border: "1px solid rgba(0,0,0,0.15)",
+                                  flexShrink: 0,
+                                }}
+                              />
+                              <span>{v.name}</span>
+                              <span
+                                style={{
+                                  background: "rgba(184,92,60,0.1)",
+                                  color: "var(--clay)",
+                                  padding: "0.05rem 0.35rem",
+                                  borderRadius: "999px",
+                                  fontWeight: 700,
+                                  fontSize: "0.68rem",
+                                }}
+                              >
+                                {v.stock ?? 0} unit
+                              </span>
+                            </span>
                           ))}
-                          {item.variants.length > 5 && (
-                            <span style={{ fontSize: "0.7rem", color: "var(--bark-muted)", alignSelf: "center", marginLeft: 2 }}>+{item.variants.length - 5}</span>
-                          )}
                         </div>
                       </div>
                     )}
@@ -612,8 +824,28 @@ export default function SellerCatalogPage() {
                   <input type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)} required style={{ ...inputStyle, background: "#fff" }} />
                 </div>
                 <div>
-                  <label style={labelStyle}>Stok</label>
-                  <input type="number" value={editStock} onChange={e => setEditStock(e.target.value)} required style={{ ...inputStyle, background: "#fff" }} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.45rem" }}>
+                    <label style={{ ...labelStyle, marginBottom: 0 }}>Total Stok</label>
+                    {editColors.length > 0 && (
+                      <span style={{ fontSize: "0.68rem", color: "var(--clay)", fontWeight: 700 }}>
+                        (Otomatis dari varian)
+                      </span>
+                    )}
+                  </div>
+                  <input
+                    type="number"
+                    value={editStock}
+                    onChange={e => setEditStock(e.target.value)}
+                    required
+                    readOnly={editColors.length > 0}
+                    style={{
+                      ...inputStyle,
+                      background: editColors.length > 0 ? "var(--surface)" : "#fff",
+                      cursor: editColors.length > 0 ? "not-allowed" : "text",
+                      color: editColors.length > 0 ? "var(--bark-muted)" : "var(--bark)",
+                      fontWeight: editColors.length > 0 ? 700 : 400,
+                    }}
+                  />
                 </div>
                 <div>
                   <label style={labelStyle}>Kategori</label>
@@ -638,6 +870,7 @@ export default function SellerCatalogPage() {
                     customName={editCustomName} setCustomName={setEditCustomName}
                     customHex={editCustomHex} setCustomHex={setEditCustomHex}
                     customLabel={editCustomLabel} setCustomLabel={setEditCustomLabel}
+                    customStock={editCustomStock} setCustomStock={setEditCustomStock}
                   />
                 </div>
 

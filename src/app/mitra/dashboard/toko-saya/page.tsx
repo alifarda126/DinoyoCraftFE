@@ -176,12 +176,21 @@ export default function TokoSayaPage() {
   }
 
   useEffect(() => {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const storedUserStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
     const session = getDemoSession();
-    if (!session || session.role !== "seller") {
-      router.push("/auth/login");
+    if (!storedToken && (!session || session.role !== "seller")) {
+      router.push("/login");
       return;
     }
-    setOwnerName(session.profile.full_name || "Mitra");
+    if (storedUserStr) {
+      try {
+        const u = JSON.parse(storedUserStr);
+        setOwnerName(u.store_name || u.name || "Mitra");
+      } catch {}
+    } else if (session) {
+      setOwnerName(session.profile.full_name || "Mitra");
+    }
     setLoading(false);
   }, [router]);
 

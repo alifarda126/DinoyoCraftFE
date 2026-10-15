@@ -6,8 +6,10 @@ interface User {
   email: string;
   role: "admin" | "mitra" | "pengunjung";
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
+  store_name?: string;
+  is_verified?: number | boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface AuthState {

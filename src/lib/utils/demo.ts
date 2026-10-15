@@ -68,7 +68,27 @@ export function getDemoSession(): DemoSession | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as DemoSession) : null;
+    if (raw) return JSON.parse(raw) as DemoSession;
+
+    // Fallback otomatis dari data user yang login sebenarnya (token & user di localStorage)
+    const storedToken = localStorage.getItem("token");
+    const storedUserStr = localStorage.getItem("user");
+    if (storedToken && storedUserStr) {
+      const u = JSON.parse(storedUserStr);
+      const role: DemoRole = u.role === "admin" ? "admin" : (u.role === "mitra" ? "seller" : "user");
+      return {
+        role,
+        user: { id: String(u.id), email: u.email },
+        profile: {
+          id: String(u.id),
+          email: u.email,
+          full_name: u.store_name || u.name || "Mitra",
+          phone: u.whatsapp_number || "",
+          role,
+        },
+      };
+    }
+    return null;
   } catch {
     return null;
   }

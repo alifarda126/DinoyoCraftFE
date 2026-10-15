@@ -62,9 +62,10 @@ export default function SellerCatalogPage() {
   };
 
   useEffect(() => {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     const session = getDemoSession();
-    if (!session || session.role !== "seller") {
-      router.push("/auth/login");
+    if (!storedToken && (!session || session.role !== "seller")) {
+      router.push("/login");
       return;
     }
     loadArtworks();

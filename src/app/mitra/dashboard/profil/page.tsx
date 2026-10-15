@@ -74,13 +74,31 @@ export default function SellerProfilPage() {
   const bannerRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const storedUserStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
     const session = getDemoSession();
-    if (!session || session.role !== "seller") {
-      router.push("/auth/login");
+
+    if (!storedToken && !session) {
+      router.push("/login");
       return;
     }
-    setProfile(prev => ({ ...prev, ownerName: session.profile.full_name || prev.ownerName }));
-    setIsNewRegistration(session.isNewRegistration || false);
+
+    if (storedUserStr) {
+      try {
+        const u = JSON.parse(storedUserStr);
+        setProfile(prev => ({
+          ...prev,
+          ownerName: u.name || prev.ownerName,
+          storeName: u.store_name || prev.storeName,
+          email: u.email || prev.email,
+        }));
+      } catch (e) {
+        console.error("Gagal parse stored user:", e);
+      }
+    } else if (session) {
+      setProfile(prev => ({ ...prev, ownerName: session.profile.full_name || prev.ownerName }));
+      setIsNewRegistration(session.isNewRegistration || false);
+    }
     setLoading(false);
   }, [router]);
 

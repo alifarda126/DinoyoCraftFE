@@ -41,5 +41,31 @@ export const authService = {
       throw { response: { data: { message: data.message || 'Gagal mendaftar' } } };
     }
     return data;
+  },
+
+  // --- FUNGSI GOOGLE LOGIN ---
+  googleLogin: async (payload: { credential?: string; userInfo?: any }) => {
+    const res = await fetch('http://localhost:5000/api/auth/google-login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw { response: { data: { message: data.message || 'Gagal login dengan Google' } } };
+    }
+
+    return {
+      success: true,
+      message: data.message,
+      data: {
+        user: data.data,
+        token: data.token || "token-sementara"
+      }
+    };
   }
 };

@@ -9,10 +9,11 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { ArrowRight, Storefront } from "@phosphor-icons/react";
 import Image from "next/image";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
 
 const pjs = Plus_Jakarta_Sans({ subsets: ["latin"] });
 
-export default function LoginForm() {
+function LoginFormContent() {
   const router = useRouter();
   const { login, setLoading, isLoading } = useAuthStore();
 
@@ -68,16 +69,62 @@ export default function LoginForm() {
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleSuccess = async (tokenResponse: any) => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      toast.info("Fitur login dengan Google sedang dalam pengembangan");
-    } catch {
-      toast.error("Terjadi kesalahan saat login dengan Google");
+      const userInfoRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: {
+          Authorization: `Bearer ${tokenResponse.access_token}`,
+        },
+      });
+      const userInfo = await userInfoRes.json();
+
+      const response = await authService.googleLogin({ userInfo });
+
+      if (response.success !== false) {
+        const userData = response.data?.user || response.data;
+        const userToken = response.data?.token || (response as any).token;
+
+        if (!userData || !userToken) {
+          toast.error("Format data dari server tidak sesuai");
+          return;
+        }
+
+        login(userData, userToken);
+        toast.success("Login dengan Google berhasil!");
+
+        const role = userData?.role;
+        if (role === "admin") {
+          router.push("/admin");
+        } else {
+          router.push("/mitra/dashboard");
+        }
+      } else {
+        toast.error(response.message || "Login dengan Google gagal");
+      }
+    } catch (error: any) {
+      console.error("Google login error:", error);
+      toast.error(error.response?.data?.message || "Terjadi kesalahan saat login dengan Google");
     } finally {
       setLoading(false);
     }
+  };
+
+  const triggerGoogleLogin = useGoogleLogin({
+    onSuccess: handleGoogleSuccess,
+    onError: (error) => {
+      console.error("Google login prompt error:", error);
+      toast.error("Login dengan Google dibatalkan atau gagal");
+    },
+  });
+
+  const handleGoogleLogin = () => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      toast.error("Client ID Google belum terkonfigurasi di frontend");
+      return;
+    }
+    triggerGoogleLogin();
   };
 
   const labelStyle: React.CSSProperties = {
@@ -465,5 +512,15 @@ export default function LoginForm() {
         }
       `}</style>
     </main>
+  );
+}
+
+export default function LoginForm() {
+  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+
+  return (
+    <GoogleOAuthProvider clientId={clientId}>
+      <LoginFormContent />
+    </GoogleOAuthProvider>
   );
 }

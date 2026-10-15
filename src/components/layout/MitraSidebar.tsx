@@ -8,6 +8,7 @@ import {
   IdentificationCard, ChatCircle, User, List
 } from "@phosphor-icons/react";
 import { clearDemoSession, getDemoSession } from "@/lib/utils/demo";
+import { useAuthStore } from "@/store/useAuthStore";
 
 // ─── Badge notifikasi mock (angka nyata akan dari API) ───────────────────────
 const NAV_BADGES: Record<string, number> = {
@@ -43,14 +44,17 @@ function NavBadge({ count }: { count: number }) {
 export default function MitraSidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { user, logout } = useAuthStore();
   const [session, setSession] = useState<any>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
+    useAuthStore.getState().initAuth();
     setSession(getDemoSession());
   }, []);
 
   async function handleSignOut() {
+    logout();
     clearDemoSession();
     router.push("/login");
   }
@@ -64,7 +68,7 @@ export default function MitraSidebar() {
     { href: "/mitra/dashboard/chat", icon: ChatCircle, label: "Live Chat" },
   ];
 
-  const sellerName = session?.profile?.full_name ?? "Mitra";
+  const sellerName = user?.store_name || user?.name || session?.profile?.full_name || "Mitra";
   const initials = sellerName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
 
   return (
