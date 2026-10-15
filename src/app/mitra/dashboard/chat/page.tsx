@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { PaperPlaneRight, UserCircle, Storefront, ChatCircle, MagnifyingGlass } from "@phosphor-icons/react";
+import { useAuthStore } from "@/store/useAuthStore";
 
 type ChatMsg = { from: "me" | "other"; text: string; time: string };
 type ChatContact = {
@@ -64,14 +65,18 @@ export default function SellerChatPage() {
   });
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
+  const { user } = useAuthStore();
 
   useEffect(() => {
-    const session = getDemoSession();
-    if (!session || session.role !== "seller") {
-      router.push("/auth/login");
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+    if (!storedToken) {
+      router.push("/login");
       return;
     }
-    setLoading(false);
+
+    // (Lanjutkan dengan logika untuk menghilangkan efek loading di halaman ini)
+    // setLoading(false); 
   }, [router]);
 
   function handleTabSwitch(tab: "cs" | "customer") {
@@ -189,9 +194,8 @@ export default function SellerChatPage() {
               <div
                 key={contact.id}
                 onClick={() => setActiveContact(contact.id)}
-                className={`p-4 border-b border-zinc-100 cursor-pointer transition-colors ${
-                  activeContact === contact.id ? "bg-zinc-100" : "hover:bg-zinc-100/50"
-                }`}
+                className={`p-4 border-b border-zinc-100 cursor-pointer transition-colors ${activeContact === contact.id ? "bg-zinc-100" : "hover:bg-zinc-100/50"
+                  }`}
               >
                 <div className="flex justify-between items-start mb-1">
                   <div className="flex items-center gap-2.5">
@@ -265,11 +269,10 @@ export default function SellerChatPage() {
               {activeChatData.messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}>
                   <div className={`flex flex-col max-w-[75%] ${msg.from === "me" ? "items-end" : "items-start"}`}>
-                    <div className={`p-3 rounded-2xl text-sm inline-block ${
-                      msg.from === "me"
-                        ? "bg-zinc-900 text-white rounded-tr-sm"
-                        : "bg-zinc-100 text-zinc-800 rounded-tl-sm"
-                    }`}>
+                    <div className={`p-3 rounded-2xl text-sm inline-block ${msg.from === "me"
+                      ? "bg-zinc-900 text-white rounded-tr-sm"
+                      : "bg-zinc-100 text-zinc-800 rounded-tl-sm"
+                      }`}>
                       {msg.text}
                     </div>
                     {msg.time && (

@@ -110,16 +110,27 @@ export default function RegisterForm() {
         toast.success("Pendaftaran dengan Google berhasil! Silakan masuk ke akun Anda.");
         router.push("/login");
       } else {
-        const response = await authService.register({
-          name: namaLengkap.trim(),
-          email: email.trim(),
-          password,
-          role: "mitra",
-          shop_name: namaToko.trim(),
-          address: alamatToko.trim(),
-          phone: noWa.trim(),
-          year_started: tahunUsaha ? parseInt(tahunUsaha, 10) : undefined,
+        const formData = new FormData();
+        formData.append("name", namaLengkap.trim());
+        formData.append("email", email.trim());
+        formData.append("password", password);
+        formData.append("whatsapp_number", noWa.trim());
+        formData.append("store_name", namaToko.trim());
+        formData.append("workshop_address", alamatToko.trim());
+        if (tahunUsaha) {
+          formData.append("started_year", tahunUsaha.trim());
+        }
+        if (fileKTP) {
+          formData.append("ktp_file", fileKTP);
+        }
+        if (fileNIB) {
+          formData.append("nib_file", fileNIB);
+        }
+        fileProduk.forEach((file) => {
+          formData.append("product_images", file);
         });
+
+        const response = await authService.register(formData);
 
         if (response.success !== false) {
           toast.success(response.message || "Pendaftaran berhasil! Silakan masuk ke akun Anda.");

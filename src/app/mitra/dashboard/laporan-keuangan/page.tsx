@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { CurrencyCircleDollar, Wallet, ArrowUpRight, DownloadSimple, ClockCounterClockwise } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { EarthySelect } from "@/components/ui/EarthySelect";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function LaporanKeuanganPage() {
   const router = useRouter();
@@ -18,14 +19,18 @@ export default function LaporanKeuanganPage() {
   const [filterTrxStatus, setFilterTrxStatus] = useState("semua");
   const [chartPeriod, setChartPeriod] = useState<"7hari" | "30hari">("7hari");
   const [hoveredBar, setHoveredBar] = useState<number | null>(null);
+  const { user } = useAuthStore();
 
   useEffect(() => {
-    const session = getDemoSession();
-    if (!session || session.role !== "seller") {
-      router.push("/auth/login");
-    } else {
-      setLoading(false);
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+    if (!storedToken) {
+      router.push("/login");
+      return;
     }
+
+    // (Lanjutkan dengan logika untuk menghilangkan efek loading di halaman ini)
+    // setLoading(false); 
   }, [router]);
 
   const handleDownload = () => {
@@ -84,23 +89,23 @@ export default function LaporanKeuanganPage() {
     { label: "Sab", value: 90, amount: "Rp 900.000" },
     { label: "Min", value: 80, amount: "Rp 800.000" },
   ];
-  
+
   const data30 = [
-    {label: '1 Okt', value: 35, amount: 'Rp 350.000'}, {label: '2 Okt', value: 40, amount: 'Rp 400.000'},
-    {label: '3 Okt', value: 30, amount: 'Rp 300.000'}, {label: '4 Okt', value: 55, amount: 'Rp 550.000'},
-    {label: '5 Okt', value: 60, amount: 'Rp 600.000'}, {label: '6 Okt', value: 45, amount: 'Rp 450.000'},
-    {label: '7 Okt', value: 50, amount: 'Rp 500.000'}, {label: '8 Okt', value: 75, amount: 'Rp 750.000'},
-    {label: '9 Okt', value: 80, amount: 'Rp 800.000'}, {label: '10 Okt', value: 65, amount: 'Rp 650.000'},
-    {label: '11 Okt', value: 70, amount: 'Rp 700.000'}, {label: '12 Okt', value: 95, amount: 'Rp 950.000'},
-    {label: '13 Okt', value: 90, amount: 'Rp 900.000'}, {label: '14 Okt', value: 85, amount: 'Rp 850.000'},
-    {label: '15 Okt', value: 100, amount: 'Rp 1.000.000'}, {label: '16 Okt', value: 40, amount: 'Rp 400.000'}, 
-    {label: '17 Okt', value: 50, amount: 'Rp 500.000'}, {label: '18 Okt', value: 65, amount: 'Rp 650.000'}, 
-    {label: '19 Okt', value: 45, amount: 'Rp 450.000'}, {label: '20 Okt', value: 55, amount: 'Rp 550.000'}, 
-    {label: '21 Okt', value: 80, amount: 'Rp 800.000'}, {label: '22 Okt', value: 70, amount: 'Rp 700.000'}, 
-    {label: '23 Okt', value: 90, amount: 'Rp 900.000'}, {label: '24 Okt', value: 85, amount: 'Rp 850.000'}, 
-    {label: '25 Okt', value: 60, amount: 'Rp 600.000'}, {label: '26 Okt', value: 75, amount: 'Rp 750.000'}, 
-    {label: '27 Okt', value: 95, amount: 'Rp 950.000'}, {label: '28 Okt', value: 100, amount: 'Rp 1.000.000'}, 
-    {label: '29 Okt', value: 85, amount: 'Rp 850.000'}, {label: '30 Okt', value: 110, amount: 'Rp 1.100.000'}
+    { label: '1 Okt', value: 35, amount: 'Rp 350.000' }, { label: '2 Okt', value: 40, amount: 'Rp 400.000' },
+    { label: '3 Okt', value: 30, amount: 'Rp 300.000' }, { label: '4 Okt', value: 55, amount: 'Rp 550.000' },
+    { label: '5 Okt', value: 60, amount: 'Rp 600.000' }, { label: '6 Okt', value: 45, amount: 'Rp 450.000' },
+    { label: '7 Okt', value: 50, amount: 'Rp 500.000' }, { label: '8 Okt', value: 75, amount: 'Rp 750.000' },
+    { label: '9 Okt', value: 80, amount: 'Rp 800.000' }, { label: '10 Okt', value: 65, amount: 'Rp 650.000' },
+    { label: '11 Okt', value: 70, amount: 'Rp 700.000' }, { label: '12 Okt', value: 95, amount: 'Rp 950.000' },
+    { label: '13 Okt', value: 90, amount: 'Rp 900.000' }, { label: '14 Okt', value: 85, amount: 'Rp 850.000' },
+    { label: '15 Okt', value: 100, amount: 'Rp 1.000.000' }, { label: '16 Okt', value: 40, amount: 'Rp 400.000' },
+    { label: '17 Okt', value: 50, amount: 'Rp 500.000' }, { label: '18 Okt', value: 65, amount: 'Rp 650.000' },
+    { label: '19 Okt', value: 45, amount: 'Rp 450.000' }, { label: '20 Okt', value: 55, amount: 'Rp 550.000' },
+    { label: '21 Okt', value: 80, amount: 'Rp 800.000' }, { label: '22 Okt', value: 70, amount: 'Rp 700.000' },
+    { label: '23 Okt', value: 90, amount: 'Rp 900.000' }, { label: '24 Okt', value: 85, amount: 'Rp 850.000' },
+    { label: '25 Okt', value: 60, amount: 'Rp 600.000' }, { label: '26 Okt', value: 75, amount: 'Rp 750.000' },
+    { label: '27 Okt', value: 95, amount: 'Rp 950.000' }, { label: '28 Okt', value: 100, amount: 'Rp 1.000.000' },
+    { label: '29 Okt', value: 85, amount: 'Rp 850.000' }, { label: '30 Okt', value: 110, amount: 'Rp 1.100.000' }
   ];
 
   const currentChartData = chartPeriod === "7hari" ? data7 : data30;
@@ -170,7 +175,7 @@ export default function LaporanKeuanganPage() {
             boxShadow: "0 2px 10px rgba(0,0,0,0.02)"
           }}>
             <div style={{
-              position: "absolute", top: -20, right: -20, width: 100, height: 100, 
+              position: "absolute", top: -20, right: -20, width: 100, height: 100,
               background: `radial-gradient(circle, ${stat.color}15 0%, transparent 70%)`,
               borderRadius: "50%", pointerEvents: "none"
             }} />
@@ -200,8 +205,8 @@ export default function LaporanKeuanganPage() {
           <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--bark)", margin: 0, zIndex: 1 }}>
             Grafik Pendapatan {chartPeriod === "7hari" ? "Mingguan" : "Bulanan"}
           </h2>
-          
-          <div style={{ 
+
+          <div style={{
             position: "absolute", left: "50%", transform: "translateX(-50%)",
             fontSize: "0.85rem", fontWeight: 800, color: "var(--clay)", padding: "0.3rem 1rem",
             background: "rgba(184,92,60,0.1)", borderRadius: "999px", zIndex: 0,
@@ -237,8 +242,8 @@ export default function LaporanKeuanganPage() {
             </button>
           </div>
         </div>
-        <div style={{ 
-          height: "260px", background: "linear-gradient(to top, rgba(184,92,60,0.03), transparent)", 
+        <div style={{
+          height: "260px", background: "linear-gradient(to top, rgba(184,92,60,0.03), transparent)",
           borderRadius: "0.5rem", border: "1px dashed var(--line-light)",
           display: "flex", alignItems: "flex-end", padding: "1rem", gap: "0.2rem",
           position: "relative"
@@ -246,8 +251,8 @@ export default function LaporanKeuanganPage() {
           {currentChartData.map((d, i) => {
             const isHighest = d.value === Math.max(...currentChartData.map(c => c.value));
             return (
-              <div 
-                key={i} 
+              <div
+                key={i}
                 onMouseEnter={() => setHoveredBar(i)}
                 onMouseLeave={() => setHoveredBar(null)}
                 style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", alignItems: "center", gap: "0.5rem", height: "100%", position: "relative", cursor: "pointer" }}
@@ -270,20 +275,20 @@ export default function LaporanKeuanganPage() {
                     }} />
                   </div>
                 )}
-                
+
                 {/* Bar */}
-                <div style={{ 
-                  width: "100%", maxWidth: "100%", height: `${d.value}%`, 
-                  background: hoveredBar === i ? "var(--clay-dark)" : (isHighest ? "var(--clay)" : "var(--clay-light)"), 
+                <div style={{
+                  width: "100%", maxWidth: "100%", height: `${d.value}%`,
+                  background: hoveredBar === i ? "var(--clay-dark)" : (isHighest ? "var(--clay)" : "var(--clay-light)"),
                   borderRadius: "4px 4px 0 0", transition: "height 0.8s ease-out, background 0.2s",
                   opacity: hoveredBar !== null && hoveredBar !== i ? 0.6 : 1
                 }} />
-                
+
                 {/* X-Axis Label */}
-                <span style={{ 
-                  fontSize: chartPeriod === "7hari" ? "0.65rem" : "0.5rem", 
-                  color: "var(--bark-muted)", 
-                  fontWeight: 600, 
+                <span style={{
+                  fontSize: chartPeriod === "7hari" ? "0.65rem" : "0.5rem",
+                  color: "var(--bark-muted)",
+                  fontWeight: 600,
                   whiteSpace: "nowrap",
                   writingMode: chartPeriod === "30hari" ? "vertical-rl" : "horizontal-tb",
                   transform: chartPeriod === "30hari" ? "rotate(180deg)" : "none",
@@ -340,7 +345,7 @@ export default function LaporanKeuanganPage() {
                   <td style={{ padding: "1rem 1.5rem", fontSize: "0.9rem", color: "var(--bark-muted)" }}>{trx.date}</td>
                   <td style={{ padding: "1rem 1.5rem", fontSize: "0.9rem", color: "var(--bark)" }}>{trx.desc}</td>
                   <td style={{ padding: "1rem 1.5rem" }}>
-                    <span style={{ 
+                    <span style={{
                       padding: "0.35rem 0.85rem", borderRadius: "9999px", fontSize: "0.75rem", fontWeight: 700,
                       background: trx.status === "Selesai" ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
                       color: trx.status === "Selesai" ? "#047857" : "#b45309",
@@ -357,13 +362,13 @@ export default function LaporanKeuanganPage() {
           </table>
         </div>
       </div>
-      
+
       {/* Modal Penarikan Dana */}
       {isWithdrawModalOpen && (
         <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}>
           <div style={{ background: "#fff", borderRadius: "1.5rem", padding: "2rem", maxWidth: "450px", width: "100%", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" }}>
             <h2 style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--bark)", marginBottom: "1.5rem" }}>Tarik Dana</h2>
-            
+
             <div style={{ background: "var(--surface)", padding: "1rem", borderRadius: "1rem", marginBottom: "1.5rem", border: "1px solid var(--line)" }}>
               <p style={{ fontSize: "0.85rem", color: "var(--bark-muted)", marginBottom: "0.25rem" }}>Saldo Aktif Tersedia</p>
               <p style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--moss)" }}>Rp 3.250.000</p>
@@ -372,8 +377,8 @@ export default function LaporanKeuanganPage() {
             <form onSubmit={handleWithdraw}>
               <div style={{ marginBottom: "1.5rem" }}>
                 <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.5rem" }}>Nominal Penarikan (Rp)</label>
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   required
                   min="50000"
                   max="3250000"
@@ -386,14 +391,14 @@ export default function LaporanKeuanganPage() {
               </div>
 
               <div style={{ display: "flex", gap: "1rem" }}>
-                <button 
+                <button
                   type="button"
                   onClick={() => setIsWithdrawModalOpen(false)}
                   style={{ flex: 1, padding: "0.75rem", borderRadius: "0.75rem", background: "#fff", color: "var(--bark)", fontWeight: 700, border: "1px solid var(--line-strong)", cursor: "pointer" }}
                 >
                   Batal
                 </button>
-                <button 
+                <button
                   type="submit"
                   style={{ flex: 1, padding: "0.75rem", borderRadius: "0.75rem", background: "var(--clay)", color: "#fff", fontWeight: 700, border: "none", cursor: "pointer" }}
                 >

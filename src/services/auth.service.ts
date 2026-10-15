@@ -1,29 +1,45 @@
-import api from "../lib/axios";
-import { LoginPayload, RegisterPayload, GoogleAuthPayload, AuthResponse } from "../types/auth";
+// src/services/authService.ts
 
 export const authService = {
-  login: async (payload: LoginPayload): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>("/auth/login", payload);
-    return response.data;
+  // --- FUNGSI LOGIN (Sudah ada sebelumnya) ---
+  login: async (credentials: { email: string; password: string }) => {
+    const res = await fetch('http://localhost:5000/api/auth/login-mitra', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json', // WAJIB ADA UNTUK LOGIN
+      },
+      body: JSON.stringify(credentials),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw { response: { data: { message: data.message || 'Gagal login' } } };
+    }
+
+    return {
+      success: true,
+      message: data.message,
+      data: {
+        user: data.data,
+        token: data.token || "token-sementara"
+      }
+    };
   },
 
-  register: async (payload: RegisterPayload): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>("/auth/register", payload);
-    return response.data;
-  },
+  // --- FUNGSI REGISTER BARU UNTUK MEMPERBAIKI ERROR ---
+  register: async (formData: FormData) => {
+    const res = await fetch('http://localhost:5000/api/auth/register-mitra', {
+      method: 'POST',
+      // PENTING: JANGAN ADA PROPERTI 'headers' DI SINI SAMA SEKALI
+      // Biarkan browser yang men-generate 'Content-Type: multipart/form-data; boundary=...'
+      body: formData,
+    });
 
-  googleLogin: async (payload: GoogleAuthPayload): Promise<AuthResponse> => {
-    const response = await api.post<AuthResponse>("/auth/google", payload);
-    return response.data;
-  },
-
-  getProfile: async () => {
-    const response = await api.get("/auth/profile");
-    return response.data;
-  },
-
-  logout: async () => {
-    const response = await api.post("/auth/logout");
-    return response.data;
-  },
+    const data = await res.json();
+    if (!res.ok) {
+      throw { response: { data: { message: data.message || 'Gagal mendaftar' } } };
+    }
+    return data;
+  }
 };

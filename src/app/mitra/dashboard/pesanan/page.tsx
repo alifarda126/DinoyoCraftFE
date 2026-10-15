@@ -87,12 +87,15 @@ export default function PesananSellerPage() {
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
   useEffect(() => {
-    const session = getDemoSession();
-    if (!session || session.role !== "seller") {
-      router.push("/auth/login");
+    // 1. Ganti getDemoSession dengan pengecekan token asli dari penyimpanan browser
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+    if (!storedToken) {
+      router.push("/login"); // Pastikan path-nya "/login" sesuai dengan struktur Anda
       return;
     }
 
+    // 2. Biarkan data pesanan ini tetap ada sampai nanti Anda siap menyambungkannya ke API Backend
     setOrders([
       {
         id: "ORD-20231024-001",
@@ -312,11 +315,10 @@ export default function PesananSellerPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as "all" | OrderStatus)}
-              className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-colors relative ${
-                activeTab === tab.id
+              className={`px-6 py-4 text-sm font-semibold whitespace-nowrap transition-colors relative ${activeTab === tab.id
                   ? "text-zinc-900"
                   : "text-zinc-500 hover:text-zinc-700 hover:bg-zinc-50"
-              }`}
+                }`}
             >
               {tab.label}
               {activeTab === tab.id && (
@@ -334,104 +336,104 @@ export default function PesananSellerPage() {
                 <div key={order.id} className="p-6 hover:bg-zinc-50/50 transition-colors">
                   <div className="flex flex-col md:flex-row gap-6">
                     {/* Left: Customer & Items */}
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="flex items-center gap-1.5 text-zinc-900 font-semibold">
-                        <User size={16} className="text-zinc-500" />
-                        {order.customerName}
-                      </div>
-                      <span className="text-zinc-300">•</span>
-                      <span className="text-sm text-zinc-500">{order.date}</span>
-                      <span className="text-zinc-300">•</span>
-                      <span className="text-sm font-mono text-zinc-500">{order.id}</span>
-                    </div>
-
-                    <div className="space-y-4">
-                      {order.items.map((item) => (
-                        <div key={item.id} className="flex gap-4">
-                          <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg border border-zinc-200" />
-                          <div>
-                            <h3 className="font-medium text-zinc-900 mb-1">{item.name}</h3>
-                            <p className="text-sm text-zinc-500 mb-1">{item.qty} barang x Rp {item.price.toLocaleString("id-ID")}</p>
-                            {item.variantName && (
-                              <div style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", background: "#f5f5f5", borderRadius: "999px", padding: "0.2rem 0.6rem 0.2rem 0.35rem", border: "1px solid #e5e5e5" }}>
-                                <span style={{ width: 12, height: 12, borderRadius: "50%", background: item.variantHex, border: "1.5px solid rgba(0,0,0,0.12)", flexShrink: 0, display: "inline-block" }} />
-                                <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#52525b" }}>{item.variantName}</span>
-                              </div>
-                            )}
-                          </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="flex items-center gap-1.5 text-zinc-900 font-semibold">
+                          <User size={16} className="text-zinc-500" />
+                          {order.customerName}
                         </div>
-                      ))}
-                    </div>
-
-                    {/* Resi info jika sudah dikirim */}
-                    {order.resi && (
-                      <div className="mt-3 inline-flex items-center gap-2 bg-purple-50 text-purple-700 text-xs font-semibold px-3 py-1.5 rounded-lg">
-                        <Truck size={13} />
-                        {order.kurir} · No. Resi: {order.resi}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Right: Status & Actions */}
-                  <div className="w-full md:w-64 flex flex-col items-end border-t md:border-t-0 md:border-l border-zinc-100 pt-4 md:pt-0 md:pl-6 justify-between">
-                    <div className="w-full flex justify-between md:flex-col md:items-end gap-2 mb-4">
-                      <p className="text-sm text-zinc-500">Total Belanja</p>
-                      <p className="text-lg font-bold text-zinc-900">Rp {order.total.toLocaleString("id-ID")}</p>
-                    </div>
-
-                    <div className="w-full flex flex-col gap-2">
-                      <div className="flex justify-end mb-2">
-                        {getStatusBadge(order.status)}
+                        <span className="text-zinc-300">•</span>
+                        <span className="text-sm text-zinc-500">{order.date}</span>
+                        <span className="text-zinc-300">•</span>
+                        <span className="text-sm font-mono text-zinc-500">{order.id}</span>
                       </div>
 
-                      {/* Action Buttons */}
-                      {order.status === "packed" && (
-                        <button
-                          onClick={() => openShipping(order)}
-                          className="w-full px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-semibold hover:bg-zinc-800 transition-colors"
-                        >
-                          Atur Pengiriman
-                        </button>
-                      )}
+                      <div className="space-y-4">
+                        {order.items.map((item) => (
+                          <div key={item.id} className="flex gap-4">
+                            <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-lg border border-zinc-200" />
+                            <div>
+                              <h3 className="font-medium text-zinc-900 mb-1">{item.name}</h3>
+                              <p className="text-sm text-zinc-500 mb-1">{item.qty} barang x Rp {item.price.toLocaleString("id-ID")}</p>
+                              {item.variantName && (
+                                <div style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", background: "#f5f5f5", borderRadius: "999px", padding: "0.2rem 0.6rem 0.2rem 0.35rem", border: "1px solid #e5e5e5" }}>
+                                  <span style={{ width: 12, height: 12, borderRadius: "50%", background: item.variantHex, border: "1.5px solid rgba(0,0,0,0.12)", flexShrink: 0, display: "inline-block" }} />
+                                  <span style={{ fontSize: "0.72rem", fontWeight: 600, color: "#52525b" }}>{item.variantName}</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
 
-                      {order.status === "shipped" && (
-                        <button
-                          disabled
-                          className="w-full px-4 py-2 bg-purple-50 text-purple-500 rounded-lg text-sm font-semibold cursor-default border border-purple-200"
-                        >
-                          Menunggu Pembeli Konfirmasi
-                        </button>
+                      {/* Resi info jika sudah dikirim */}
+                      {order.resi && (
+                        <div className="mt-3 inline-flex items-center gap-2 bg-purple-50 text-purple-700 text-xs font-semibold px-3 py-1.5 rounded-lg">
+                          <Truck size={13} />
+                          {order.kurir} · No. Resi: {order.resi}
+                        </div>
                       )}
+                    </div>
 
-                      {order.status === "unpaid" && (
-                        <button className="w-full px-4 py-2 bg-zinc-100 text-zinc-400 rounded-lg text-sm font-semibold cursor-not-allowed">
-                          Menunggu Pembayaran
-                        </button>
-                      )}
+                    {/* Right: Status & Actions */}
+                    <div className="w-full md:w-64 flex flex-col items-end border-t md:border-t-0 md:border-l border-zinc-100 pt-4 md:pt-0 md:pl-6 justify-between">
+                      <div className="w-full flex justify-between md:flex-col md:items-end gap-2 mb-4">
+                        <p className="text-sm text-zinc-500">Total Belanja</p>
+                        <p className="text-lg font-bold text-zinc-900">Rp {order.total.toLocaleString("id-ID")}</p>
+                      </div>
 
-                      {/* Chat dengan customer */}
-                      <button
-                        onClick={() => openChat(order)}
-                        className="w-full px-4 py-2 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-sm font-semibold hover:bg-zinc-50 transition-colors flex items-center justify-center gap-2"
-                      >
-                        <ChatCircle size={15} />
-                        Chat Customer
-                        {(MOCK_CUSTOMER_CHATS[order.id]?.length ?? 0) > 0 && (
-                          <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                            {MOCK_CUSTOMER_CHATS[order.id].length}
-                          </span>
+                      <div className="w-full flex flex-col gap-2">
+                        <div className="flex justify-end mb-2">
+                          {getStatusBadge(order.status)}
+                        </div>
+
+                        {/* Action Buttons */}
+                        {order.status === "packed" && (
+                          <button
+                            onClick={() => openShipping(order)}
+                            className="w-full px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-semibold hover:bg-zinc-800 transition-colors"
+                          >
+                            Atur Pengiriman
+                          </button>
                         )}
-                      </button>
 
-                      <button
-                        onClick={() => setSelectedOrder(order)}
-                        className="w-full px-4 py-2 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-sm font-semibold hover:bg-zinc-50 transition-colors"
-                      >
-                        Lihat Rincian
-                      </button>
+                        {order.status === "shipped" && (
+                          <button
+                            disabled
+                            className="w-full px-4 py-2 bg-purple-50 text-purple-500 rounded-lg text-sm font-semibold cursor-default border border-purple-200"
+                          >
+                            Menunggu Pembeli Konfirmasi
+                          </button>
+                        )}
+
+                        {order.status === "unpaid" && (
+                          <button className="w-full px-4 py-2 bg-zinc-100 text-zinc-400 rounded-lg text-sm font-semibold cursor-not-allowed">
+                            Menunggu Pembayaran
+                          </button>
+                        )}
+
+                        {/* Chat dengan customer */}
+                        <button
+                          onClick={() => openChat(order)}
+                          className="w-full px-4 py-2 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-sm font-semibold hover:bg-zinc-50 transition-colors flex items-center justify-center gap-2"
+                        >
+                          <ChatCircle size={15} />
+                          Chat Customer
+                          {(MOCK_CUSTOMER_CHATS[order.id]?.length ?? 0) > 0 && (
+                            <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                              {MOCK_CUSTOMER_CHATS[order.id].length}
+                            </span>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => setSelectedOrder(order)}
+                          className="w-full px-4 py-2 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-sm font-semibold hover:bg-zinc-50 transition-colors"
+                        >
+                          Lihat Rincian
+                        </button>
+                      </div>
                     </div>
-                  </div>
                   </div>
 
                   {/* Ulasan jika Selesai */}
@@ -453,15 +455,15 @@ export default function PesananSellerPage() {
                               <p style={{ fontSize: "0.72rem", color: "var(--bark-muted)", margin: 0 }}>{order.date.split(" ")[0]} {order.date.split(" ")[1]} {order.date.split(" ")[2]}</p>
                             </div>
                           </div>
-                          
+
                           <div style={{ display: "flex", gap: "2px", color: "#f59e0b", marginBottom: "0.35rem" }}>
                             {[1, 2, 3, 4, 5].map(i => <Star key={i} size={12} weight={i <= order.rating! ? "fill" : "regular"} />)}
                           </div>
-                          
+
                           <p style={{ fontSize: "0.72rem", color: "var(--bark-muted)", margin: "0 0 0.6rem" }}>
                             Varian: <strong style={{ color: "var(--bark)" }}>{order.items[0]?.variantName} — {order.items[0]?.variantName === "Sand White" ? "Glossy Finish" : "Standard"}</strong>
                           </p>
-                          
+
                           <p style={{ fontSize: "0.88rem", color: "var(--bark)", lineHeight: 1.55, margin: "0 0 0.75rem" }}>
                             {order.ulasan}
                           </p>

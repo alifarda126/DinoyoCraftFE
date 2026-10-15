@@ -36,12 +36,12 @@ type Artwork = {
 /* ── Preset colors ──────────────────────────────────────────────────────── */
 
 const PRESET_COLORS: ColorVariant[] = [
-  { name: "Sand White",   hex: "#f0ebe3", label: "Glossy Finish" },
-  { name: "Terracotta",   hex: "#c1694f", label: "Matte Earthy"  },
-  { name: "Raw Speckle",  hex: "#d4cfc8", label: "Bintik Alami"  },
-  { name: "Charcoal Ash", hex: "#3d3d3d", label: "Tekstur Abu"   },
-  { name: "Sage Green",   hex: "#8aad8a", label: "Natural Moss"  },
-  { name: "Cobalt Blue",  hex: "#3b5fa0", label: "Deep Ocean"    },
+  { name: "Sand White", hex: "#f0ebe3", label: "Glossy Finish" },
+  { name: "Terracotta", hex: "#c1694f", label: "Matte Earthy" },
+  { name: "Raw Speckle", hex: "#d4cfc8", label: "Bintik Alami" },
+  { name: "Charcoal Ash", hex: "#3d3d3d", label: "Tekstur Abu" },
+  { name: "Sage Green", hex: "#8aad8a", label: "Natural Moss" },
+  { name: "Cobalt Blue", hex: "#3b5fa0", label: "Deep Ocean" },
 ];
 
 /* ── Component ───────────────────────────────────────────────────────────── */

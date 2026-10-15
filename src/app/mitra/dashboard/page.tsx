@@ -6,16 +6,17 @@ import { useRouter } from "next/navigation";
 import { Storefront, Package, Receipt, Users, CurrencyCircleDollar, TrendUp, ArrowRight, X, Bank, CaretDown } from "@phosphor-icons/react";
 import Image from "next/image";
 import { toast } from "sonner";
+import { useAuthStore } from "@/store/useAuthStore";
 
 // Local payment logos from /public/payment/ — served as static files
 const PAYMENT_METHODS = [
-  { id: "BCA",       name: "BCA",       type: "Bank",     logo: "/payment/bca.svg" },
-  { id: "Mandiri",   name: "Mandiri",   type: "Bank",     logo: "/payment/mandiri.svg" },
-  { id: "BNI",       name: "BNI",       type: "Bank",     logo: "/payment/bni.svg" },
-  { id: "BRI",       name: "BRI",       type: "Bank",     logo: "/payment/bri.svg" },
-  { id: "GoPay",     name: "GoPay",     type: "E-Wallet", logo: "/payment/gopay.svg" },
-  { id: "OVO",       name: "OVO",       type: "E-Wallet", logo: "/payment/ovo.svg" },
-  { id: "DANA",      name: "DANA",      type: "E-Wallet", logo: "/payment/dana.svg" },
+  { id: "BCA", name: "BCA", type: "Bank", logo: "/payment/bca.svg" },
+  { id: "Mandiri", name: "Mandiri", type: "Bank", logo: "/payment/mandiri.svg" },
+  { id: "BNI", name: "BNI", type: "Bank", logo: "/payment/bni.svg" },
+  { id: "BRI", name: "BRI", type: "Bank", logo: "/payment/bri.svg" },
+  { id: "GoPay", name: "GoPay", type: "E-Wallet", logo: "/payment/gopay.svg" },
+  { id: "OVO", name: "OVO", type: "E-Wallet", logo: "/payment/ovo.svg" },
+  { id: "DANA", name: "DANA", type: "E-Wallet", logo: "/payment/dana.svg" },
   { id: "ShopeePay", name: "ShopeePay", type: "E-Wallet", logo: "/payment/shopeepay.svg" },
 ];
 
@@ -23,6 +24,7 @@ export default function SellerDashboardHome() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [sellerName, setSellerName] = useState("");
+  const { user } = useAuthStore();
 
   // Withdraw State
   const [showWithdraw, setShowWithdraw] = useState(false);
@@ -33,15 +35,35 @@ export default function SellerDashboardHome() {
   const [isWithdrawing, setIsWithdrawing] = useState(false);
   const currentBalance = 4500000;
 
+  // src/app/mitra/dashboard/page.tsx
   useEffect(() => {
-    const session = getDemoSession();
-    if (!session || session.role !== "seller") {
-      router.push("/auth/login");
-    } else {
-      setSellerName(session.profile.full_name);
-      setLoading(false);
+    useAuthStore.getState().initAuth();
+  }, []);
+
+  // 2. EFFECT KEDUA: Untuk mengecek status login dan mengatur UI.
+  useEffect(() => {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const storedUserStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+
+    if (!storedToken) {
+      router.push("/login");
+      return;
     }
-  }, [router]);
+
+    // Ekstrak data user (dari state atau localStorage)
+    let activeUser = user;
+    if (!activeUser && storedUserStr) {
+      try {
+        activeUser = JSON.parse(storedUserStr);
+      } catch (e) {
+        console.error("Gagal parse:", e);
+      }
+    }
+
+    const name = (activeUser as any)?.store_name || (activeUser as any)?.name || "Mitra DinoyoCraft";
+    setSellerName(name);
+    setLoading(false);
+  }, [user, router]);
 
   if (loading) return <div>Memuat data...</div>;
 
@@ -100,8 +122,8 @@ export default function SellerDashboardHome() {
                   borderRadius: "9999px", border: "none", cursor: "pointer",
                   transition: "background 0.2s"
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.background = `${stat.color}30`}
-                onMouseLeave={(e) => e.currentTarget.style.background = `${stat.color}15`}
+                  onMouseEnter={(e) => e.currentTarget.style.background = `${stat.color}30`}
+                  onMouseLeave={(e) => e.currentTarget.style.background = `${stat.color}15`}
                 >
                   {stat.action.label}
                 </button>
@@ -193,7 +215,7 @@ export default function SellerDashboardHome() {
                 <X size={20} weight="bold" />
               </button>
             </div>
-            
+
             <form onSubmit={handleWithdraw} style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
               <div style={{ background: "var(--surface)", padding: "1rem", borderRadius: "0.75rem", border: "1px solid var(--line)" }}>
                 <p style={{ fontSize: "0.85rem", color: "var(--bark-muted)", marginBottom: "0.25rem" }}>Saldo Tersedia</p>
@@ -227,7 +249,7 @@ export default function SellerDashboardHome() {
                     </div>
                     <CaretDown size={14} weight="bold" style={{ color: "var(--bark-muted)", transform: isDropdownOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
                   </div>
-                  
+
                   {isDropdownOpen && (
                     <div style={{
                       position: "absolute", top: "100%", left: 0, right: 0, marginTop: "0.25rem",

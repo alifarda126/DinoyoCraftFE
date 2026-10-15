@@ -20,45 +20,39 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  async function handleSubmit(e: React.FormEvent) {
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrors({});
-    let newErrors: Record<string, string> = {};
-    let firstErrorField = "";
-
-    const addError = (field: string, msg: string) => {
-      newErrors[field] = msg;
-      if (!firstErrorField) firstErrorField = field;
-    };
-
-    if (!email.trim()) addError("mitra-email", "Email wajib diisi");
-    else if (!/\S+@\S+\.\S+/.test(email)) addError("mitra-email", "Format email tidak valid");
-
-    if (!password) addError("mitra-password", "Password wajib diisi");
-    else if (password.length < 8) addError("mitra-password", "Password min. 8 karakter");
-
-    if (Object.keys(newErrors).length > 0) {
-      setErrors(newErrors);
-      const el = document.getElementById(firstErrorField);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.focus({ preventScroll: true });
-      }
-      return;
-    }
-
     setLoading(true);
+
     try {
       const response = await authService.login({ email, password });
-      const userData = response.data?.user || (response as any).user;
-      const token = response.data?.token || (response as any).token;
 
-      if (response.success !== false && (userData || token)) {
-        login(userData, token);
-        toast.success(response.message || "Login berhasil!");
+      // 1. Cek struktur response asli dari backend
+      console.log("=== RESPONSE BACKEND ===", response);
 
-        // Redirect berdasarkan role
-        if (userData?.role === "admin") {
+      if (response.success !== false) {
+        // 2. Ekstraksi data secara aman (mendukung berbagai format objek dari backend)
+        // 2. Ekstraksi data secara aman (tanpa error TypeScript)
+        const userData = response.data?.user || response.data;
+        const userToken = response.data?.token || (response as any).token;
+
+        console.log("=== EXTRACTED USER ===", userData);
+        console.log("=== EXTRACTED TOKEN ===", userToken);
+
+        if (!userData || !userToken) {
+          toast.error("Format data dari server tidak sesuai");
+          return;
+        }
+
+        // 3. Simpan ke State Management & LocalStorage
+        login(userData, userToken);
+
+        toast.success("Login berhasil!");
+
+        // 4. Arahkan ke dashboard
+        const role = userData?.role;
+        if (role === "admin") {
           router.push("/admin");
         } else {
           router.push("/mitra/dashboard");
@@ -68,28 +62,23 @@ export default function LoginForm() {
       }
     } catch (error: any) {
       console.error("Login error:", error);
-
-      if (error.response?.data?.message) {
-        toast.error(error.response.data.message);
-      } else {
-        toast.error("Terjadi kesalahan saat login");
-      }
+      toast.error(error.response?.data?.message || "Terjadi kesalahan saat login");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  async function handleGoogleLogin() {
+  const handleGoogleLogin = async () => {
     setLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 900));
-      toast.error("Login Google belum tersedia");
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      toast.info("Fitur login dengan Google sedang dalam pengembangan");
     } catch {
-      toast.error("Terjadi kesalahan");
+      toast.error("Terjadi kesalahan saat login dengan Google");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   const labelStyle: React.CSSProperties = {
     display: "block",
