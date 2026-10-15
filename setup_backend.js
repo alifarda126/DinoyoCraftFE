@@ -185,12 +185,26 @@ export const validate = (schema: AnyZodObject) =>
 // 7. src/routes/auth.routes.ts
 createFile(path.join(backendDir, 'src', 'routes', 'auth.routes.ts'), `
 import { Router } from 'express';
-import { login, getProfile } from '../controllers/auth.controller';
+import { login, register, getProfile } from '../controllers/auth.controller';
 import { validate } from '../middlewares/validate';
 import { authenticateJWT } from '../middlewares/auth';
 import { z } from 'zod';
 
 const router = Router();
+
+// Skema validasi input untuk Register
+const registerSchema = z.object({
+    body: z.object({
+        name: z.string().min(1, 'Nama wajib diisi'),
+        email: z.string().email('Format email tidak valid'),
+        password: z.string().min(6, 'Password minimal 6 karakter'),
+        role: z.enum(['admin', 'mitra', 'pengunjung']).optional(),
+        shop_name: z.string().optional(),
+        address: z.string().optional(),
+        phone: z.string().optional(),
+        year_started: z.number().optional()
+    })
+});
 
 // Skema validasi input untuk Login
 const loginSchema = z.object({
@@ -199,6 +213,9 @@ const loginSchema = z.object({
         password: z.string().min(6, 'Password minimal 6 karakter')
     })
 });
+
+// Endpoint Register
+router.post('/register', validate(registerSchema), register);
 
 // Endpoint Login (Input Validation layer diaktifkan)
 router.post('/login', validate(loginSchema), login);
@@ -213,6 +230,28 @@ export default router;
 createFile(path.join(backendDir, 'src', 'controllers', 'auth.controller.ts'), `
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+
+export const register = async (req: Request, res: Response) => {
+    const { name, email, password, role = 'mitra', shop_name, address, phone, year_started } = req.body;
+
+    const user = {
+        id: Date.now(),
+        name,
+        email,
+        role,
+        shop_name,
+        address,
+        phone,
+        year_started,
+        created_at: new Date().toISOString()
+    };
+
+    return res.status(201).json({
+        success: true,
+        message: 'Pendaftaran mitra berhasil! Silakan masuk ke akun Anda.',
+        data: { user }
+    });
+};
 
 export const login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
@@ -232,16 +271,31 @@ export const login = async (req: Request, res: Response) => {
             maxAge: 60 * 60 * 1000 // 1 jam
         });
 
-        return res.json({ message: 'Login Berhasil', token, user });
+        return res.json({ success: true, message: 'Login Berhasil', token, user });
     }
 
-    return res.status(401).json({ message: 'Email atau password salah' });
+    if (email && password) {
+        // Simulasi Login Mitra
+        const user = { id: 2, name: 'Mitra Pengrajin', email, role: 'mitra' };
+        const token = jwt.sign(user, process.env.JWT_SECRET as string, { expiresIn: '1h' });
+
+        res.cookie('token', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 60 * 60 * 1000
+        });
+
+        return res.json({ success: true, message: 'Login Berhasil', token, user });
+    }
+
+    return res.status(401).json({ success: false, message: 'Email atau password salah' });
 };
 
 export const getProfile = async (req: Request, res: Response) => {
     // Karena sudah melewati middleware authenticateJWT, user pasti ada
     const user = (req as any).user;
-    return res.json({ message: 'Profil berhasil diambil', user });
+    return res.json({ success: true, message: 'Profil berhasil diambil', user });
 };
 `);
 

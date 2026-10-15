@@ -13,7 +13,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     setMobileMenuOpen(false);
   }, [pathname]);
 
-  if (pathname === "/auth/login") {
+  if (pathname === "/login" || pathname === "/auth/login") {
     return <>{children}</>;
   }
 

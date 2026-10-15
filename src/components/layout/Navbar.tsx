@@ -135,7 +135,7 @@ export default function Navbar() {
             </div>
           ) : (
             <Link
-              href="/auth/login"
+              href="/login"
               id="navbar-masuk-btn"
               style={{
                 display: "inline-flex", alignItems: "center", gap: "0.4rem",

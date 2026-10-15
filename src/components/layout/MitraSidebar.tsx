@@ -52,7 +52,7 @@ export default function MitraSidebar() {
 
   async function handleSignOut() {
     clearDemoSession();
-    router.push("/auth/login");
+    router.push("/login");
   }
 
   const navItems = [

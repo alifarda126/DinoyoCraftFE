@@ -181,7 +181,7 @@ export default function Home() {
               }}
             >
               <Link
-                href="/auth/login"
+                href="/login"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -685,7 +685,7 @@ export default function Home() {
                 {whyData[activeFeature].text}
               </p>
               <Link
-                href="/auth/login"
+                href="/login"
                 style={{
                   display: "inline-flex",
                   alignItems: "center",
@@ -841,7 +841,7 @@ export default function Home() {
                 </div>
 
                 <Link
-                  href="/auth/login"
+                  href="/login"
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -1093,7 +1093,7 @@ export default function Home() {
               Keramik Dinoyo, Malang.
             </p>
             <Link
-              href="/auth/login"
+              href="/login"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -1145,8 +1145,8 @@ export default function Home() {
               }}
             >
               {[
-                { href: "/auth/login", label: "Jadi Mitra" },
-                { href: "/auth/login", label: "Login Mitra" },
+                { href: "/login", label: "Jadi Mitra" },
+                { href: "/login", label: "Login Mitra" },
                 { href: "/#faq", label: "FAQ" },
               ].map(({ href, label }) => (
                 <Link
