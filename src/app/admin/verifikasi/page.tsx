@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
@@ -10,9 +9,10 @@ import {
   Phone, EnvelopeSimple, MapPin, CalendarBlank, User,
 } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
+import { adminService } from "@/services/admin.service";
 
 type StoreRegistration = {
-  id: string;
+  id: string | number;
   owner_name: string;
   phone: string;
   email: string;
@@ -21,13 +21,14 @@ type StoreRegistration = {
   year_started: string;
   status: "pending" | "approved" | "rejected";
   date: string;
-  // Dokumen persyaratan
   docs: {
     ktp: boolean;
     usaha: boolean;
     sop: boolean;
     setuju: boolean;
   };
+  ktp_file_url?: string;
+  nib_file_url?: string;
 };
 
 export default function AdminVerifikasiPage() {
@@ -39,70 +40,96 @@ export default function AdminVerifikasiPage() {
   const [filterStatus, setFilterStatus] = useState("semua");
   const [filterDok, setFilterDok] = useState("semua");
 
-  useEffect(() => {
-    const session = getDemoSession();
-    if (!session || session.role !== "admin") {
-      router.push("/auth/login");
-      return;
+  // 1. Ambil data pengajuan toko dari backend
+  const fetchVerifikasi = async () => {
+    setLoading(true);
+    try {
+      const res = await adminService.getVerifikasiList();
+      const rawData = res.data || res;
+
+      if (Array.isArray(rawData)) {
+        const isValidUrl = (url?: string | null) =>
+          Boolean(url && typeof url === "string" && url.trim() !== "" && url !== "null" && url !== "undefined");
+
+        const mappedData: StoreRegistration[] = rawData.map((item: any) => {
+          let status: "pending" | "approved" | "rejected" = "pending";
+          if (item.is_verified === 1 && item.is_active === 1) {
+            status = "approved";
+          } else if (item.is_verified === 0 && item.is_active === 0) {
+            status = "rejected";
+          } else {
+            status = "pending";
+          }
+
+          const hasKtp = isValidUrl(item.ktp_file_url);
+          const hasNib = isValidUrl(item.nib_file_url);
+
+          return {
+            id: item.id,
+            owner_name: item.owner_name || "Pemilik Toko",
+            phone: item.whatsapp_number || "-",
+            email: item.email || "-",
+            store_name: item.store_name || "Toko Mitra",
+            address: item.workshop_address || "-",
+            year_started: String(item.started_year || "-"),
+            status,
+            date: item.created_at
+              ? new Date(item.created_at).toLocaleDateString("id-ID", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })
+              : "-",
+            docs: {
+              ktp: hasKtp,
+              usaha: hasNib || item.is_verified === 1,
+              sop: true,
+              setuju: true,
+            },
+            ktp_file_url: item.ktp_file_url,
+            nib_file_url: item.nib_file_url,
+          };
+        });
+
+        setRegistrations(mappedData);
+      } else {
+        setRegistrations([]);
+      }
+    } catch (error: any) {
+      console.error("Gagal memuat data verifikasi:", error);
+      toast.error(error?.response?.data?.message || "Gagal memuat daftar pengajuan verifikasi toko.");
+    } finally {
+      setLoading(false);
     }
-
-    setRegistrations([
-      {
-        id: "reg-1",
-        owner_name: "Bapak Hartono",
-        phone: "08123456789",
-        email: "hartono@email.com",
-        store_name: "Studio Bumi",
-        address: "Jl. Keramik No. 12, Dinoyo, Malang",
-        year_started: "2019",
-        status: "pending",
-        date: "12 Okt 2023",
-        docs: { ktp: true, usaha: true, sop: true, setuju: true },
-      },
-      {
-        id: "reg-2",
-        owner_name: "Ibu Rina Sari",
-        phone: "08234567890",
-        email: "rina@email.com",
-        store_name: "Keramik Rina",
-        address: "Gg. Makmur RT 02 RW 01, Dinoyo, Malang",
-        year_started: "2021",
-        status: "approved",
-        date: "10 Okt 2023",
-        docs: { ktp: true, usaha: true, sop: true, setuju: true },
-      },
-      {
-        id: "reg-3",
-        owner_name: "Andi Saputra",
-        phone: "08345678901",
-        email: "andi@email.com",
-        store_name: "Tanah Liat Art",
-        address: "Jl. Bunga Melati No. 8, Malang",
-        year_started: "2022",
-        status: "pending",
-        date: "15 Okt 2023",
-        // Sengaja ada yang belum lengkap untuk demo
-        docs: { ktp: true, usaha: false, sop: true, setuju: true },
-      },
-    ]);
-    setLoading(false);
-  }, [router]);
-
-  const handleUpdateStatus = (id: string, newStatus: "approved" | "rejected") => {
-    setRegistrations(prev => prev.map(reg =>
-      reg.id === id ? { ...reg, status: newStatus } : reg
-    ));
-    setSelectedReg(null);
-    toast.success(`Pengajuan toko berhasil ${newStatus === "approved" ? "disetujui" : "ditolak"}.`);
   };
 
-  const filtered = registrations.filter(r => {
+  useEffect(() => {
+    fetchVerifikasi();
+  }, []);
+
+  // 2. Handler untuk Setujui atau Tolak Pengajuan
+  const handleUpdateStatus = async (id: string | number, newStatus: "approved" | "rejected") => {
+    try {
+      const res = await adminService.verifyStore(Number(id), newStatus);
+      toast.success(res.message || `Pengajuan toko berhasil ${newStatus === "approved" ? "disetujui" : "ditolak"}.`);
+
+      setSelectedReg(null);
+      await fetchVerifikasi();
+    } catch (error: any) {
+      console.error("Gagal memperbarui status:", error);
+      toast.error(error?.response?.data?.message || "Gagal memperbarui status pengajuan toko.");
+    }
+  };
+
+  // Filter pencarian & status
+  const filtered = registrations.filter((r) => {
     const matchSearch =
       r.store_name.toLowerCase().includes(search.toLowerCase()) ||
       r.owner_name.toLowerCase().includes(search.toLowerCase());
     const matchStatus = filterStatus === "semua" || r.status === filterStatus;
     const docsComplete = Object.values(r.docs).every(Boolean);
-    const matchDok = filterDok === "semua" ||
+    const matchDok =
+      filterDok === "semua" ||
       (filterDok === "lengkap" && docsComplete) ||
       (filterDok === "tidak" && !docsComplete);
     return matchSearch && matchStatus && matchDok;
@@ -115,7 +142,13 @@ export default function AdminVerifikasiPage() {
     { key: "setuju" as const, icon: CheckSquare, label: "Menyetujui Syarat & Ketentuan Mitra" },
   ];
 
-  if (loading) return <div>Memuat...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-zinc-500 font-medium">Memuat data pengajuan...</div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -128,7 +161,7 @@ export default function AdminVerifikasiPage() {
         <div className="p-4 border-b border-zinc-200 flex justify-between items-center bg-zinc-50">
           <h2 className="font-semibold text-lg flex items-center gap-2">
             <Storefront size={24} weight="duotone" className="text-zinc-500" />
-            Daftar Pengajuan
+            Daftar Pengajuan ({filtered.length})
           </h2>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
@@ -176,74 +209,81 @@ export default function AdminVerifikasiPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((reg) => {
-                const docsComplete = Object.values(reg.docs).every(Boolean);
-                return (
-                  <tr key={reg.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors">
-                    <td className="p-4">
-                      <div className="font-semibold text-zinc-900">{reg.store_name}</div>
-                      <div className="text-sm text-zinc-500">{reg.owner_name}</div>
-                    </td>
-                    <td className="p-4 text-sm text-zinc-600 max-w-[200px]">
-                      <span className="line-clamp-2">{reg.address}</span>
-                    </td>
-                    <td className="p-4 text-sm text-zinc-600 whitespace-nowrap">{reg.date}</td>
-                    <td className="p-4">
-                      {docsComplete ? (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded-full">
-                          <Check size={12} weight="bold" /> Lengkap
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded-full">
-                          <Warning size={12} weight="fill" /> Tidak Lengkap
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        reg.status === "approved" ? "bg-green-100 text-green-800" :
-                        reg.status === "rejected" ? "bg-red-100 text-red-800" :
-                        "bg-yellow-100 text-yellow-800"
-                      }`}>
-                        {reg.status === "approved" ? "Disetujui" : reg.status === "rejected" ? "Ditolak" : "Menunggu"}
-                      </span>
-                    </td>
-                    <td className="p-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {reg.status === "pending" && (
-                          <>
-                            {/* Tolak */}
-                            <button
-                              onClick={() => handleUpdateStatus(reg.id, "rejected")}
-                              className="p-1.5 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                              title="Tolak"
-                            >
-                              <X size={18} weight="bold" />
-                            </button>
-                            {/* Setujui */}
-                            <button
-                              onClick={() => handleUpdateStatus(reg.id, "approved")}
-                              className="p-1.5 rounded-md bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
-                              title="Setujui"
-                            >
-                              <Check size={18} weight="bold" />
-                            </button>
-                          </>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-zinc-500 text-sm">
+                    Tidak ada pengajuan verifikasi toko yang ditemukan.
+                  </td>
+                </tr>
+              ) : (
+                filtered.map((reg) => {
+                  const docsComplete = Object.values(reg.docs).every(Boolean);
+                  return (
+                    <tr key={reg.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors">
+                      <td className="p-4">
+                        <div className="font-semibold text-zinc-900">{reg.store_name}</div>
+                        <div className="text-sm text-zinc-500">{reg.owner_name}</div>
+                      </td>
+                      <td className="p-4 text-sm text-zinc-600 max-w-[200px]">
+                        <span className="line-clamp-2">{reg.address}</span>
+                      </td>
+                      <td className="p-4 text-sm text-zinc-600 whitespace-nowrap">{reg.date}</td>
+                      <td className="p-4">
+                        {docsComplete ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded-full">
+                            <Check size={12} weight="bold" /> Lengkap
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-600 bg-red-50 px-2 py-1 rounded-full">
+                            <Warning size={12} weight="fill" /> Tidak Lengkap
+                          </span>
                         )}
-                        {/* Lihat Detail — selalu di paling kanan, warna zinc */}
-                        <button
-                          onClick={() => setSelectedReg(reg)}
-                          className="p-1.5 rounded-md bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-colors"
-                          title="Lihat Detail & Persyaratan"
-                        >
-                          <Eye size={18} weight="bold" />
-                        </button>
-                      </div>
-
-                    </td>
-                  </tr>
-                );
-              })}
+                      </td>
+                      <td className="p-4">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          reg.status === "approved" ? "bg-green-100 text-green-800" :
+                          reg.status === "rejected" ? "bg-red-100 text-red-800" :
+                          "bg-yellow-100 text-yellow-800"
+                        }`}>
+                          {reg.status === "approved" ? "Disetujui" : reg.status === "rejected" ? "Ditolak" : "Menunggu"}
+                        </span>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {reg.status === "pending" && (
+                            <>
+                              {/* Tolak */}
+                              <button
+                                onClick={() => handleUpdateStatus(reg.id, "rejected")}
+                                className="p-1.5 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                                title="Tolak"
+                              >
+                                <X size={18} weight="bold" />
+                              </button>
+                              {/* Setujui */}
+                              <button
+                                onClick={() => handleUpdateStatus(reg.id, "approved")}
+                                className="p-1.5 rounded-md bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
+                                title="Setujui"
+                              >
+                                <Check size={18} weight="bold" />
+                              </button>
+                            </>
+                          )}
+                          {/* Lihat Detail — selalu di paling kanan */}
+                          <button
+                            onClick={() => setSelectedReg(reg)}
+                            className="p-1.5 rounded-md bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-colors"
+                            title="Lihat Detail & Persyaratan"
+                          >
+                            <Eye size={18} weight="bold" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
@@ -335,6 +375,27 @@ export default function AdminVerifikasiPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginBottom: "1.5rem" }}>
                 {DOCS_LIST.map(doc => {
                   const ok = selectedReg.docs[doc.key];
+
+                  // 1. Ambil URL file secara langsung
+                  let fileUrl = "";
+                  if (doc.key === "ktp") fileUrl = selectedReg.ktp_file_url || "";
+                  if (doc.key === "usaha") fileUrl = selectedReg.nib_file_url || "";
+
+                  // 2. Bersihkan URL dan Ekstrak Nama Filenya Saja
+                  let docUrl = "";
+                  if (fileUrl && fileUrl.trim() !== "" && fileUrl !== "null" && fileUrl !== "undefined") {
+                    if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
+                      docUrl = fileUrl;
+                    } else {
+                      // Memotong alamat fisik ('C:/...' atau 'C:\...') dan hanya mengambil nama filenya
+                      const fileName = fileUrl.split(/[\/\\]/).pop();
+                      if (fileName) {
+                        const apiHost = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:5000";
+                        docUrl = `${apiHost}/uploads/${fileName}`;
+                      }
+                    }
+                  }
+
                   return (
                     <div key={doc.key} style={{
                       display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -362,18 +423,41 @@ export default function AdminVerifikasiPage() {
                       }}>
                         {ok ? <Check size={15} weight="bold" /> : <X size={15} weight="bold" />}
                         {ok ? "Terpenuhi" : "Tidak Terpenuhi"}
-                        <button 
-                          title="Lihat Dokumen" 
-                          style={{
-                            background: "transparent", border: "none", cursor: "pointer", 
-                            color: "#6b7280", display: "flex", alignItems: "center", padding: "0.2rem", marginLeft: "0.5rem",
-                            borderRadius: "0.3rem", transition: "background 0.2s"
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.background = "rgba(0,0,0,0.05)"}
-                          onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                        >
-                          <Eye size={18} weight="bold" />
-                        </button>
+
+                        {/* Tombol Lihat Dokumen */}
+                        {docUrl ? (
+                          <a
+                            href={docUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Lihat Dokumen"
+                            style={{
+                              background: "transparent", border: "none", cursor: "pointer",
+                              color: "#6b7280", display: "flex", alignItems: "center", padding: "0.2rem", marginLeft: "0.5rem",
+                              borderRadius: "0.3rem", transition: "background 0.2s",
+                              textDecoration: "none",
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.background = "rgba(0,0,0,0.05)"}
+                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                            onClick={(e) => {
+                              if (!docUrl || docUrl.trim() === "") e.preventDefault();
+                            }}
+                          >
+                            <Eye size={18} weight="bold" />
+                          </a>
+                        ) : (
+                          <button
+                            disabled
+                            title={doc.key === "ktp" || doc.key === "usaha" ? "Dokumen belum diunggah" : "Tidak memerlukan file"}
+                            style={{
+                              background: "transparent", border: "none", cursor: "not-allowed",
+                              color: "#d1d5db", display: "flex", alignItems: "center", padding: "0.2rem", marginLeft: "0.5rem",
+                              borderRadius: "0.3rem",
+                            }}
+                          >
+                            <Eye size={18} weight="bold" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
