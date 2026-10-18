@@ -13,6 +13,7 @@ import {
   Eye,
   EyeSlash,
 } from "@phosphor-icons/react";
+import { authService } from "@/services/auth.service";
 
 type Step = "email" | "otp" | "newpass" | "done";
 
@@ -145,11 +146,19 @@ export default function ForgotPasswordForm() {
       return;
     }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setLoading(false);
-    toast.success(`Kode OTP dikirim ke ${email}`);
-    startCountdown();
-    setStep("otp");
+    try {
+      const res = await authService.forgotPassword(email);
+      toast.success(res.message || `Kode OTP dikirim ke ${email}`);
+      startCountdown();
+      setStep("otp");
+    } catch (error: any) {
+      console.error("Forgot password error:", error);
+      const errorMessage =
+        error.response?.data?.message || "Terjadi kesalahan saat memproses permintaan.";
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleVerifyOtp(e: React.FormEvent) {
@@ -159,20 +168,36 @@ export default function ForgotPasswordForm() {
       return;
     }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 900));
-    setLoading(false);
-    toast.success("OTP berhasil diverifikasi!");
-    setStep("newpass");
+    try {
+      const res = await authService.verifyOtp({ email, otp });
+      toast.success(res.message || "OTP berhasil diverifikasi!");
+      setStep("newpass");
+    } catch (error: any) {
+      console.error("Verify OTP error:", error);
+      const errorMessage =
+        error.response?.data?.message || "Kode OTP tidak valid.";
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleResendOtp() {
     if (countdown > 0) return;
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-    setOtp("");
-    toast.success("Kode OTP baru telah dikirim ulang.");
-    startCountdown();
+    try {
+      const res = await authService.forgotPassword(email);
+      setOtp("");
+      toast.success(res.message || "Kode OTP baru telah dikirim ulang.");
+      startCountdown();
+    } catch (error: any) {
+      console.error("Resend OTP error:", error);
+      const errorMessage =
+        error.response?.data?.message || "Gagal mengirim ulang kode OTP.";
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleSetPassword(e: React.FormEvent) {
@@ -186,9 +211,22 @@ export default function ForgotPasswordForm() {
       return;
     }
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setLoading(false);
-    setStep("done");
+    try {
+      const res = await authService.resetPassword({
+        email,
+        newPassword: newPass,
+        otp,
+      });
+      toast.success(res.message || "Kata sandi berhasil diperbarui!");
+      setStep("done");
+    } catch (error: any) {
+      console.error("Reset password error:", error);
+      const errorMessage =
+        error.response?.data?.message || "Gagal mengatur ulang kata sandi.";
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
   }
 
   /* ─── Progress bar ─── */

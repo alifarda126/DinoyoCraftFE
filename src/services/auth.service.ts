@@ -67,5 +67,62 @@ export const authService = {
         token: data.token || "token-sementara"
       }
     };
+  },
+
+  // --- FUNGSI LUPA KATA SANDI ---
+  forgotPassword: async (email: string) => {
+    const res = await fetch('http://localhost:5000/api/auth/forgot-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw { response: { data: { message: data.message || 'Gagal mengirim tautan reset kata sandi' } } };
+    }
+
+    return data;
+  },
+
+  // --- FUNGSI VERIFIKASI OTP ---
+  verifyOtp: async (payload: { email: string; otp: string }) => {
+    const res = await fetch('http://localhost:5000/api/auth/verify-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw { response: { data: { message: data.message || 'Gagal memverifikasi kode OTP' } } };
+    }
+
+    return data;
+  },
+
+  // --- FUNGSI RESET KATA SANDI ---
+  resetPassword: async (payload: { email: string; newPassword: string; otp?: string }) => {
+    const res = await fetch('http://localhost:5000/api/auth/reset-password', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw { response: { data: { message: data.message || 'Gagal mengatur ulang kata sandi' } } };
+    }
+
+    return data;
   }
 };
