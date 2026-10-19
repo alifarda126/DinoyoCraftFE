@@ -10,6 +10,7 @@ import {
   Star, Palette,
 } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
+import axios from 'axios';
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
 
@@ -49,6 +50,239 @@ const PRESET_COLORS: ColorVariant[] = [
   { name: "Cobalt Blue", hex: "#3b5fa0", label: "Deep Ocean", stock: 5 },
 ];
 
+/* ── Styles ─────────────────────────────────────────────────────────────── */
+
+const labelStyle: React.CSSProperties = {
+  display: "block", fontSize: "0.8rem", fontWeight: 600,
+  color: "var(--bark)", marginBottom: "0.45rem",
+};
+const inputStyle: React.CSSProperties = {
+  width: "100%", padding: "0.65rem 0.75rem", borderRadius: "0.5rem",
+  border: "1px solid var(--line)", background: "#fff", fontSize: "0.88rem",
+  fontFamily: "inherit", boxSizing: "border-box",
+};
+
+/* ── Color helpers ───────────────────────────────────────────────────────── */
+
+function toggleColor(c: ColorVariant, list: ColorVariant[], setList: (v: ColorVariant[]) => void) {
+  const existing = list.find(x => x.name === c.name);
+  if (existing) {
+    setList(list.filter(x => x.name !== c.name));
+  } else {
+    setList([...list, { ...c, stock: c.stock ?? 5 }]);
+  }
+}
+
+function addCustomColor(
+  list: ColorVariant[], setList: (v: ColorVariant[]) => void,
+  name: string, hex: string, label: string, stockQty: number,
+  setName: (v: string) => void, setLabel: (v: string) => void, setHex: (v: string) => void,
+  setStockQty?: (v: number) => void
+) {
+  if (!name.trim()) { toast.error("Nama warna wajib diisi"); return; }
+  if (list.find(x => x.name === name)) { toast.error("Warna sudah ada"); return; }
+  setList([...list, { name, hex, label: label || "Custom", stock: stockQty || 5 }]);
+  setName(""); setLabel(""); setHex("#b85c3c");
+  if (setStockQty) setStockQty(5);
+}
+
+function removeColor(name: string, list: ColorVariant[], setList: (v: ColorVariant[]) => void) {
+  setList(list.filter(x => x.name !== name));
+}
+
+function updateVariantStock(
+  variantName: string,
+  newStock: number,
+  list: ColorVariant[],
+  setList: (v: ColorVariant[]) => void
+) {
+  setList(list.map(v => v.name === variantName ? { ...v, stock: Math.max(0, newStock) } : v));
+}
+
+/* ── Color variant UI (reused in add & edit) ─────────────────────────── */
+
+function ColorVariantSection({
+  list, setList,
+  customName, setCustomName,
+  customHex, setCustomHex,
+  customLabel, setCustomLabel,
+  customStock, setCustomStock,
+}: {
+  list: ColorVariant[]; setList: (v: ColorVariant[]) => void;
+  customName: string; setCustomName: (v: string) => void;
+  customHex: string; setCustomHex: (v: string) => void;
+  customLabel: string; setCustomLabel: (v: string) => void;
+  customStock: number; setCustomStock: (v: number) => void;
+}) {
+  const totalVariantStock = list.reduce((sum, v) => sum + (v.stock || 0), 0);
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.65rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <Palette size={16} color="var(--clay)" weight="fill" />
+          <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--bark)" }}>Varian Warna &amp; Stok</span>
+          <span style={{ fontSize: "0.72rem", color: "var(--bark-muted)", fontWeight: 500 }}>(opsional)</span>
+        </div>
+        {list.length > 0 && (
+          <span style={{
+            fontSize: "0.74rem",
+            fontWeight: 700,
+            color: "var(--clay)",
+            background: "rgba(184,92,60,0.08)",
+            padding: "0.2rem 0.65rem",
+            borderRadius: "999px",
+            border: "1px solid rgba(184,92,60,0.18)",
+          }}>
+            Total Stok Varian: {totalVariantStock} Unit
+          </span>
+        )}
+      </div>
+
+      {/* Preset chips */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "0.75rem" }}>
+        {PRESET_COLORS.map(c => {
+          const active = !!list.find(x => x.name === c.name);
+          return (
+            <button key={c.name} type="button" onClick={() => toggleColor(c, list, setList)}
+              style={{
+                display: "flex", alignItems: "center", gap: "0.4rem",
+                padding: "0.38rem 0.7rem", borderRadius: "0.55rem",
+                border: `2px solid ${active ? "var(--clay)" : "var(--line)"}`,
+                background: active ? "rgba(184,92,60,0.06)" : "#fff",
+                cursor: "pointer", transition: "all 0.12s",
+              }}>
+              <span style={{ width: 14, height: 14, borderRadius: "50%", background: c.hex, border: "1.5px solid rgba(0,0,0,0.13)", flexShrink: 0 }} />
+              <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--bark)" }}>{c.name}</span>
+              {active && <Check size={11} color="var(--clay)" weight="bold" />}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Custom color row */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "44px 1.2fr 1fr 85px auto", gap: "0.5rem",
+        alignItems: "flex-end", background: "var(--surface)", borderRadius: "0.6rem",
+        padding: "0.75rem", border: "1px solid var(--line)", marginBottom: "0.75rem",
+      }}>
+        <div>
+          <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--bark-muted)", marginBottom: "0.3rem" }}>Warna</p>
+          <input type="color" value={customHex} onChange={e => setCustomHex(e.target.value)}
+            style={{ width: 40, height: 34, border: "1.5px solid var(--line)", borderRadius: "0.4rem", cursor: "pointer", padding: 2 }} />
+        </div>
+        <div>
+          <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--bark-muted)", marginBottom: "0.3rem" }}>Nama Warna *</p>
+          <input type="text" value={customName} onChange={e => setCustomName(e.target.value)}
+            placeholder="mis. Ocean Blue" style={{ ...inputStyle, fontSize: "0.8rem" }} />
+        </div>
+        <div>
+          <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--bark-muted)", marginBottom: "0.3rem" }}>Keterangan Finish</p>
+          <input type="text" value={customLabel} onChange={e => setCustomLabel(e.target.value)}
+            placeholder="mis. Glossy" style={{ ...inputStyle, fontSize: "0.8rem" }} />
+        </div>
+        <div>
+          <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--bark-muted)", marginBottom: "0.3rem" }}>Stok Awal</p>
+          <input type="number" min={0} value={customStock} onChange={e => setCustomStock(parseInt(e.target.value) || 0)}
+            style={{ ...inputStyle, fontSize: "0.8rem", textAlign: "center" }} />
+        </div>
+        <button type="button"
+          onClick={() => addCustomColor(list, setList, customName, customHex, customLabel, customStock, setCustomName, setCustomLabel, setCustomHex, setCustomStock)}
+          style={{
+            padding: "0.55rem 0.9rem", borderRadius: "0.5rem",
+            background: "var(--clay)", color: "#fff", border: "none",
+            fontWeight: 700, fontSize: "0.78rem", cursor: "pointer", whiteSpace: "nowrap", height: 35,
+          }}>
+          + Tambah
+        </button>
+      </div>
+
+      {/* Selected variants with individual stock management */}
+      {list.length > 0 && (
+        <div style={{
+          background: "#fff",
+          border: "1.5px solid var(--line)",
+          borderRadius: "0.75rem",
+          padding: "0.85rem 1rem",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.02)",
+        }}>
+          <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "var(--bark)", marginBottom: "0.6rem" }}>
+            Atur Stok Tiap Varian:
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.55rem" }}>
+            {list.map(c => (
+              <div key={c.name} style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "0.5rem",
+                padding: "0.45rem 0.65rem",
+                background: "var(--surface)",
+                borderRadius: "0.55rem",
+                border: "1px solid var(--line)",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", minWidth: 0, flex: 1 }}>
+                  <span style={{
+                    width: 14, height: 14, borderRadius: "50%",
+                    background: c.hex, border: "1.5px solid rgba(0,0,0,0.15)", flexShrink: 0,
+                  }} />
+                  <div style={{ minWidth: 0, overflow: "hidden" }}>
+                    <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "var(--bark)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {c.name}
+                    </p>
+                    <p style={{ fontSize: "0.65rem", color: "var(--bark-muted)", margin: 0 }}>
+                      {c.label || "Standar"}
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", flexShrink: 0 }}>
+                  <span style={{ fontSize: "0.7rem", color: "var(--bark-muted)", fontWeight: 600 }}>Stok:</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={c.stock ?? 0}
+                    onChange={e => updateVariantStock(c.name, parseInt(e.target.value) || 0, list, setList)}
+                    style={{
+                      width: 55,
+                      padding: "0.25rem 0.35rem",
+                      borderRadius: "0.35rem",
+                      border: "1.5px solid var(--line-strong)",
+                      background: "#fff",
+                      fontSize: "0.8rem",
+                      fontWeight: 700,
+                      color: "var(--bark)",
+                      textAlign: "center",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeColor(c.name, list, setList)}
+                    title={`Hapus varian ${c.name}`}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--bark-muted)",
+                      padding: "0.2rem",
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "#e53e3e")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "var(--bark-muted)")}
+                  >
+                    <X size={13} weight="bold" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── Component ───────────────────────────────────────────────────────────── */
 
 export default function SellerCatalogPage() {
@@ -72,6 +306,7 @@ export default function SellerCatalogPage() {
   const [customColorHex, setCustomColorHex] = useState("#b85c3c");
   const [customColorLabel, setCustomColorLabel] = useState("");
   const [customColorStock, setCustomColorStock] = useState<number>(5);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* Edit state */
@@ -90,85 +325,39 @@ export default function SellerCatalogPage() {
   const handleFileChange = useCallback((file: File | null) => {
     if (!file) return;
     if (!file.type.startsWith("image/")) { toast.error("File harus berupa gambar"); return; }
+    setSelectedFile(file);
     const objectUrl = URL.createObjectURL(file);
     setImagePreview(objectUrl);
     setImageUrl(objectUrl);
   }, []);
 
-  const loadArtworks = () => {
-    setArtworks([
-      {
-        id: "prod-1",
-        title: "Vas Minimalis",
-        description: "Vas cantik buatan tangan dari tanah liat pilihan. Cocok untuk sudut ruangan estetik.",
-        price: 85000,
-        category: "Dekorasi",
-        stock: 12,
-        image_url: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=400&q=80",
-        variants: [
-          { ...PRESET_COLORS[0], stock: 4 },
-          { ...PRESET_COLORS[1], stock: 3 },
-          { ...PRESET_COLORS[2], stock: 3 },
-          { ...PRESET_COLORS[3], stock: 2 },
-        ],
-        reviews: [
-          { id: "r1", author: "Sari", rating: 5 },
-          { id: "r2", author: "Budi", rating: 5 },
-          { id: "r3", author: "Rina", rating: 4 },
-          { id: "r4", author: "Agung", rating: 5 },
-        ],
-      },
-      {
-        id: "prod-2",
-        title: "Cangkir Handmade",
-        description: "Gelas keramik tahan panas, sangat cocok untuk kopi atau teh hangat.",
-        price: 65000,
-        category: "Peralatan Makan",
-        stock: 5,
-        image_url: "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=400&q=80",
-        variants: [
-          { ...PRESET_COLORS[0], stock: 3 },
-          { ...PRESET_COLORS[4], stock: 2 },
-        ],
-        reviews: [
-          { id: "r1", author: "Sari", rating: 5 },
-          { id: "r2", author: "Budi", rating: 4 },
-        ],
-      },
-      {
-        id: "prod-3",
-        title: "Mangkuk Keramik",
-        description: "Mangkuk keramik yang elegan untuk sup atau sereal. Dilapisi glasir food-grade.",
-        price: 75000,
-        category: "Peralatan Makan",
-        stock: 8,
-        image_url: "https://images.unsplash.com/photo-1530006498959-b7884e829a04?auto=format&fit=crop&w=400&q=80",
-        variants: [
-          { ...PRESET_COLORS[0], stock: 5 },
-          { ...PRESET_COLORS[3], stock: 3 },
-        ],
-        reviews: [
-          { id: "r1", author: "Andi", rating: 5 },
-        ],
-      },
-      {
-        id: "prod-4",
-        title: "Piring Artisan",
-        description: "Piring makan unik dengan tekstur artisan khas perajin Dinoyo.",
-        price: 95000,
-        category: "Peralatan Makan",
-        stock: 3,
-        image_url: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=400&q=80",
-        variants: [
-          { ...PRESET_COLORS[2], stock: 3 },
-        ],
-        reviews: [
-          { id: "r1", author: "Maya", rating: 5 },
-          { id: "r2", author: "Leo", rating: 5 },
-        ],
-      },
-    ]);
-  };
+  const [fetchingArtworks, setFetchingArtworks] = useState(true);
+
+  const loadArtworks = useCallback(async () => {
+    try {
+      setFetchingArtworks(true);
+      const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      if (!storedToken) {
+        setFetchingArtworks(false);
+        return;
+      }
+
+      const response = await axios.get("http://localhost:5000/api/products", {
+        headers: {
+          Authorization: `Bearer ${storedToken}`,
+        },
+        withCredentials: true,
+      });
+
+      if (response.data.success && Array.isArray(response.data.data)) {
+        setArtworks(response.data.data);
+      }
+    } catch (error) {
+      console.error("Gagal memuat produk dari server:", error);
+    } finally {
+      setFetchingArtworks(false);
+    }
+  }, []);
 
   useEffect(() => {
     const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -178,7 +367,7 @@ export default function SellerCatalogPage() {
       return;
     }
     loadArtworks();
-  }, [router]);
+  }, [router, loadArtworks]);
 
   // Otomatis sinkron total stok saat varian ditambah/diubah
   useEffect(() => {
@@ -195,86 +384,73 @@ export default function SellerCatalogPage() {
     }
   }, [editColors]);
 
-  /* ── Color helpers ───────────────────────────────────────────────────── */
 
-  function toggleColor(c: ColorVariant, list: ColorVariant[], setList: (v: ColorVariant[]) => void) {
-    const existing = list.find(x => x.name === c.name);
-    if (existing) {
-      setList(list.filter(x => x.name !== c.name));
-    } else {
-      setList([...list, { ...c, stock: c.stock ?? 5 }]);
-    }
-  }
-
-  function addCustomColor(
-    list: ColorVariant[], setList: (v: ColorVariant[]) => void,
-    name: string, hex: string, label: string, stockQty: number,
-    setName: (v: string) => void, setLabel: (v: string) => void, setHex: (v: string) => void,
-    setStockQty?: (v: number) => void
-  ) {
-    if (!name.trim()) { toast.error("Nama warna wajib diisi"); return; }
-    if (list.find(x => x.name === name)) { toast.error("Warna sudah ada"); return; }
-    setList([...list, { name, hex, label: label || "Custom", stock: stockQty || 5 }]);
-    setName(""); setLabel(""); setHex("#b85c3c");
-    if (setStockQty) setStockQty(5);
-  }
-
-  function removeColor(name: string, list: ColorVariant[], setList: (v: ColorVariant[]) => void) {
-    setList(list.filter(x => x.name !== name));
-  }
-
-  function updateVariantStock(
-    variantName: string,
-    newStock: number,
-    list: ColorVariant[],
-    setList: (v: ColorVariant[]) => void
-  ) {
-    setList(list.map(v => v.name === variantName ? { ...v, stock: Math.max(0, newStock) } : v));
-  }
 
   /* ── Form handlers ───────────────────────────────────────────────────── */
 
-  async function handleSubmit(e: React.FormEvent) {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    try {
-      await new Promise(resolve => setTimeout(resolve, 600));
-      const slug = (title || "produk").trim().toLowerCase().replace(/\s+/g, "-");
-      const finalStock = selectedColors.length > 0
-        ? selectedColors.reduce((sum, v) => sum + (v.stock || 0), 0)
-        : parseInt(stock) || 0;
 
-      const newProduct: Artwork = {
-        id: `prod-${slug}-${artworks.length + 1}`,
-        title, description,
-        price: parseInt(price) || 0,
-        category, stock: finalStock,
-        image_url: imageUrl || "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=400&q=80",
-        variants: selectedColors,
-        reviews: [],
-      };
-      setArtworks([newProduct, ...artworks]);
-      toast.success("Produk berhasil ditambahkan!");
-      setShowForm(false);
-      resetForm();
-    } catch {
-      toast.error("Gagal menambahkan produk");
+    // Buat objek FormData
+    const formData = new FormData();
+    formData.append("name", title);
+    formData.append("description", description);
+    formData.append("price", price);
+    formData.append("stock", stock);
+    formData.append("category_id", category || "1"); // Pastikan ini mengambil ID / nama kategori
+
+    // Jika ada file gambar produk
+    if (selectedFile) {
+      formData.append("image", selectedFile);
+    }
+
+    try {
+      const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const response = await axios.post("http://localhost:5000/api/products", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
+        },
+        withCredentials: true,
+      });
+
+      if (response.data.success) {
+        toast.success("Produk berhasil ditambahkan!");
+        resetForm();
+        setShowForm(false);
+        await loadArtworks();
+      }
+    } catch (error: any) {
+      console.error("Gagal tambah produk:", error);
+      toast.error(error?.response?.data?.message || "Gagal menambahkan produk");
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   function resetForm() {
     setTitle(""); setDescription(""); setPrice(""); setCategory("");
-    setImageUrl(""); setImagePreview(null); setStock(""); setSelectedColors([]);
+    setImageUrl(""); setImagePreview(null); setSelectedFile(null); setStock(""); setSelectedColors([]);
     setCustomColorName(""); setCustomColorLabel(""); setCustomColorHex("#b85c3c");
     setCustomColorStock(5);
   }
 
-  function handleDelete(id: string) {
-    if (confirm("Apakah Anda yakin ingin menghapus produk ini?")) {
-      setArtworks(artworks.filter(a => a.id !== id));
+  async function handleDelete(id: string) {
+    if (!confirm("Apakah Anda yakin ingin menghapus produk ini?")) return;
+    try {
+      const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      if (storedToken && !id.startsWith("prod-")) {
+        await axios.delete(`http://localhost:5000/api/products/${id}`, {
+          headers: { Authorization: `Bearer ${storedToken}` },
+          withCredentials: true,
+        });
+      }
+      setArtworks(prev => prev.filter(a => a.id !== id));
       toast.success("Produk berhasil dihapus!");
+    } catch (error) {
+      console.error("Gagal menghapus produk:", error);
+      toast.error("Gagal menghapus produk");
     }
   }
 
@@ -311,199 +487,7 @@ export default function SellerCatalogPage() {
   const avgRating = (reviews: Review[]) =>
     reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : null;
 
-  const labelStyle: React.CSSProperties = {
-    display: "block", fontSize: "0.8rem", fontWeight: 600,
-    color: "var(--bark)", marginBottom: "0.45rem",
-  };
-  const inputStyle: React.CSSProperties = {
-    width: "100%", padding: "0.65rem 0.75rem", borderRadius: "0.5rem",
-    border: "1px solid var(--line)", background: "#fff", fontSize: "0.88rem",
-    fontFamily: "inherit", boxSizing: "border-box",
-  };
 
-  /* ── Color variant UI (reused in add & edit) ─────────────────────────── */
-
-  function ColorVariantSection({
-    list, setList,
-    customName, setCustomName,
-    customHex, setCustomHex,
-    customLabel, setCustomLabel,
-    customStock, setCustomStock,
-  }: {
-    list: ColorVariant[]; setList: (v: ColorVariant[]) => void;
-    customName: string; setCustomName: (v: string) => void;
-    customHex: string; setCustomHex: (v: string) => void;
-    customLabel: string; setCustomLabel: (v: string) => void;
-    customStock: number; setCustomStock: (v: number) => void;
-  }) {
-    const totalVariantStock = list.reduce((sum, v) => sum + (v.stock || 0), 0);
-
-    return (
-      <div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.65rem" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Palette size={16} color="var(--clay)" weight="fill" />
-            <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--bark)" }}>Varian Warna &amp; Stok</span>
-            <span style={{ fontSize: "0.72rem", color: "var(--bark-muted)", fontWeight: 500 }}>(opsional)</span>
-          </div>
-          {list.length > 0 && (
-            <span style={{
-              fontSize: "0.74rem",
-              fontWeight: 700,
-              color: "var(--clay)",
-              background: "rgba(184,92,60,0.08)",
-              padding: "0.2rem 0.65rem",
-              borderRadius: "999px",
-              border: "1px solid rgba(184,92,60,0.18)",
-            }}>
-              Total Stok Varian: {totalVariantStock} Unit
-            </span>
-          )}
-        </div>
-
-        {/* Preset chips */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginBottom: "0.75rem" }}>
-          {PRESET_COLORS.map(c => {
-            const active = !!list.find(x => x.name === c.name);
-            return (
-              <button key={c.name} type="button" onClick={() => toggleColor(c, list, setList)}
-                style={{
-                  display: "flex", alignItems: "center", gap: "0.4rem",
-                  padding: "0.38rem 0.7rem", borderRadius: "0.55rem",
-                  border: `2px solid ${active ? "var(--clay)" : "var(--line)"}`,
-                  background: active ? "rgba(184,92,60,0.06)" : "#fff",
-                  cursor: "pointer", transition: "all 0.12s",
-                }}>
-                <span style={{ width: 14, height: 14, borderRadius: "50%", background: c.hex, border: "1.5px solid rgba(0,0,0,0.13)", flexShrink: 0 }} />
-                <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--bark)" }}>{c.name}</span>
-                {active && <Check size={11} color="var(--clay)" weight="bold" />}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Custom color row */}
-        <div style={{
-          display: "grid", gridTemplateColumns: "44px 1.2fr 1fr 85px auto", gap: "0.5rem",
-          alignItems: "flex-end", background: "var(--surface)", borderRadius: "0.6rem",
-          padding: "0.75rem", border: "1px solid var(--line)", marginBottom: "0.75rem",
-        }}>
-          <div>
-            <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--bark-muted)", marginBottom: "0.3rem" }}>Warna</p>
-            <input type="color" value={customHex} onChange={e => setCustomHex(e.target.value)}
-              style={{ width: 40, height: 34, border: "1.5px solid var(--line)", borderRadius: "0.4rem", cursor: "pointer", padding: 2 }} />
-          </div>
-          <div>
-            <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--bark-muted)", marginBottom: "0.3rem" }}>Nama Warna *</p>
-            <input type="text" value={customName} onChange={e => setCustomName(e.target.value)}
-              placeholder="mis. Ocean Blue" style={{ ...inputStyle, fontSize: "0.8rem" }} />
-          </div>
-          <div>
-            <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--bark-muted)", marginBottom: "0.3rem" }}>Keterangan Finish</p>
-            <input type="text" value={customLabel} onChange={e => setCustomLabel(e.target.value)}
-              placeholder="mis. Glossy" style={{ ...inputStyle, fontSize: "0.8rem" }} />
-          </div>
-          <div>
-            <p style={{ fontSize: "0.7rem", fontWeight: 600, color: "var(--bark-muted)", marginBottom: "0.3rem" }}>Stok Awal</p>
-            <input type="number" min={0} value={customStock} onChange={e => setCustomStock(parseInt(e.target.value) || 0)}
-              style={{ ...inputStyle, fontSize: "0.8rem", textAlign: "center" }} />
-          </div>
-          <button type="button"
-            onClick={() => addCustomColor(list, setList, customName, customHex, customLabel, customStock, setCustomName, setCustomLabel, setCustomHex, setCustomStock)}
-            style={{
-              padding: "0.55rem 0.9rem", borderRadius: "0.5rem",
-              background: "var(--clay)", color: "#fff", border: "none",
-              fontWeight: 700, fontSize: "0.78rem", cursor: "pointer", whiteSpace: "nowrap", height: 35,
-            }}>
-            + Tambah
-          </button>
-        </div>
-
-        {/* Selected variants with individual stock management */}
-        {list.length > 0 && (
-          <div style={{
-            background: "#fff",
-            border: "1.5px solid var(--line)",
-            borderRadius: "0.75rem",
-            padding: "0.85rem 1rem",
-            boxShadow: "0 1px 4px rgba(0,0,0,0.02)",
-          }}>
-            <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "var(--bark)", marginBottom: "0.6rem" }}>
-              Atur Stok Tiap Varian:
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "0.55rem" }}>
-              {list.map(c => (
-                <div key={c.name} style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "0.5rem",
-                  padding: "0.45rem 0.65rem",
-                  background: "var(--surface)",
-                  borderRadius: "0.55rem",
-                  border: "1px solid var(--line)",
-                }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", minWidth: 0, flex: 1 }}>
-                    <span style={{
-                      width: 14, height: 14, borderRadius: "50%",
-                      background: c.hex, border: "1.5px solid rgba(0,0,0,0.15)", flexShrink: 0,
-                    }} />
-                    <div style={{ minWidth: 0, overflow: "hidden" }}>
-                      <p style={{ fontSize: "0.76rem", fontWeight: 700, color: "var(--bark)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {c.name}
-                      </p>
-                      <p style={{ fontSize: "0.65rem", color: "var(--bark-muted)", margin: 0 }}>
-                        {c.label || "Standar"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", alignItems: "center", gap: "0.25rem", flexShrink: 0 }}>
-                    <span style={{ fontSize: "0.7rem", color: "var(--bark-muted)", fontWeight: 600 }}>Stok:</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={c.stock ?? 0}
-                      onChange={e => updateVariantStock(c.name, parseInt(e.target.value) || 0, list, setList)}
-                      style={{
-                        width: 55,
-                        padding: "0.25rem 0.35rem",
-                        borderRadius: "0.35rem",
-                        border: "1.5px solid var(--line-strong)",
-                        background: "#fff",
-                        fontSize: "0.8rem",
-                        fontWeight: 700,
-                        color: "var(--bark)",
-                        textAlign: "center",
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeColor(c.name, list, setList)}
-                      title={`Hapus varian ${c.name}`}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        cursor: "pointer",
-                        color: "var(--bark-muted)",
-                        padding: "0.2rem",
-                        display: "flex",
-                        alignItems: "center",
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.color = "#e53e3e")}
-                      onMouseLeave={e => (e.currentTarget.style.color = "var(--bark-muted)")}
-                    >
-                      <X size={13} weight="bold" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
 
   /* ── Render ──────────────────────────────────────────────────────────── */
 
@@ -629,7 +613,7 @@ export default function SellerCatalogPage() {
                   <div style={{ position: "relative", display: "inline-block" }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={imagePreview} alt="preview" style={{ height: 120, maxWidth: "100%", objectFit: "contain", borderRadius: "0.5rem" }} />
-                    <button type="button" onClick={e => { e.stopPropagation(); setImagePreview(null); setImageUrl(""); }}
+                    <button type="button" onClick={e => { e.stopPropagation(); setImagePreview(null); setImageUrl(""); setSelectedFile(null); }}
                       style={{ position: "absolute", top: -8, right: -8, width: 24, height: 24, borderRadius: "50%", background: "#e53e3e", color: "#fff", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <X size={12} weight="bold" />
                     </button>
@@ -686,7 +670,33 @@ export default function SellerCatalogPage() {
 
       {/* ── Product List ───────────────────────────────────────────────── */}
       <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-        {artworks.map(item => (
+        {fetchingArtworks ? (
+          <div style={{
+            background: "#fff",
+            borderRadius: "1rem",
+            border: "1px solid var(--line)",
+            padding: "3rem 1.5rem",
+            textAlign: "center",
+          }}>
+            <p style={{ color: "var(--bark-muted)", fontSize: "0.95rem" }}>Memuat katalog produk...</p>
+          </div>
+        ) : artworks.length === 0 ? (
+          <div style={{
+            background: "#fff",
+            borderRadius: "1rem",
+            border: "1px solid var(--line)",
+            padding: "3.5rem 1.5rem",
+            textAlign: "center",
+          }}>
+            <p style={{ fontWeight: 700, color: "var(--bark)", fontSize: "1.1rem", marginBottom: "0.5rem" }}>
+              Belum ada produk di katalog
+            </p>
+            <p style={{ color: "var(--bark-muted)", fontSize: "0.9rem" }}>
+              Klik tombol &quot;+ Tambah Produk&quot; di atas untuk menambahkan karya keramik pertamamu.
+            </p>
+          </div>
+        ) : (
+          artworks.map(item => (
           <div key={item.id} style={{ display: "flex", flexDirection: "column" }}>
             {/* Card */}
             <div style={{
@@ -890,13 +900,7 @@ export default function SellerCatalogPage() {
               </form>
             )}
           </div>
-        ))}
-
-        {artworks.length === 0 && (
-          <div style={{ padding: "3rem", textAlign: "center", background: "#fff", borderRadius: "1rem", border: "1px dashed var(--line-strong)" }}>
-            <p style={{ color: "var(--bark-muted)" }}>Belum ada produk di katalogmu.</p>
-          </div>
-        )}
+        )))}
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import api from "@/lib/axios";
 import {
   Camera, Storefront, MapPin, Phone, EnvelopeSimple,
   CalendarBlank, Globe, InstagramLogo, CheckCircle,
@@ -52,16 +53,29 @@ const KATEGORI_LIST = [
   "Keramik Fungsional", "Custom Order", "Lainnya",
 ];
 
+const getImageUrl = (path?: string | null) => {
+  if (!path) return "";
+  if (path.startsWith("http://") || path.startsWith("https://") || path.startsWith("blob:") || path.startsWith("data:")) {
+    return path;
+  }
+  const apiHost = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:5000";
+  return `${apiHost}${path.startsWith("/") ? "" : "/"}${path}`;
+};
+
 export default function SellerProfilPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [isVerified, setIsVerified] = useState(true);
   const [profile, setProfile] = useState<ProfileData>(INITIAL);
   const [preview, setPreview] = useState<string>("");
   const [bannerPreview, setBannerPreview] = useState<string>(
     "https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=1200&auto=format&fit=crop"
   );
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [bannerFile, setBannerFile] = useState<File | null>(null);
+
   const [isNewRegistration, setIsNewRegistration] = useState(false);
   const [regData, setRegData] = useState<RegistrationData>({
     fileKTP: null,
@@ -92,6 +106,9 @@ export default function SellerProfilPage() {
           storeName: u.store_name || prev.storeName,
           email: u.email || prev.email,
         }));
+        if (u.avatar_url) {
+          setPreview(getImageUrl(u.avatar_url));
+        }
       } catch (e) {
         console.error("Gagal parse stored user:", e);
       }
@@ -99,7 +116,47 @@ export default function SellerProfilPage() {
       setProfile(prev => ({ ...prev, ownerName: session.profile.full_name || prev.ownerName }));
       setIsNewRegistration(session.isNewRegistration || false);
     }
-    setLoading(false);
+
+    // Ambil data profil mutakhir dari database Backend
+    async function fetchProfile() {
+      if (!storedToken) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const res = await api.get("/auth/profile");
+        if (res.data?.success && res.data?.data) {
+          const d = res.data.data;
+          setProfile(prev => ({
+            ...prev,
+            ownerName: d.name || prev.ownerName,
+            storeName: d.store_name || prev.storeName,
+            phone: d.whatsapp_number || prev.phone,
+            email: d.email || prev.email,
+            address: d.workshop_address || prev.address,
+            yearStarted: d.started_year ? String(d.started_year) : prev.yearStarted,
+            description: d.description || prev.description,
+            website: d.website || prev.website,
+            instagram: d.instagram || prev.instagram,
+          }));
+          if (d.avatar_url) {
+            setPreview(getImageUrl(d.avatar_url));
+          }
+          if (d.banner_url) {
+            setBannerPreview(getImageUrl(d.banner_url));
+          }
+          if (typeof d.is_verified !== "undefined") {
+            setIsVerified(d.is_verified === 1 || d.is_verified === true);
+          }
+        }
+      } catch (err) {
+        console.warn("Gagal memuat profil toko dari backend:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchProfile();
   }, [router]);
 
   function handleChange(field: keyof ProfileData, value: string) {
@@ -110,6 +167,7 @@ export default function SellerProfilPage() {
   function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setAvatarFile(file);
     const url = URL.createObjectURL(file);
     setPreview(url);
     setSaved(false);
@@ -118,10 +176,11 @@ export default function SellerProfilPage() {
   function handleBannerChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    setBannerFile(file);
     const url = URL.createObjectURL(file);
     setBannerPreview(url);
     setSaved(false);
-    toast.success("Banner toko berhasil diganti!");
+    toast.success("Banner dipilih! Klik 'Simpan Perubahan' untuk menerapkan.");
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -133,10 +192,75 @@ export default function SellerProfilPage() {
     }
     
     setSaving(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setSaving(false);
-    setSaved(true);
-    toast.success("Profil toko berhasil disimpan!");
+    try {
+      const formData = new FormData();
+      formData.append("ownerName", profile.ownerName);
+      formData.append("storeName", profile.storeName);
+      formData.append("phone", profile.phone);
+      formData.append("address", profile.address);
+      formData.append("yearStarted", profile.yearStarted);
+      formData.append("description", profile.description);
+      formData.append("website", profile.website);
+      formData.append("instagram", profile.instagram);
+
+      // Alias kompatibilitas
+      formData.append("nama", profile.ownerName);
+      formData.append("nama_toko", profile.storeName);
+      formData.append("alamat", profile.address);
+      formData.append("tahun_mulai", profile.yearStarted);
+      formData.append("deskripsi", profile.description);
+
+      if (avatarFile) {
+        formData.append("avatar", avatarFile);
+      }
+      if (bannerFile) {
+        formData.append("banner", bannerFile);
+      }
+
+      const response = await api.put("/auth/profile", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (response.data?.success) {
+        setSaved(true);
+        setAvatarFile(null);
+        setBannerFile(null);
+
+        const updatedData = response.data.data;
+        if (updatedData) {
+          if (updatedData.avatar_url) {
+            setPreview(getImageUrl(updatedData.avatar_url));
+          }
+          if (updatedData.banner_url) {
+            setBannerPreview(getImageUrl(updatedData.banner_url));
+          }
+
+          // Sinkronkan data ke localStorage agar Navbar & halaman lain terupdate
+          if (typeof window !== "undefined") {
+            const userStr = localStorage.getItem("user");
+            let parsedUser = {};
+            try { parsedUser = userStr ? JSON.parse(userStr) : {}; } catch {}
+            localStorage.setItem("user", JSON.stringify({
+              ...parsedUser,
+              name: updatedData.name || profile.ownerName,
+              store_name: updatedData.store_name || profile.storeName,
+              avatar_url: updatedData.avatar_url || (parsedUser as any).avatar_url,
+            }));
+          }
+        }
+
+        toast.success("Profil toko berhasil disimpan!");
+      } else {
+        toast.error(response.data?.message || "Gagal menyimpan profil.");
+      }
+    } catch (error: any) {
+      console.error("Gagal menyimpan profil toko:", error);
+      toast.error(error.response?.data?.message || "Gagal menyimpan profil toko.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleRegistrationSubmit(e: React.FormEvent) {
@@ -469,14 +593,21 @@ export default function SellerProfilPage() {
 
             {/* Status Verifikasi */}
             <div style={{
-              background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "0.75rem", padding: "1rem",
+              background: isVerified ? "#f0fdf4" : "#fffbeb",
+              border: `1px solid ${isVerified ? "#bbf7d0" : "#fde68a"}`,
+              borderRadius: "0.75rem",
+              padding: "1rem",
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem" }}>
-                <CheckCircle size={18} color="#16a34a" weight="fill" />
-                <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "#15803d" }}>Toko Terverifikasi</span>
+                <CheckCircle size={18} color={isVerified ? "#16a34a" : "#d97706"} weight="fill" />
+                <span style={{ fontSize: "0.85rem", fontWeight: 700, color: isVerified ? "#15803d" : "#b45309" }}>
+                  {isVerified ? "Toko Terverifikasi" : "Menunggu Verifikasi"}
+                </span>
               </div>
-              <p style={{ fontSize: "0.75rem", color: "#166534", lineHeight: 1.5, margin: 0 }}>
-                Toko Anda sudah diverifikasi oleh tim DinoyoCraft. Perubahan data utama perlu persetujuan ulang.
+              <p style={{ fontSize: "0.75rem", color: isVerified ? "#166534" : "#92400e", lineHeight: 1.5, margin: 0 }}>
+                {isVerified
+                  ? "Toko Anda sudah diverifikasi oleh tim DinoyoCraft. Perubahan data utama perlu persetujuan ulang."
+                  : "Pengajuan akun toko Anda sedang dalam peninjauan oleh tim admin DinoyoCraft."}
               </p>
             </div>
 
