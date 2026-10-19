@@ -23,6 +23,15 @@ export const adminService = {
         return response.data;
     },
 
+    getDashboardStats: async () => {
+        const token = getToken();
+        const response = await axios.get(`${API_BASE_URL}/admin/dashboard-stats`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true,
+        });
+        return response.data;
+    },
+
     verifyStore: async (id: number, status: 'approved' | 'rejected') => {
         const token = getToken();
         console.log("Token yang dikirim ke backend (verifyStore):", token);

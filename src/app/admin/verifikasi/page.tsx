@@ -36,6 +36,7 @@ export default function AdminVerifikasiPage() {
   const [registrations, setRegistrations] = useState<StoreRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReg, setSelectedReg] = useState<StoreRegistration | null>(null);
+  const [docPreview, setDocPreview] = useState<{ url: string; label: string } | null>(null);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("semua");
   const [filterDok, setFilterDok] = useState("semua");
@@ -118,6 +119,29 @@ export default function AdminVerifikasiPage() {
     } catch (error: any) {
       console.error("Gagal memperbarui status:", error);
       toast.error(error?.response?.data?.message || "Gagal memperbarui status pengajuan toko.");
+    }
+  };
+
+  // 3. Handler download file langsung (blob — bypass CORS download restriction)
+  const handleDownload = async (url: string, label: string) => {
+    try {
+      const response = await fetch(url, { mode: "cors" });
+      if (!response.ok) throw new Error("Gagal mengambil file");
+      const blob = await response.blob();
+      const ext = url.split(".").pop()?.split("?")[0] || "file";
+      const fileName = `${label.replace(/[^a-zA-Z0-9]/g, "_")}.${ext}`;
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch (err) {
+      console.error("Gagal mengunduh file:", err);
+      toast.error("Gagal mengunduh dokumen. Coba buka di tab baru.");
+      window.open(url, "_blank");
     }
   };
 
@@ -240,11 +264,10 @@ export default function AdminVerifikasiPage() {
                         )}
                       </td>
                       <td className="p-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          reg.status === "approved" ? "bg-green-100 text-green-800" :
-                          reg.status === "rejected" ? "bg-red-100 text-red-800" :
-                          "bg-yellow-100 text-yellow-800"
-                        }`}>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${reg.status === "approved" ? "bg-green-100 text-green-800" :
+                            reg.status === "rejected" ? "bg-red-100 text-red-800" :
+                              "bg-yellow-100 text-yellow-800"
+                          }`}>
                           {reg.status === "approved" ? "Disetujui" : reg.status === "rejected" ? "Ditolak" : "Menunggu"}
                         </span>
                       </td>
@@ -426,25 +449,19 @@ export default function AdminVerifikasiPage() {
 
                         {/* Tombol Lihat Dokumen */}
                         {docUrl ? (
-                          <a
-                            href={docUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                          <button
                             title="Lihat Dokumen"
+                            onClick={() => setDocPreview({ url: docUrl, label: doc.label })}
                             style={{
                               background: "transparent", border: "none", cursor: "pointer",
                               color: "#6b7280", display: "flex", alignItems: "center", padding: "0.2rem", marginLeft: "0.5rem",
                               borderRadius: "0.3rem", transition: "background 0.2s",
-                              textDecoration: "none",
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = "rgba(0,0,0,0.05)"}
-                            onMouseLeave={e => e.currentTarget.style.background = "transparent"}
-                            onClick={(e) => {
-                              if (!docUrl || docUrl.trim() === "") e.preventDefault();
-                            }}
+                            onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.background = "rgba(0,0,0,0.05)"}
+                            onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.background = "transparent"}
                           >
                             <Eye size={18} weight="bold" />
-                          </a>
+                          </button>
                         ) : (
                           <button
                             disabled
@@ -522,6 +539,108 @@ export default function AdminVerifikasiPage() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Preview Dokumen ── */}
+      {docPreview && (
+        <div
+          onClick={() => setDocPreview(null)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 300,
+            background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "#fff", borderRadius: "1.25rem", width: "100%", maxWidth: 560,
+              boxShadow: "0 20px 40px rgba(0,0,0,0.15)", overflow: "hidden",
+              display: "flex", flexDirection: "column", maxHeight: "90vh",
+            }}
+          >
+            {/* Header — sama dengan modal verifikasi */}
+            <div style={{
+              background: "linear-gradient(135deg,#3b3025,#5a3d28)",
+              padding: "1.25rem 1.5rem",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              flexShrink: 0,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.15)", border: "2px solid rgba(255,255,255,0.25)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <FileText size={20} color="#fff" weight="duotone" />
+                </div>
+                <div>
+                  <h2 style={{ color: "#fff", fontWeight: 800, fontSize: "1rem", margin: 0 }}>
+                    {docPreview.label}
+                  </h2>
+                  <p style={{ color: "rgba(255,255,255,0.65)", fontSize: "0.78rem", margin: 0 }}>
+                    Pratinjau Dokumen
+                  </p>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                <button
+                  onClick={() => handleDownload(docPreview.url, docPreview.label)}
+                  title="Unduh Dokumen"
+                  style={{
+                    background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "0.5rem",
+                    padding: "0.35rem 0.75rem", cursor: "pointer", color: "#fff",
+                    fontSize: "0.78rem", fontWeight: 600,
+                    display: "flex", alignItems: "center", gap: "0.35rem",
+                  }}
+                >
+                  ↓ Unduh
+                </button>
+                <button
+                  onClick={() => setDocPreview(null)}
+                  style={{
+                    background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%",
+                    width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center",
+                    cursor: "pointer", color: "#fff",
+                  }}
+                >
+                  <X size={15} weight="bold" />
+                </button>
+              </div>
+            </div>
+
+            {/* Konten Dokumen */}
+            <div style={{ flex: 1, overflowY: "auto", display: "flex", alignItems: "center", justifyContent: "center", padding: "1.25rem", background: "#f9fafb" }}>
+              {/\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(docPreview.url) ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={docPreview.url}
+                  alt={docPreview.label}
+                  style={{ maxWidth: "100%", maxHeight: "60vh", borderRadius: "0.75rem", objectFit: "contain", boxShadow: "0 4px 16px rgba(0,0,0,0.1)" }}
+                />
+              ) : (
+                <iframe
+                  src={docPreview.url}
+                  title={docPreview.label}
+                  style={{ width: "100%", height: "60vh", border: "none", borderRadius: "0.75rem", background: "#fff", boxShadow: "0 4px 16px rgba(0,0,0,0.08)" }}
+                />
+              )}
+            </div>
+
+            {/* Footer — tombol Tutup */}
+            <div style={{ padding: "1.25rem 1.5rem", borderTop: "1px solid #e5e7eb", flexShrink: 0 }}>
+              <button
+                onClick={() => setDocPreview(null)}
+                style={{
+                  width: "100%", padding: "0.8rem", borderRadius: "0.75rem",
+                  background: "#18181b", color: "#fff", fontWeight: 700, border: "none", cursor: "pointer",
+                }}
+              >
+                Tutup
+              </button>
+            </div>
           </div>
         </div>
       )}
