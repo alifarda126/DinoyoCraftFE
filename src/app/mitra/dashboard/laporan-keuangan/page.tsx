@@ -29,8 +29,7 @@ export default function LaporanKeuanganPage() {
       return;
     }
 
-    // (Lanjutkan dengan logika untuk menghilangkan efek loading di halaman ini)
-    // setLoading(false); 
+    setLoading(false);
   }, [router]);
 
   const handleDownload = () => {

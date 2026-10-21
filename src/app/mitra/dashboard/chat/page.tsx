@@ -75,8 +75,7 @@ export default function SellerChatPage() {
       return;
     }
 
-    // (Lanjutkan dengan logika untuk menghilangkan efek loading di halaman ini)
-    // setLoading(false); 
+    setLoading(false);
   }, [router]);
 
   function handleTabSwitch(tab: "cs" | "customer") {

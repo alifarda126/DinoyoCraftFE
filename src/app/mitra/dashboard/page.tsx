@@ -1,12 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
-import { Storefront, Package, Receipt, Users, CurrencyCircleDollar, TrendUp, ArrowRight, X, Bank, CaretDown } from "@phosphor-icons/react";
+import { Package, Receipt, Users, CurrencyCircleDollar, TrendUp, ArrowRight, X, Bank, CaretDown } from "@phosphor-icons/react";
 import Image from "next/image";
+import axios from "axios";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/useAuthStore";
+
+interface DashboardData {
+  mitraName: string;
+  stats: {
+    totalPesanan: number;
+    produkAktif: number;
+    saldoAktif: number;
+    kunjunganProfil: number;
+  };
+  recentOrders: {
+    id: string;
+    items: number;
+    customer: string;
+    status: string;
+    imageUrl?: string;
+  }[];
+}
 
 // Local payment logos from /public/payment/ — served as static files
 const PAYMENT_METHODS = [
@@ -24,6 +41,7 @@ export default function SellerDashboardHome() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [sellerName, setSellerName] = useState("");
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const { user } = useAuthStore();
 
   // Withdraw State
@@ -33,14 +51,13 @@ export default function SellerDashboardHome() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [accountNumber, setAccountNumber] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
-  const currentBalance = 4500000;
 
-  // src/app/mitra/dashboard/page.tsx
+  // 1. Inisialisasi Auth Store
   useEffect(() => {
     useAuthStore.getState().initAuth();
   }, []);
 
-  // 2. EFFECT KEDUA: Untuk mengecek status login dan mengatur UI.
+  // 2. Fetch data dari endpoint backend & cek session
   useEffect(() => {
     const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     const storedUserStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
@@ -50,7 +67,7 @@ export default function SellerDashboardHome() {
       return;
     }
 
-    // Ekstrak data user (dari state atau localStorage)
+    // Ekstrak data user default (dari state atau localStorage)
     let activeUser = user;
     if (!activeUser && storedUserStr) {
       try {
@@ -60,34 +77,98 @@ export default function SellerDashboardHome() {
       }
     }
 
-    const name = (activeUser as any)?.store_name || (activeUser as any)?.name || "Mitra DinoyoCraft";
-    setSellerName(name);
-    setLoading(false);
+    const defaultName = (activeUser as any)?.store_name || (activeUser as any)?.name || "Mitra DinoyoCraft";
+    setSellerName(defaultName);
+
+    const fetchDashboardData = async () => {
+      try {
+        const response = await axios.get("http://localhost:5000/api/mitra/dashboard", {
+          withCredentials: true,
+          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+        });
+
+        if (response.data.success && response.data.data) {
+          const resData = response.data.data;
+          setDashboardData(resData);
+          if (resData.mitraName) {
+            setSellerName(resData.mitraName);
+          }
+        }
+      } catch (error) {
+        console.error("Gagal mengambil data dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
   }, [user, router]);
+
+  const currentBalance = dashboardData?.stats?.saldoAktif ?? 0;
 
   if (loading) return <div>Memuat data...</div>;
 
   const stats = [
-    { label: "Total Pesanan", value: "24", icon: Receipt, color: "var(--clay)" },
-    { label: "Produk Aktif", value: "12", icon: Package, color: "var(--moss)" },
-    { label: "Saldo Aktif", value: `Rp ${currentBalance.toLocaleString("id-ID")}`, icon: CurrencyCircleDollar, color: "var(--sand)", action: { label: "Tarik Saldo", onClick: () => setShowWithdraw(true) } },
-    { label: "Kunjungan Profil", value: "342", icon: Users, color: "var(--ocean, #2b6cb0)" },
+    {
+      label: "Total Pesanan",
+      value: String(dashboardData?.stats?.totalPesanan ?? 0),
+      icon: Receipt,
+      color: "var(--clay)",
+    },
+    {
+      label: "Produk Aktif",
+      value: String(dashboardData?.stats?.produkAktif ?? 0),
+      icon: Package,
+      color: "var(--moss)",
+    },
+    {
+      label: "Saldo Aktif",
+      value: `Rp ${currentBalance.toLocaleString("id-ID")}`,
+      icon: CurrencyCircleDollar,
+      color: "var(--sand)",
+      action: {
+        label: "Tarik Saldo",
+        onClick: () => setShowWithdraw(true),
+      },
+    },
+    {
+      label: "Kunjungan Profil",
+      value: String(dashboardData?.stats?.kunjunganProfil ?? 0),
+      icon: Users,
+      color: "var(--ocean, #2b6cb0)",
+    },
   ];
 
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!withdrawAmount || parseInt(withdrawAmount) > currentBalance) {
+    if (!withdrawAmount || parseInt(withdrawAmount, 10) > currentBalance) {
       toast.error("Nominal tidak valid atau melebihi saldo!");
       return;
     }
     setIsWithdrawing(true);
     // Simulate API call
-    await new Promise(res => setTimeout(res, 1000));
+    await new Promise((res) => setTimeout(res, 1000));
     setIsWithdrawing(false);
     setShowWithdraw(false);
     setWithdrawAmount("");
     toast.success("Penarikan saldo sedang diproses ke rekening Anda.");
   };
+
+  const defaultSampleImages = [
+    "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=100&q=80",
+    "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=100&q=80",
+    "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=100&q=80",
+  ];
+
+  const recentOrdersList = dashboardData?.recentOrders && dashboardData.recentOrders.length > 0
+    ? dashboardData.recentOrders.map((ord, idx) => ({
+        id: ord.id,
+        items: `${ord.items} item`,
+        buyer: ord.customer,
+        status: ord.status,
+        img: ord.imageUrl || defaultSampleImages[idx % defaultSampleImages.length],
+      }))
+    : [];
 
   return (
     <div>
@@ -142,37 +223,37 @@ export default function SellerDashboardHome() {
         <div className="card-shadow" style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", padding: "1.5rem" }}>
           <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--bark)", marginBottom: "1.25rem" }}>Pesanan Terbaru</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {[
-              { id: "ORD-20231024-001", items: "2 item", buyer: "Budi Santoso", img: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=100&q=80" },
-              { id: "ORD-20231023-002", items: "1 item", buyer: "Siti Aminah", img: "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=100&q=80" },
-              { id: "ORD-20231022-003", items: "1 item", buyer: "Joko Anwar", img: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=100&q=80" },
-            ].map((order) => (
-              <div key={order.id} onClick={() => router.push("/mitra/dashboard/pesanan")} style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "1rem", border: "1px solid var(--line-light)", borderRadius: "0.5rem",
-                cursor: "pointer", transition: "background 0.2s",
-              }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--surface)"}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
-              >
-                <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-                  <div style={{ width: 48, height: 48, background: "var(--surface)", borderRadius: "0.5rem", overflow: "hidden", flexShrink: 0 }}>
-                    <Image src={order.img} alt="" width={48} height={48} style={{ objectFit: "cover", width: "100%", height: "100%" }} />
+            {recentOrdersList.length > 0 ? (
+              recentOrdersList.map((order) => (
+                <div key={order.id} onClick={() => router.push("/mitra/dashboard/pesanan")} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "1rem", border: "1px solid var(--line-light)", borderRadius: "0.5rem",
+                  cursor: "pointer", transition: "background 0.2s",
+                }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--surface)"}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                >
+                  <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                    <div style={{ width: 48, height: 48, background: "var(--surface)", borderRadius: "0.5rem", overflow: "hidden", flexShrink: 0 }}>
+                      <Image src={order.img} alt="" width={48} height={48} style={{ objectFit: "cover", width: "100%", height: "100%" }} unoptimized />
+                    </div>
+                    <div>
+                      <p style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--bark)" }}>{order.id}</p>
+                      <p style={{ fontSize: "0.8rem", color: "var(--bark-muted)" }}>{order.items} • {order.buyer}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--bark)" }}>{order.id}</p>
-                    <p style={{ fontSize: "0.8rem", color: "var(--bark-muted)" }}>{order.items} • {order.buyer}</p>
-                  </div>
+                  <span style={{
+                    padding: "0.25rem 0.75rem", borderRadius: "9999px",
+                    fontSize: "0.75rem", fontWeight: 600,
+                    background: "var(--sand-muted)", color: "var(--sand-dark)"
+                  }}>
+                    {order.status}
+                  </span>
                 </div>
-                <span style={{
-                  padding: "0.25rem 0.75rem", borderRadius: "9999px",
-                  fontSize: "0.75rem", fontWeight: 600,
-                  background: "var(--sand-muted)", color: "var(--sand-dark)"
-                }}>
-                  Perlu Diproses
-                </span>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p style={{ fontSize: "0.85rem", color: "var(--bark-muted)", padding: "1rem 0" }}>Belum ada pesanan terbaru.</p>
+            )}
           </div>
         </div>
 
