@@ -7,6 +7,7 @@ import {
   Check, X, Storefront, MagnifyingGlass, Eye,
   IdentificationCard, FileText, CheckSquare, Warning,
   Phone, EnvelopeSimple, MapPin, CalendarBlank, User,
+  WarningCircle, ChatText
 } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
 import { adminService } from "@/services/admin.service";
@@ -20,6 +21,7 @@ type StoreRegistration = {
   address: string;
   year_started: string;
   status: "pending" | "approved" | "rejected";
+  rejection_reason?: string;
   date: string;
   docs: {
     ktp: boolean;
@@ -31,6 +33,14 @@ type StoreRegistration = {
   nib_file_url?: string;
 };
 
+const REJECTION_PRESETS = [
+  "Dokumen KTP tidak jelas, buram, atau terpotong",
+  "Surat Keterangan Usaha / NIB tidak sesuai atau tidak valid",
+  "Foto produk tidak memenuhi standar keramik (min. 3 foto berkualitas)",
+  "Data alamat workshop tidak lengkap atau tidak dapat diverifikasi",
+  "Lainnya (Tulis catatan khusus)"
+];
+
 export default function AdminVerifikasiPage() {
   const router = useRouter();
   const [registrations, setRegistrations] = useState<StoreRegistration[]>([]);
@@ -40,6 +50,12 @@ export default function AdminVerifikasiPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("semua");
   const [filterDok, setFilterDok] = useState("semua");
+
+  // State untuk modal penolakan pengajuan
+  const [rejectModalReg, setRejectModalReg] = useState<StoreRegistration | null>(null);
+  const [selectedPreset, setSelectedPreset] = useState<string>(REJECTION_PRESETS[0]);
+  const [customReason, setCustomReason] = useState<string>("");
+  const [rejecting, setRejecting] = useState<boolean>(false);
 
   // 1. Ambil data pengajuan toko dari backend
   const fetchVerifikasi = async () => {
@@ -54,9 +70,9 @@ export default function AdminVerifikasiPage() {
 
         const mappedData: StoreRegistration[] = rawData.map((item: any) => {
           let status: "pending" | "approved" | "rejected" = "pending";
-          if (item.is_verified === 1 && item.is_active === 1) {
+          if (item.is_verified === 1) {
             status = "approved";
-          } else if (item.is_verified === 0 && item.is_active === 0) {
+          } else if (item.is_verified === 2 || item.rejection_reason || (item.is_verified === 0 && item.is_active === 0)) {
             status = "rejected";
           } else {
             status = "pending";
@@ -74,6 +90,7 @@ export default function AdminVerifikasiPage() {
             address: item.workshop_address || "-",
             year_started: String(item.started_year || "-"),
             status,
+            rejection_reason: item.rejection_reason || undefined,
             date: item.created_at
               ? new Date(item.created_at).toLocaleDateString("id-ID", {
                 day: "numeric",
@@ -96,6 +113,9 @@ export default function AdminVerifikasiPage() {
       } else {
         setRegistrations([]);
       }
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("admin_verifikasi_updated"));
+      }
     } catch (error: any) {
       console.error("Gagal memuat data verifikasi:", error);
       toast.error(error?.response?.data?.message || "Gagal memuat daftar pengajuan verifikasi toko.");
@@ -109,16 +129,41 @@ export default function AdminVerifikasiPage() {
   }, []);
 
   // 2. Handler untuk Setujui atau Tolak Pengajuan
-  const handleUpdateStatus = async (id: string | number, newStatus: "approved" | "rejected") => {
+  const handleUpdateStatus = async (
+    id: string | number,
+    newStatus: "approved" | "rejected",
+    reason?: string
+  ) => {
     try {
-      const res = await adminService.verifyStore(Number(id), newStatus);
+      const res = await adminService.verifyStore(Number(id), newStatus, reason);
       toast.success(res.message || `Pengajuan toko berhasil ${newStatus === "approved" ? "disetujui" : "ditolak"}.`);
 
       setSelectedReg(null);
+      setRejectModalReg(null);
       await fetchVerifikasi();
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("admin_verifikasi_updated"));
+      }
     } catch (error: any) {
       console.error("Gagal memperbarui status:", error);
       toast.error(error?.response?.data?.message || "Gagal memperbarui status pengajuan toko.");
+    }
+  };
+
+  // Konfirmasi tolak dengan alasan
+  const handleConfirmReject = async () => {
+    if (!rejectModalReg) return;
+    setRejecting(true);
+    try {
+      let finalReason = selectedPreset;
+      if (selectedPreset === "Lainnya (Tulis catatan khusus)" || customReason.trim()) {
+        finalReason = customReason.trim()
+          ? (selectedPreset.startsWith("Lainnya") ? customReason.trim() : `${selectedPreset}. Catatan: ${customReason.trim()}`)
+          : selectedPreset;
+      }
+      await handleUpdateStatus(rejectModalReg.id, "rejected", finalReason);
+    } finally {
+      setRejecting(false);
     }
   };
 
@@ -193,9 +238,9 @@ export default function AdminVerifikasiPage() {
               <input
                 type="text"
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Cari toko atau pemilik..."
-                className="pl-9 pr-4 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                className="pl-9 pr-4 py-1.5 border border-zinc-200 rounded-lg text-sm bg-white focus:outline-none focus:border-zinc-400 placeholder-zinc-400 text-zinc-800"
               />
             </div>
             <EarthySelect
@@ -229,7 +274,7 @@ export default function AdminVerifikasiPage() {
                 <th className="p-4 font-medium">Tanggal</th>
                 <th className="p-4 font-medium">Dokumen</th>
                 <th className="p-4 font-medium">Status</th>
-                <th className="p-4 font-medium text-right">Aksi</th>
+                <th className="p-4 font-medium text-center">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -247,6 +292,11 @@ export default function AdminVerifikasiPage() {
                       <td className="p-4">
                         <div className="font-semibold text-zinc-900">{reg.store_name}</div>
                         <div className="text-sm text-zinc-500">{reg.owner_name}</div>
+                        {reg.status === "rejected" && reg.rejection_reason && (
+                          <div className="mt-1 text-xs text-red-600 bg-red-50 px-2 py-0.5 rounded border border-red-100 max-w-[280px] truncate" title={reg.rejection_reason}>
+                            Alasan: {reg.rejection_reason}
+                          </div>
+                        )}
                       </td>
                       <td className="p-4 text-sm text-zinc-600 max-w-[200px]">
                         <span className="line-clamp-2">{reg.address}</span>
@@ -271,32 +321,36 @@ export default function AdminVerifikasiPage() {
                           {reg.status === "approved" ? "Disetujui" : reg.status === "rejected" ? "Ditolak" : "Menunggu"}
                         </span>
                       </td>
-                      <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="p-4 text-center">
+                        <div className="flex items-center justify-center gap-2">
                           {reg.status === "pending" && (
                             <>
                               {/* Tolak */}
                               <button
-                                onClick={() => handleUpdateStatus(reg.id, "rejected")}
-                                className="p-1.5 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
-                                title="Tolak"
+                                onClick={() => {
+                                  setRejectModalReg(reg);
+                                  setSelectedPreset(REJECTION_PRESETS[0]);
+                                  setCustomReason("");
+                                }}
+                                className="p-1.5 rounded-md bg-red-50 text-red-600 hover:bg-red-100 transition-colors cursor-pointer"
+                                title="Tolak Pengajuan"
                               >
                                 <X size={18} weight="bold" />
                               </button>
                               {/* Setujui */}
                               <button
                                 onClick={() => handleUpdateStatus(reg.id, "approved")}
-                                className="p-1.5 rounded-md bg-green-50 text-green-600 hover:bg-green-100 transition-colors"
-                                title="Setujui"
+                                className="p-1.5 rounded-md bg-green-50 text-green-600 hover:bg-green-100 transition-colors cursor-pointer"
+                                title="Setujui Pengajuan"
                               >
                                 <Check size={18} weight="bold" />
                               </button>
                             </>
                           )}
-                          {/* Lihat Detail — selalu di paling kanan */}
+                          {/* Lihat Detail */}
                           <button
                             onClick={() => setSelectedReg(reg)}
-                            className="p-1.5 rounded-md bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-colors"
+                            className="p-1.5 rounded-md bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-colors cursor-pointer"
                             title="Lihat Detail & Persyaratan"
                           >
                             <Eye size={18} weight="bold" />
@@ -311,6 +365,141 @@ export default function AdminVerifikasiPage() {
           </table>
         </div>
       </div>
+
+      {/* ── Modal Konfirmasi Penolakan Pengajuan ── */}
+      {rejectModalReg && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 250,
+          background: "rgba(0,0,0,0.45)", backdropFilter: "blur(6px)",
+          display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem",
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: "1.25rem", width: "100%", maxWidth: 520,
+            boxShadow: "0 20px 48px rgba(0,0,0,0.2)", overflow: "hidden",
+            display: "flex", flexDirection: "column",
+          }}>
+            {/* Header Modal */}
+            <div style={{
+              background: "#ef4444",
+              padding: "1.25rem 1.5rem",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              color: "#fff",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                <WarningCircle size={22} weight="bold" />
+                <h2 style={{ fontSize: "1.05rem", fontWeight: 700, margin: 0 }}>
+                  Alasan Penolakan Pengajuan Toko
+                </h2>
+              </div>
+              <button
+                onClick={() => setRejectModalReg(null)}
+                style={{
+                  background: "rgba(255,255,255,0.2)", border: "none", borderRadius: "50%",
+                  width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", color: "#fff",
+                }}
+              >
+                <X size={15} weight="bold" />
+              </button>
+            </div>
+
+            {/* Body Modal */}
+            <div style={{ padding: "1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div style={{ background: "#fef2f2", border: "1px solid #fee2e2", borderRadius: "0.75rem", padding: "0.75rem 1rem" }}>
+                <p style={{ margin: 0, fontSize: "0.82rem", color: "#991b1b" }}>
+                  Menolak pengajuan toko: <strong>{rejectModalReg.store_name}</strong> ({rejectModalReg.owner_name})
+                </p>
+                <p style={{ margin: "0.25rem 0 0", fontSize: "0.72rem", color: "#b91c1c" }}>
+                  Alasan penolakan ini akan dikirimkan dan muncul pada dashboard profil mitra agar dapat diperbaiki.
+                </p>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 700, color: "var(--bark)", marginBottom: "0.5rem" }}>
+                  Pilih Alasan Penolakan Utama:
+                </label>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.45rem" }}>
+                  {REJECTION_PRESETS.map((preset) => (
+                    <label
+                      key={preset}
+                      style={{
+                        display: "flex", alignItems: "flex-start", gap: "0.5rem",
+                        padding: "0.55rem 0.75rem", borderRadius: "0.5rem",
+                        border: selectedPreset === preset ? "1.5px solid #ef4444" : "1px solid #e5e7eb",
+                        background: selectedPreset === preset ? "#fef2f2" : "#fafafa",
+                        cursor: "pointer", fontSize: "0.8rem", color: "var(--bark)",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="rejectionPreset"
+                        checked={selectedPreset === preset}
+                        onChange={() => setSelectedPreset(preset)}
+                        style={{ marginTop: "0.15rem" }}
+                      />
+                      <span>{preset}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.82rem", fontWeight: 700, color: "var(--bark)", marginBottom: "0.4rem" }}>
+                  Catatan Tambahan untuk Mitra (Opsional):
+                </label>
+                <textarea
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  placeholder="Contoh: Foto KTP terpotong pada bagian NIK. Mohon foto ulang dengan pencahayaan terang."
+                  rows={3}
+                  style={{
+                    width: "100%", padding: "0.65rem 0.85rem",
+                    borderRadius: "0.625rem", border: "1.5px solid #d1d5db",
+                    fontSize: "0.82rem", outline: "none", resize: "vertical",
+                    boxSizing: "border-box", fontFamily: "inherit",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Footer Modal */}
+            <div style={{
+              padding: "1rem 1.5rem", borderTop: "1px solid #e5e7eb",
+              display: "flex", gap: "0.75rem", justifyContent: "flex-end", background: "#fafafa"
+            }}>
+              <button
+                type="button"
+                onClick={() => setRejectModalReg(null)}
+                disabled={rejecting}
+                style={{
+                  padding: "0.65rem 1.15rem", borderRadius: "0.625rem",
+                  border: "1px solid #d1d5db", background: "#fff",
+                  color: "#374151", fontWeight: 600, fontSize: "0.85rem",
+                  cursor: "pointer",
+                }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReject}
+                disabled={rejecting}
+                style={{
+                  padding: "0.65rem 1.25rem", borderRadius: "0.625rem",
+                  border: "none", background: "#dc2626",
+                  color: "#fff", fontWeight: 700, fontSize: "0.85rem",
+                  cursor: rejecting ? "not-allowed" : "pointer",
+                  display: "flex", alignItems: "center", gap: "0.4rem",
+                  boxShadow: "0 2px 8px rgba(220,38,38,0.25)",
+                }}
+              >
+                {rejecting ? "Menolak..." : "Konfirmasi Tolak Pengajuan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal Detail & Persyaratan ── */}
       {selectedReg && (
@@ -361,81 +550,77 @@ export default function AdminVerifikasiPage() {
               </button>
             </div>
 
-            {/* Body Modal — scrollable */}
-            <div style={{ overflowY: "auto", flex: 1, padding: "1.5rem" }}>
-
-              {/* Info Pendaftar */}
-              <h3 style={{ fontSize: "0.8rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#71717a", marginBottom: "0.75rem" }}>
-                Data Pendaftar
-              </h3>
-              <div style={{
-                display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem",
-                background: "#f9fafb", borderRadius: "0.75rem", padding: "1rem",
-                border: "1px solid #e5e7eb", marginBottom: "1.5rem",
-              }}>
-                {[
-                  { icon: User, label: "Nama Pemilik", value: selectedReg.owner_name },
-                  { icon: Storefront, label: "Nama Toko", value: selectedReg.store_name },
-                  { icon: Phone, label: "No. HP (WA)", value: selectedReg.phone },
-                  { icon: EnvelopeSimple, label: "Email", value: selectedReg.email },
-                  { icon: MapPin, label: "Alamat", value: selectedReg.address },
-                  { icon: CalendarBlank, label: "Mulai Usaha", value: selectedReg.year_started },
-                ].map((row, i) => (
-                  <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start", gridColumn: row.label === "Alamat" ? "1 / -1" : "auto" }}>
-                    <row.icon size={16} color="#b85c3c" style={{ flexShrink: 0, marginTop: "0.1rem" }} />
-                    <div>
-                      <p style={{ fontSize: "0.7rem", color: "#9ca3af", margin: 0 }}>{row.label}</p>
-                      <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "#111827", margin: 0 }}>{row.value}</p>
-                    </div>
+            {/* Isi Modal */}
+            <div style={{ padding: "1.5rem", overflowY: "auto", flex: 1 }}>
+              {/* Alasan penolakan jika ada */}
+              {selectedReg.status === "rejected" && selectedReg.rejection_reason && (
+                <div style={{
+                  background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "0.75rem",
+                  padding: "0.85rem 1rem", marginBottom: "1.25rem", display: "flex", gap: "0.6rem", alignItems: "flex-start",
+                }}>
+                  <WarningCircle size={20} color="#dc2626" weight="fill" style={{ flexShrink: 0, marginTop: 1 }} />
+                  <div>
+                    <p style={{ margin: "0 0 0.2rem", fontSize: "0.8rem", fontWeight: 700, color: "#991b1b" }}>
+                      Catatan Penolakan Admin:
+                    </p>
+                    <p style={{ margin: 0, fontSize: "0.8rem", color: "#b91c1c", lineHeight: 1.5 }}>
+                      {selectedReg.rejection_reason}
+                    </p>
                   </div>
-                ))}
+                </div>
+              )}
+
+              {/* Info Mitra */}
+              <div style={{
+                background: "#fafaf9", border: "1px solid #e7e5e4", borderRadius: "0.75rem",
+                padding: "1rem", marginBottom: "1.25rem",
+              }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", fontSize: "0.82rem" }}>
+                  <div>
+                    <span style={{ color: "#78716c", display: "block", fontSize: "0.72rem", marginBottom: "0.15rem" }}>PEMILIK USAHA</span>
+                    <strong style={{ color: "var(--bark)" }}>{selectedReg.owner_name}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: "#78716c", display: "block", fontSize: "0.72rem", marginBottom: "0.15rem" }}>NOMOR WHATSAPP</span>
+                    <strong style={{ color: "var(--bark)" }}>{selectedReg.phone}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: "#78716c", display: "block", fontSize: "0.72rem", marginBottom: "0.15rem" }}>EMAIL</span>
+                    <strong style={{ color: "var(--bark)" }}>{selectedReg.email}</strong>
+                  </div>
+                  <div>
+                    <span style={{ color: "#78716c", display: "block", fontSize: "0.72rem", marginBottom: "0.15rem" }}>TAHUN MULAI</span>
+                    <strong style={{ color: "var(--bark)" }}>{selectedReg.year_started}</strong>
+                  </div>
+                </div>
+                <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid #e7e5e4", fontSize: "0.82rem" }}>
+                  <span style={{ color: "#78716c", display: "block", fontSize: "0.72rem", marginBottom: "0.15rem" }}>ALAMAT WORKSHOP</span>
+                  <span style={{ color: "var(--bark)" }}>{selectedReg.address}</span>
+                </div>
               </div>
 
-              {/* Verifikasi Persyaratan */}
-              <h3 style={{ fontSize: "0.8rem", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "#71717a", marginBottom: "0.75rem" }}>
-                Cek Persyaratan Pendaftaran
+              {/* Checklist Persyaratan */}
+              <h3 style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--bark)", marginBottom: "0.75rem" }}>
+                Pemeriksaan Kelengkapan Dokumen &amp; SOP
               </h3>
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", marginBottom: "1.5rem" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>
                 {DOCS_LIST.map(doc => {
                   const ok = selectedReg.docs[doc.key];
-
-                  // 1. Ambil URL file secara langsung
-                  let fileUrl = "";
-                  if (doc.key === "ktp") fileUrl = selectedReg.ktp_file_url || "";
-                  if (doc.key === "usaha") fileUrl = selectedReg.nib_file_url || "";
-
-                  // 2. Bersihkan URL dan Ekstrak Nama Filenya Saja
-                  let docUrl = "";
-                  if (fileUrl && fileUrl.trim() !== "" && fileUrl !== "null" && fileUrl !== "undefined") {
-                    if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
-                      docUrl = fileUrl;
-                    } else {
-                      // Memotong alamat fisik ('C:/...' atau 'C:\...') dan hanya mengambil nama filenya
-                      const fileName = fileUrl.split(/[\/\\]/).pop();
-                      if (fileName) {
-                        const apiHost = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:5000";
-                        docUrl = `${apiHost}/uploads/${fileName}`;
-                      }
-                    }
-                  }
+                  const docUrl = doc.key === "ktp" ? selectedReg.ktp_file_url : doc.key === "usaha" ? selectedReg.nib_file_url : null;
 
                   return (
-                    <div key={doc.key} style={{
-                      display: "flex", alignItems: "center", justifyContent: "space-between",
-                      padding: "0.85rem 1rem", borderRadius: "0.75rem",
-                      border: `1.5px solid ${ok ? "#d1fae5" : "#fee2e2"}`,
-                      background: ok ? "#f0fdf4" : "#fff5f5",
-                    }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                        <div style={{
-                          width: 32, height: 32, borderRadius: "0.5rem",
-                          background: ok ? "#dcfce7" : "#fee2e2",
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          color: ok ? "#16a34a" : "#dc2626",
-                        }}>
-                          <doc.icon size={16} weight="duotone" />
-                        </div>
-                        <span style={{ fontSize: "0.875rem", fontWeight: 500, color: "#111827" }}>
+                    <div
+                      key={doc.key}
+                      style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "0.75rem 1rem", borderRadius: "0.6rem",
+                        background: ok ? "rgba(22,163,74,0.06)" : "rgba(220,38,38,0.06)",
+                        border: `1px solid ${ok ? "rgba(22,163,74,0.2)" : "rgba(220,38,38,0.2)"}`,
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+                        <doc.icon size={18} color={ok ? "#16a34a" : "#dc2626"} weight="duotone" />
+                        <span style={{ fontSize: "0.83rem", fontWeight: 600, color: "var(--bark)" }}>
                           {doc.label}
                         </span>
                       </div>
@@ -503,7 +688,11 @@ export default function AdminVerifikasiPage() {
                 display: "flex", gap: "0.75rem", flexShrink: 0,
               }}>
                 <button
-                  onClick={() => handleUpdateStatus(selectedReg.id, "rejected")}
+                  onClick={() => {
+                    setRejectModalReg(selectedReg);
+                    setSelectedPreset(REJECTION_PRESETS[0]);
+                    setCustomReason("");
+                  }}
                   style={{
                     flex: 1, padding: "0.8rem", borderRadius: "0.75rem",
                     background: "#fff", border: "1.5px solid #fca5a5",
@@ -561,7 +750,7 @@ export default function AdminVerifikasiPage() {
               display: "flex", flexDirection: "column", maxHeight: "90vh",
             }}
           >
-            {/* Header — sama dengan modal verifikasi */}
+            {/* Header */}
             <div style={{
               background: "linear-gradient(135deg,#3b3025,#5a3d28)",
               padding: "1.25rem 1.5rem",
@@ -629,7 +818,7 @@ export default function AdminVerifikasiPage() {
               )}
             </div>
 
-            {/* Footer — tombol Tutup */}
+            {/* Footer */}
             <div style={{ padding: "1.25rem 1.5rem", borderTop: "1px solid #e5e7eb", flexShrink: 0 }}>
               <button
                 onClick={() => setDocPreview(null)}

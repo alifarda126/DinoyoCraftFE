@@ -14,13 +14,7 @@ import {
   List
 } from "@phosphor-icons/react";
 import { clearDemoSession } from "@/lib/utils/demo";
-
-// ─── Badge notifikasi mock (angka nyata akan dari API) ───────────────────────
-const NAV_BADGES: Record<string, number> = {
-  "/admin/verifikasi": 2,   // 2 pengajuan toko menunggu
-  "/admin/moderasi": 5,     // 5 laporan belum ditangani
-  "/admin/chat": 3,         // 3 pesan belum dibaca
-};
+import { adminService } from "@/services/admin.service";
 
 // ─── Komponen badge angka kecil ───────────────────────────────────────────────
 function NavBadge({ count }: { count: number }) {
@@ -52,6 +46,81 @@ export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
+
+  // Badge dinamis mengikuti jumlah data riil yang membutuhkan tindakan
+  const [badges, setBadges] = useState<Record<string, number>>({
+    "/admin/verifikasi": 0,
+    "/admin/moderasi": 4, // 4 laporan menunggu tindakan
+    "/admin/chat": 2,     // 2 kontak dengan pesan belum dibaca
+  });
+
+  useEffect(() => {
+    async function updateBadges() {
+      try {
+        const stats = await adminService.getDashboardStats();
+        if (stats?.success && typeof stats?.data?.pengajuanTokoBaru !== "undefined") {
+          const verifCount = Number(stats.data.pengajuanTokoBaru);
+          setBadges(prev => ({
+            ...prev,
+            "/admin/verifikasi": verifCount,
+          }));
+        } else {
+          const res = await adminService.getVerifikasiList();
+          const list = res?.data || res;
+          if (Array.isArray(list)) {
+            const pending = list.filter((item: any) => item.is_verified === 0 && !item.rejection_reason).length;
+            setBadges(prev => ({
+              ...prev,
+              "/admin/verifikasi": pending,
+            }));
+          }
+        }
+      } catch (err) {
+        console.warn("Gagal memuat badge count di sidebar:", err);
+      }
+    }
+
+    updateBadges();
+
+    const handleVerifikasiUpdate = () => {
+      updateBadges();
+    };
+
+    window.addEventListener("admin_verifikasi_updated", handleVerifikasiUpdate);
+    return () => {
+      window.removeEventListener("admin_verifikasi_updated", handleVerifikasiUpdate);
+    };
+  }, [pathname]);
+
+  // Otomatis menutup saat zoom > 100%, otomatis membuka saat zoom <= 100%
+  useEffect(() => {
+    function handleZoomAndResize() {
+      if (typeof window === "undefined") return;
+      const ratio = window.outerWidth && window.innerWidth ? window.outerWidth / window.innerWidth : 1;
+      
+      // Patokan: jika zoom > 100% (ambang batas 1.04 untuk 110% ke atas) -> otomatis menutup (collapsed)
+      // Jika zoom <= 100% (100%, 90%, 80%, dst.) -> otomatis membuka (expanded)
+      if (ratio > 1.04) {
+        setIsCollapsed(true);
+      } else {
+        setIsCollapsed(false);
+      }
+    }
+
+    handleZoomAndResize();
+
+    window.addEventListener("resize", handleZoomAndResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleZoomAndResize);
+    }
+
+    return () => {
+      window.removeEventListener("resize", handleZoomAndResize);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", handleZoomAndResize);
+      }
+    };
+  }, []);
 
   async function handleSignOut() {
     clearDemoSession();
@@ -97,7 +166,7 @@ export default function AdminSidebar() {
       <nav style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
         {navItems.map((item) => {
           const isActive = pathname === item.href;
-          const badge = NAV_BADGES[item.href] ?? 0;
+          const badge = badges[item.href] ?? 0;
           return (
             <Link key={item.href} href={item.href} style={{
               display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: isCollapsed ? "center" : "flex-start",

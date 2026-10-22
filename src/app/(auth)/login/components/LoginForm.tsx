@@ -66,6 +66,12 @@ function LoginFormContent() {
         const role = userData?.role;
         if (role === "admin") {
           router.push("/admin");
+        } else if (role === "mitra") {
+          if (userData?.is_verified !== 1) {
+            router.push("/mitra/dashboard/profil");
+          } else {
+            router.push("/mitra/dashboard");
+          }
         } else {
           router.push("/mitra/dashboard");
         }
@@ -110,6 +116,12 @@ function LoginFormContent() {
         const role = userData?.role;
         if (role === "admin") {
           router.push("/admin");
+        } else if (role === "mitra") {
+          if (userData?.is_verified !== 1) {
+            router.push("/mitra/dashboard/profil");
+          } else {
+            router.push("/mitra/dashboard");
+          }
         } else {
           router.push("/mitra/dashboard");
         }

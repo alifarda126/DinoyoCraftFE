@@ -257,7 +257,7 @@ export const login = async (req: Request, res: Response) => {
     const { email, password } = req.body;
 
     // Simulasi Cek Database (Mock)
-    if (email === 'admin@dinoyocraft.com' && password === 'Admin123') {
+    if ((email === 'csdinoyocraft@gmail.com' || email === 'admin@dinoyocraft.com') && password === 'Admin123') {
         const user = { id: 1, name: 'Admin Utama', role: 'admin' };
         
         // Buat JWT Token

@@ -40,10 +40,10 @@ const DEMO_SESSIONS: Record<DemoRole, DemoSession> = {
   },
   admin: {
     role: "admin",
-    user: { id: "demo-admin-0000-0000-0000-000000000002", email: "admin@dinoyocraft.id" },
+    user: { id: "demo-admin-0000-0000-0000-000000000002", email: "csdinoyocraft@gmail.com" },
     profile: {
       id: "demo-admin-0000-0000-0000-000000000002",
-      email: "admin@dinoyocraft.id",
+      email: "csdinoyocraft@gmail.com",
       full_name: "Admin DinoyoCraft",
       phone: "081987654321",
       role: "admin",

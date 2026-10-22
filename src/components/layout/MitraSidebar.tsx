@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import {
   Storefront, Package, Receipt, SignOut, ArrowLeft, ChartLineUp,
-  IdentificationCard, ChatCircle, User, List
+  IdentificationCard, ChatCircle, User, List, Lock
 } from "@phosphor-icons/react";
 import { clearDemoSession, getDemoSession } from "@/lib/utils/demo";
 import { useAuthStore } from "@/store/useAuthStore";
+import { toast } from "sonner";
 
 // ─── Badge notifikasi mock (angka nyata akan dari API) ───────────────────────
 const NAV_BADGES: Record<string, number> = {
@@ -53,11 +54,43 @@ export default function MitraSidebar() {
     setSession(getDemoSession());
   }, []);
 
+  // Otomatis menutup saat zoom > 100%, otomatis membuka saat zoom <= 100%
+  useEffect(() => {
+    function handleZoomAndResize() {
+      if (typeof window === "undefined") return;
+      const ratio = window.outerWidth && window.innerWidth ? window.outerWidth / window.innerWidth : 1;
+      
+      // Patokan: jika zoom > 100% (ambang batas 1.04 untuk 110% ke atas) -> otomatis menutup (collapsed)
+      // Jika zoom <= 100% (100%, 90%, 80%, dst.) -> otomatis terbuka (expanded)
+      if (ratio > 1.04) {
+        setIsCollapsed(true);
+      } else {
+        setIsCollapsed(false);
+      }
+    }
+
+    handleZoomAndResize();
+
+    window.addEventListener("resize", handleZoomAndResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleZoomAndResize);
+    }
+
+    return () => {
+      window.removeEventListener("resize", handleZoomAndResize);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", handleZoomAndResize);
+      }
+    };
+  }, []);
+
   async function handleSignOut() {
     logout();
     clearDemoSession();
     router.push("/login");
   }
+
+  const isUnverified = user && user.role === "mitra" && user.is_verified !== 1 && user.is_verified !== true;
 
   const navItems = [
     { href: "/mitra/dashboard/profil", icon: User, label: "Profil Toko" },
@@ -100,7 +133,7 @@ export default function MitraSidebar() {
 
       {/* Profil Toko mini */}
       <Link
-        href="/mitra/dashboard/toko-saya"
+        href={isUnverified ? "/mitra/dashboard/profil" : "/mitra/dashboard/toko-saya"}
         style={{
           display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: isCollapsed ? "center" : "flex-start",
           background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)",
@@ -125,7 +158,9 @@ export default function MitraSidebar() {
               <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "#fff", margin: 0, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>
                 {sellerName}
               </p>
-              <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", margin: 0, whiteSpace: "nowrap" }}>Toko Saya</p>
+              <p style={{ fontSize: "0.7rem", color: "rgba(255,255,255,0.5)", margin: 0, whiteSpace: "nowrap" }}>
+                {isUnverified ? "Verifikasi Profil" : "Toko Saya"}
+              </p>
             </div>
             <IdentificationCard size={16} color="rgba(255,255,255,0.4)" style={{ marginLeft: "auto", flexShrink: 0 }} />
           </>
@@ -135,34 +170,68 @@ export default function MitraSidebar() {
       <nav style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
         {navItems.map((item) => {
           const isActive = pathname === item.href;
+          const isItemLocked = isUnverified && item.href !== "/mitra/dashboard/profil";
+
+          const handleClick = (e: React.MouseEvent) => {
+            if (isItemLocked) {
+              e.preventDefault();
+              toast.info("Menu ini masih terkunci. Akun toko Anda sedang menunggu atau memerlukan verifikasi.");
+            }
+          };
+
           return (
-            <Link key={item.href} href={item.href} style={{
-              display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: isCollapsed ? "center" : "flex-start",
-              padding: isCollapsed ? "0.75rem 0" : "0.75rem 1rem", borderRadius: "0.5rem",
-              textDecoration: "none", position: "relative",
-              background: isActive ? "rgba(255,255,255,0.1)" : "transparent",
-              color: isActive ? "#ffffff" : "rgba(255,255,255,0.6)",
-              fontWeight: isActive ? 700 : 500,
-              transition: "background 0.2s, color 0.2s",
-            }}
+            <Link 
+              key={item.href} 
+              href={isItemLocked ? "/mitra/dashboard/profil" : item.href} 
+              onClick={handleClick}
+              style={{
+                display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: isCollapsed ? "center" : "flex-start",
+                padding: isCollapsed ? "0.75rem 0" : "0.75rem 1rem", borderRadius: "0.5rem",
+                textDecoration: "none", position: "relative",
+                background: isActive ? "rgba(255,255,255,0.1)" : "transparent",
+                color: isItemLocked ? "rgba(255,255,255,0.35)" : isActive ? "#ffffff" : "rgba(255,255,255,0.6)",
+                fontWeight: isActive ? 700 : 500,
+                cursor: isItemLocked ? "not-allowed" : "pointer",
+                transition: "background 0.2s, color 0.2s",
+                opacity: isItemLocked ? 0.5 : 1,
+              }}
               onMouseEnter={e => {
-                if (!isActive) {
+                if (!isActive && !isItemLocked) {
                   (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)";
                   (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.85)";
                 }
               }}
               onMouseLeave={e => {
-                if (!isActive) {
+                if (!isActive && !isItemLocked) {
                   (e.currentTarget as HTMLElement).style.background = "transparent";
                   (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.6)";
                 }
               }}
             >
-            <item.icon size={20} weight={isActive ? "bold" : "regular"} style={{ flexShrink: 0 }} />
-              {!isCollapsed && <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.label}>{item.label}</span>}
-              {!isCollapsed && <NavBadge count={NAV_BADGES[item.href] ?? 0} />}
-              {isCollapsed && (NAV_BADGES[item.href] ?? 0) > 0 && (
-                <div style={{ position: "absolute", top: 4, right: 12, width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
+              <item.icon size={20} weight={isActive ? "bold" : "regular"} style={{ flexShrink: 0 }} />
+              {!isCollapsed && (
+                <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.label}>
+                  {item.label}
+                </span>
+              )}
+              
+              {isItemLocked && !isCollapsed && (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", gap: "0.2rem",
+                  fontSize: "0.62rem", color: "rgba(255,255,255,0.45)",
+                  background: "rgba(255,255,255,0.08)", padding: "0.15rem 0.4rem",
+                  borderRadius: "0.35rem", fontWeight: 600,
+                }}>
+                  <Lock size={10} weight="bold" /> Terkunci
+                </span>
+              )}
+
+              {!isItemLocked && !isCollapsed && <NavBadge count={NAV_BADGES[item.href] ?? 0} />}
+              
+              {isCollapsed && isItemLocked && (
+                <div style={{ position: "absolute", top: 6, right: 10 }}>
+                  <Lock size={10} color="rgba(255,255,255,0.4)" weight="bold" />
+                </div>
               )}
             </Link>
           );

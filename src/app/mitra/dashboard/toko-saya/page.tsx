@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useRouter } from 'next/navigation';
-import { formatRupiah } from '@/utils/formatCurrency';
-import { FiEdit2, FiShare2, FiMapPin, FiSearch } from 'react-icons/fi';
+import { PencilSimple as FiEdit2, ShareNetwork as FiShare2, MapPin as FiMapPin, MagnifyingGlass as FiSearch } from '@phosphor-icons/react';
 import { toast } from 'sonner';
 
 interface ProductItem {
@@ -28,6 +27,9 @@ interface StoreProfileData {
   };
   products: ProductItem[];
 }
+
+const formatRupiah = (val: number) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
 // Sample fallback items matching the exact reference UI
 const DEFAULT_PRODUCTS: ProductItem[] = [

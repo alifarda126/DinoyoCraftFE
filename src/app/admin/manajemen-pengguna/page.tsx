@@ -9,7 +9,7 @@ import { Toaster, toast } from "sonner";
 const INITIAL_USERS = [
   { id: 1, name: "Budi Santoso", email: "budi@example.com", role: "Customer", status: "Active", joined: "12 Okt 2023" },
   { id: 2, name: "Siti Rahma", email: "siti.rahma@example.com", role: "Seller", status: "Active", joined: "15 Okt 2023" },
-  { id: 3, name: "Admin Utama", email: "admin@dinoyocraft.com", role: "Admin", status: "Active", joined: "01 Jan 2023" },
+  { id: 3, name: "Admin Utama", email: "csdinoyocraft@gmail.com", role: "Admin", status: "Active", joined: "01 Jan 2023" },
   { id: 4, name: "Andi Saputra", email: "andi.s@example.com", role: "Customer", status: "Suspended", joined: "20 Nov 2023" },
 ];
 

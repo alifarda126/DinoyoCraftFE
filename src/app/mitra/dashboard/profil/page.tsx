@@ -8,7 +8,9 @@ import api from "@/lib/axios";
 import {
   Camera, Storefront, MapPin, Phone, EnvelopeSimple,
   CalendarBlank, Globe, InstagramLogo, CheckCircle,
-  FloppyDisk, User, IdentificationCard,
+  FloppyDisk, User, IdentificationCard, WarningCircle,
+  Clock, UploadSimple, X, ArrowRight, FileText, Check,
+  LockKey, ChatText, Warning, Eye,
 } from "@phosphor-icons/react";
 
 type ProfileData = {
@@ -62,14 +64,43 @@ const getImageUrl = (path?: string | null) => {
   return `${apiHost}${path.startsWith("/") ? "" : "/"}${path}`;
 };
 
+const isCustomAvatar = (url?: string | null) => {
+  if (!url) return false;
+  if (url.includes("googleusercontent.com") || url.includes("google.com")) {
+    return false;
+  }
+  return true;
+};
+
 export default function SellerProfilPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isVerified, setIsVerified] = useState(true);
+
+  // Status Verifikasi: 'pending' (0) | 'approved' (1) | 'rejected' (2)
+  const [verificationStatus, setVerificationStatus] = useState<"pending" | "approved" | "rejected">("pending");
+  const [rejectionReason, setRejectionReason] = useState<string | null>(null);
+
+  // Dokumen dari backend
+  const [docsData, setDocsData] = useState<{
+    ktp_file_url?: string | null;
+    nib_file_url?: string | null;
+    sample_product_images?: string[] | string | null;
+  }>({});
+
+  // Modals & form re-upload
+  const [isDocModalOpen, setIsDocModalOpen] = useState(false);
+  const [isPopupAlertOpen, setIsPopupAlertOpen] = useState(false);
+  const [reuploadKtp, setReuploadKtp] = useState<File | null>(null);
+  const [reuploadNib, setReuploadNib] = useState<File | null>(null);
+  const [reuploadProducts, setReuploadProducts] = useState<File[]>([]);
+  const [reuploadSubmitting, setReuploadSubmitting] = useState(false);
+
   const [profile, setProfile] = useState<ProfileData>(INITIAL);
   const [preview, setPreview] = useState<string>("");
+  const [imgError, setImgError] = useState(false);
   const [bannerPreview, setBannerPreview] = useState<string>(
     "https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=1200&auto=format&fit=crop"
   );
@@ -86,6 +117,108 @@ export default function SellerProfilPage() {
   const [regErrors, setRegErrors] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
   const bannerRef = useRef<HTMLInputElement>(null);
+
+  // Kelengkapan dokumen
+  const hasKtp = Boolean(docsData.ktp_file_url && docsData.ktp_file_url.trim() !== "" && docsData.ktp_file_url !== "null");
+  const hasNib = Boolean(docsData.nib_file_url && docsData.nib_file_url.trim() !== "" && docsData.nib_file_url !== "null");
+
+  let productImagesList: string[] = [];
+  if (Array.isArray(docsData.sample_product_images)) {
+    productImagesList = docsData.sample_product_images;
+  } else if (typeof docsData.sample_product_images === "string" && docsData.sample_product_images.trim()) {
+    try {
+      const parsed = JSON.parse(docsData.sample_product_images);
+      if (Array.isArray(parsed)) productImagesList = parsed;
+      else productImagesList = [docsData.sample_product_images];
+    } catch {
+      productImagesList = [docsData.sample_product_images];
+    }
+  }
+  const hasProducts = productImagesList.length >= 1;
+  const isDocsIncomplete = !hasKtp || !hasNib || !hasProducts;
+
+  // Fungsi fetch data profil & status verifikasi dari backend
+  async function fetchProfileData() {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!storedToken) {
+      setLoading(false);
+      return;
+    }
+    try {
+      const res = await api.get("/auth/profile");
+      if (res.data?.success && res.data?.data) {
+        const d = res.data.data;
+        setProfile(prev => ({
+          ...prev,
+          ownerName: d.name || prev.ownerName,
+          storeName: d.store_name || prev.storeName,
+          phone: d.whatsapp_number || prev.phone,
+          email: d.email || prev.email,
+          address: d.workshop_address || prev.address,
+          yearStarted: d.started_year ? String(d.started_year) : prev.yearStarted,
+          description: d.description || prev.description,
+          website: d.website || prev.website,
+          instagram: d.instagram || prev.instagram,
+        }));
+        if (d.avatar_url && isCustomAvatar(d.avatar_url)) {
+          setPreview(getImageUrl(d.avatar_url));
+        } else {
+          setPreview("");
+        }
+        if (d.banner_url) {
+          setBannerPreview(getImageUrl(d.banner_url));
+        }
+
+        // Dokumen & verifikasi
+        setDocsData({
+          ktp_file_url: d.ktp_file_url,
+          nib_file_url: d.nib_file_url,
+          sample_product_images: d.sample_product_images,
+        });
+
+        const reason = d.rejection_reason || null;
+        setRejectionReason(reason);
+
+        let status: "pending" | "approved" | "rejected" = "pending";
+        if (d.is_verified === 1 || d.is_verified === true) {
+          status = "approved";
+        } else if (d.is_verified === 2 || reason) {
+          status = "rejected";
+        } else {
+          status = "pending";
+        }
+        setVerificationStatus(status);
+        setIsVerified(status === "approved");
+
+        // Tampilkan pop-up pengumuman verifikasi pertama kali jika toko belum terverifikasi
+        if (status !== "approved") {
+          const popupKey = `has_seen_popup_${d.id || "mitra"}_${status}`;
+          if (typeof window !== "undefined" && !sessionStorage.getItem(popupKey)) {
+            setIsPopupAlertOpen(true);
+            sessionStorage.setItem(popupKey, "1");
+          }
+        }
+
+        // Sinkronisasi status mutakhir ke localStorage
+        if (typeof window !== "undefined") {
+          const userStr = localStorage.getItem("user");
+          let parsedUser = {};
+          try { parsedUser = userStr ? JSON.parse(userStr) : {}; } catch {}
+          localStorage.setItem("user", JSON.stringify({
+            ...parsedUser,
+            name: d.name || profile.ownerName,
+            store_name: d.store_name || profile.storeName,
+            is_verified: d.is_verified,
+            rejection_reason: reason,
+          }));
+        }
+      }
+    } catch (err) {
+      console.warn("Gagal memuat profil toko dari backend:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
@@ -106,8 +239,10 @@ export default function SellerProfilPage() {
           storeName: u.store_name || prev.storeName,
           email: u.email || prev.email,
         }));
-        if (u.avatar_url) {
+        if (u.avatar_url && isCustomAvatar(u.avatar_url)) {
           setPreview(getImageUrl(u.avatar_url));
+        } else {
+          setPreview("");
         }
       } catch (e) {
         console.error("Gagal parse stored user:", e);
@@ -117,46 +252,7 @@ export default function SellerProfilPage() {
       setIsNewRegistration(session.isNewRegistration || false);
     }
 
-    // Ambil data profil mutakhir dari database Backend
-    async function fetchProfile() {
-      if (!storedToken) {
-        setLoading(false);
-        return;
-      }
-      try {
-        const res = await api.get("/auth/profile");
-        if (res.data?.success && res.data?.data) {
-          const d = res.data.data;
-          setProfile(prev => ({
-            ...prev,
-            ownerName: d.name || prev.ownerName,
-            storeName: d.store_name || prev.storeName,
-            phone: d.whatsapp_number || prev.phone,
-            email: d.email || prev.email,
-            address: d.workshop_address || prev.address,
-            yearStarted: d.started_year ? String(d.started_year) : prev.yearStarted,
-            description: d.description || prev.description,
-            website: d.website || prev.website,
-            instagram: d.instagram || prev.instagram,
-          }));
-          if (d.avatar_url) {
-            setPreview(getImageUrl(d.avatar_url));
-          }
-          if (d.banner_url) {
-            setBannerPreview(getImageUrl(d.banner_url));
-          }
-          if (typeof d.is_verified !== "undefined") {
-            setIsVerified(d.is_verified === 1 || d.is_verified === true);
-          }
-        }
-      } catch (err) {
-        console.warn("Gagal memuat profil toko dari backend:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchProfile();
+    fetchProfileData();
   }, [router]);
 
   function handleChange(field: keyof ProfileData, value: string) {
@@ -170,7 +266,9 @@ export default function SellerProfilPage() {
     setAvatarFile(file);
     const url = URL.createObjectURL(file);
     setPreview(url);
+    setImgError(false);
     setSaved(false);
+    toast.success("Foto profil toko dipilih! Klik 'Simpan Perubahan' untuk menerapkan.");
   }
 
   function handleBannerChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -181,6 +279,62 @@ export default function SellerProfilPage() {
     setBannerPreview(url);
     setSaved(false);
     toast.success("Banner dipilih! Klik 'Simpan Perubahan' untuk menerapkan.");
+  }
+
+  async function handleReuploadSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reuploadKtp && !reuploadNib && reuploadProducts.length === 0) {
+      toast.error("Harap pilih minimal satu file dokumen untuk diperbaiki/diunggah.");
+      return;
+    }
+
+    setReuploadSubmitting(true);
+    try {
+      const formData = new FormData();
+      if (reuploadKtp) formData.append("ktp_file", reuploadKtp);
+      if (reuploadNib) formData.append("nib_file", reuploadNib);
+      if (reuploadProducts.length > 0) {
+        reuploadProducts.forEach(file => {
+          formData.append("product_images", file);
+        });
+      }
+
+      const res = await api.post("/auth/reupload-docs", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (res.data?.success) {
+        toast.success(res.data.message || "Dokumen berhasil diajukan ulang!");
+        setIsDocModalOpen(false);
+        setIsPopupAlertOpen(false);
+        setVerificationStatus("pending");
+        setRejectionReason(null);
+        setIsVerified(false);
+        setReuploadKtp(null);
+        setReuploadNib(null);
+        setReuploadProducts([]);
+
+        // Sinkronisasi status di localStorage
+        if (typeof window !== "undefined") {
+          const uStr = localStorage.getItem("user");
+          if (uStr) {
+            try {
+              const u = JSON.parse(uStr);
+              localStorage.setItem("user", JSON.stringify({ ...u, is_verified: 0, rejection_reason: undefined }));
+            } catch {}
+          }
+        }
+
+        await fetchProfileData();
+      } else {
+        toast.error(res.data?.message || "Gagal mengunggah dokumen.");
+      }
+    } catch (err: any) {
+      console.error("Gagal unggah dokumen:", err);
+      toast.error(err.response?.data?.message || "Terjadi kesalahan saat mengunggah dokumen.");
+    } finally {
+      setReuploadSubmitting(false);
+    }
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -319,7 +473,14 @@ export default function SellerProfilPage() {
     }
   }
 
-  const initials = profile.ownerName.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+  const storeDisplayName = profile.storeName || profile.ownerName || "Toko";
+  const initials = storeDisplayName
+    .trim()
+    .split(/\s+/)
+    .map(w => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "DC";
 
   if (loading) return <div>Memuat...</div>;
 
@@ -478,7 +639,7 @@ export default function SellerProfilPage() {
   return (
     <div style={{ animation: "fadeIn 0.4s ease-out" }}>
       {/* Page Header */}
-      <header style={{ marginBottom: "2rem" }}>
+      <header style={{ marginBottom: "1.5rem" }}>
         <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--bark)", marginBottom: "0.25rem", letterSpacing: "-0.02em" }}>
           Edit Profil Toko
         </h1>
@@ -486,6 +647,250 @@ export default function SellerProfilPage() {
           Lengkapi informasi toko agar lebih mudah ditemukan dan dipercaya pelanggan.
         </p>
       </header>
+
+      {/* ── Banners Pengumuman Status Verifikasi ── */}
+      {verificationStatus === "rejected" && (
+        <div style={{
+          marginBottom: "1.75rem",
+          background: "linear-gradient(135deg, #fff1f2 0%, #fff5f5 100%)",
+          border: "1.5px solid #fecdd3",
+          borderRadius: "1rem",
+          padding: "1.25rem 1.5rem",
+          boxShadow: "0 4px 15px rgba(225, 29, 72, 0.06)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "1rem"
+        }}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem", flex: 1, minWidth: 0 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: "50%",
+                background: "#fee2e2", border: "2px solid #fca5a5",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0
+              }}>
+                <WarningCircle size={24} color="#e11d48" weight="fill" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
+                  <span style={{
+                    fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase",
+                    letterSpacing: "0.05em", background: "#ffe4e6", color: "#be123c",
+                    padding: "0.2rem 0.6rem", borderRadius: "9999px", flexShrink: 0
+                  }}>
+                    Pengajuan Ditolak
+                  </span>
+                  <span style={{ fontSize: "0.78rem", color: "#9f1239", fontWeight: 600 }}>
+                    Perlu Perbaikan Dokumen
+                  </span>
+                </div>
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#881337", margin: "0 0 0.25rem" }}>
+                  Pendaftaran Toko Anda Ditolak oleh Admin
+                </h3>
+                <p style={{ fontSize: "0.85rem", color: "#9f1239", margin: 0, lineHeight: 1.5 }}>
+                  Admin telah meninjau pengajuan toko Anda dan menemukan data/dokumen yang perlu disesuaikan. Silakan perbaiki untuk mengajukan kembali.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsDocModalOpen(true)}
+              style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem",
+                background: "#be123c", color: "#fff",
+                padding: "0.65rem 1.25rem", borderRadius: "0.75rem",
+                fontWeight: 700, fontSize: "0.875rem", border: "none",
+                cursor: "pointer", boxShadow: "0 4px 12px rgba(190, 18, 60, 0.25)",
+                transition: "all 0.2s ease",
+                flexShrink: 0,
+                whiteSpace: "nowrap"
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = "#9f1239")}
+              onMouseLeave={e => (e.currentTarget.style.background = "#be123c")}
+            >
+              <UploadSimple size={18} weight="bold" />
+              Perbaiki &amp; Unggah Ulang Dokumen
+            </button>
+          </div>
+
+          {/* Alasan Penolakan Callout Box */}
+          <div style={{
+            background: "#fff",
+            border: "1px solid #fecdd3",
+            borderLeft: "4px solid #e11d48",
+            borderRadius: "0.625rem",
+            padding: "0.9rem 1.15rem",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.35rem"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.45rem", color: "#be123c", fontSize: "0.8rem", fontWeight: 700 }}>
+              <ChatText size={16} weight="bold" />
+              Alasan Penolakan dari Admin:
+            </div>
+            <p style={{ margin: 0, fontSize: "0.875rem", color: "#4c0519", fontWeight: 600, lineHeight: 1.5 }}>
+              {rejectionReason || "Dokumen belum lengkap atau tidak sesuai dengan standar kurasi DinoyoCraft."}
+            </p>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px dashed #fecdd3", paddingTop: "0.75rem", fontSize: "0.78rem", color: "#9f1239", flexWrap: "wrap", gap: "0.5rem" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              <LockKey size={14} weight="bold" />
+              Menu sidebar dan fitur dashboard lainnya terkunci sampai dokumen diperbaiki dan disetujui admin.
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsPopupAlertOpen(true)}
+              style={{ background: "none", border: "none", color: "#be123c", fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontSize: "0.78rem" }}
+            >
+              Lihat Detail Pengumuman
+            </button>
+          </div>
+        </div>
+      )}
+
+      {verificationStatus === "pending" && (
+        <div style={{
+          marginBottom: "1.75rem",
+          background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
+          border: "1.5px solid #fde68a",
+          borderRadius: "1rem",
+          padding: "1.25rem 1.5rem",
+          boxShadow: "0 4px 15px rgba(217, 119, 6, 0.06)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "1rem"
+        }}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "1rem", flex: 1, minWidth: 0 }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: "50%",
+                background: "#fef3c7", border: "2px solid #fcd34d",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0
+              }}>
+                <Clock size={24} color="#d97706" weight="fill" />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.25rem", flexWrap: "wrap" }}>
+                  <span style={{
+                    fontSize: "0.72rem", fontWeight: 800, textTransform: "uppercase",
+                    letterSpacing: "0.05em", background: "#fde68a", color: "#92400e",
+                    padding: "0.2rem 0.6rem", borderRadius: "9999px", flexShrink: 0
+                  }}>
+                    Menunggu Verifikasi Admin
+                  </span>
+                  {isDocsIncomplete ? (
+                    <span style={{ fontSize: "0.78rem", color: "#b45309", fontWeight: 700, display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                      <Warning size={14} weight="bold" /> Dokumen Belum Lengkap
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: "0.78rem", color: "#15803d", fontWeight: 600, display: "flex", alignItems: "center", gap: "0.25rem" }}>
+                      <CheckCircle size={14} weight="fill" /> Dokumen Lengkap (Dalam Antrean)
+                    </span>
+                  )}
+                </div>
+                <h3 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#78350f", margin: "0 0 0.25rem" }}>
+                  Pendaftaran Toko Anda Sedang Ditinjau Admin
+                </h3>
+                <p style={{ fontSize: "0.85rem", color: "#92400e", margin: 0, lineHeight: 1.5 }}>
+                  {isDocsIncomplete
+                    ? "Terdapat dokumen persyaratan yang belum lengkap. Harap segera lengkapi agar proses verifikasi dapat disetujui."
+                    : "Tim admin DinoyoCraft sedang meninjau pendaftaran dan dokumen toko Anda (estimasi 1x24 jam kerja)."}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsDocModalOpen(true)}
+              style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "0.5rem",
+                background: isDocsIncomplete ? "var(--clay)" : "#b45309", color: "#fff",
+                padding: "0.65rem 1.25rem", borderRadius: "0.75rem",
+                fontWeight: 700, fontSize: "0.875rem", border: "none",
+                cursor: "pointer", boxShadow: "0 4px 12px rgba(180, 83, 9, 0.2)",
+                transition: "all 0.2s ease",
+                flexShrink: 0,
+                whiteSpace: "nowrap"
+              }}
+              onMouseEnter={e => (e.currentTarget.style.opacity = "0.9")}
+              onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+            >
+              <UploadSimple size={18} weight="bold" />
+              {isDocsIncomplete ? "Lengkapi Dokumen Sekarang" : "Perbarui / Cek Dokumen"}
+            </button>
+          </div>
+
+          {/* Status checklist dokumen mini */}
+          <div style={{
+            background: "#fff",
+            border: "1px solid #fde68a",
+            borderRadius: "0.625rem",
+            padding: "0.75rem 1.15rem",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "0.75rem"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "1.25rem", flexWrap: "wrap", fontSize: "0.82rem" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: hasKtp ? "#15803d" : "#b45309", fontWeight: 600 }}>
+                {hasKtp ? <CheckCircle size={15} weight="fill" color="#16a34a" /> : <WarningCircle size={15} weight="bold" color="#d97706" />}
+                KTP Pemilik {hasKtp ? "✓" : "(Belum Ada)"}
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: hasNib ? "#15803d" : "#b45309", fontWeight: 600 }}>
+                {hasNib ? <CheckCircle size={15} weight="fill" color="#16a34a" /> : <WarningCircle size={15} weight="bold" color="#d97706" />}
+                NIB / Surat Usaha {hasNib ? "✓" : "(Belum Ada)"}
+              </span>
+              <span style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: hasProducts ? "#15803d" : "#b45309", fontWeight: 600 }}>
+                {hasProducts ? <CheckCircle size={15} weight="fill" color="#16a34a" /> : <WarningCircle size={15} weight="bold" color="#d97706" />}
+                Foto Produk {hasProducts ? `(${productImagesList.length} Foto)` : "(Belum Ada)"}
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsPopupAlertOpen(true)}
+              style={{ background: "none", border: "none", color: "#b45309", fontWeight: 700, cursor: "pointer", textDecoration: "underline", fontSize: "0.78rem" }}
+            >
+              Lihat Detail Pengumuman
+            </button>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", fontSize: "0.78rem", color: "#92400e" }}>
+            <LockKey size={14} weight="bold" />
+            Menu sidebar dan transaksi toko lainnya terkunci sementara sampai akun disetujui admin.
+          </div>
+        </div>
+      )}
+
+      {verificationStatus === "approved" && (
+        <div style={{
+          marginBottom: "1.75rem",
+          background: "#f0fdf4",
+          border: "1px solid #bbf7d0",
+          borderRadius: "0.875rem",
+          padding: "0.85rem 1.25rem",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "1rem"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+            <CheckCircle size={22} color="#16a34a" weight="fill" />
+            <div>
+              <span style={{ fontWeight: 800, fontSize: "0.9rem", color: "#166534" }}>
+                Akun Toko Resmi Terverifikasi
+              </span>
+              <p style={{ margin: 0, fontSize: "0.78rem", color: "#15803d" }}>
+                Toko Anda telah memenuhi semua persyaratan kurasi DinoyoCraft. Semua fitur dashboard aktif sepenuhnya.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSave}>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "1.5rem", alignItems: "start" }}>
@@ -534,17 +939,24 @@ export default function SellerProfilPage() {
                 }}>
                   <div style={{
                     width: 76, height: 76, borderRadius: "50%",
-                    background: preview ? "transparent" : "linear-gradient(135deg, var(--clay), #c0673d)",
+                    background: preview && !imgError && isCustomAvatar(preview) ? "transparent" : "linear-gradient(135deg, var(--clay), #c0673d)",
                     border: "3px solid #fff",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: "1.5rem", fontWeight: 800, color: "#fff",
                     overflow: "hidden",
                     boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                   }}>
-                    {preview
-                      ? <img src={preview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                      : initials
-                    }
+                    {preview && !imgError && isCustomAvatar(preview) ? (
+                      <img
+                        src={preview}
+                        alt={storeDisplayName}
+                        referrerPolicy="no-referrer"
+                        onError={() => setImgError(true)}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    ) : (
+                      initials
+                    )}
                   </div>
                   {/* Avatar edit button */}
                   <button
@@ -593,22 +1005,56 @@ export default function SellerProfilPage() {
 
             {/* Status Verifikasi */}
             <div style={{
-              background: isVerified ? "#f0fdf4" : "#fffbeb",
-              border: `1px solid ${isVerified ? "#bbf7d0" : "#fde68a"}`,
+              background: isVerified ? "#f0fdf4" : verificationStatus === "rejected" ? "#fff1f2" : "#fffbeb",
+              border: `1px solid ${isVerified ? "#bbf7d0" : verificationStatus === "rejected" ? "#fecdd3" : "#fde68a"}`,
               borderRadius: "0.75rem",
               padding: "1rem",
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem" }}>
-                <CheckCircle size={18} color={isVerified ? "#16a34a" : "#d97706"} weight="fill" />
-                <span style={{ fontSize: "0.85rem", fontWeight: 700, color: isVerified ? "#15803d" : "#b45309" }}>
-                  {isVerified ? "Toko Terverifikasi" : "Menunggu Verifikasi"}
+                {isVerified ? (
+                  <CheckCircle size={18} color="#16a34a" weight="fill" />
+                ) : verificationStatus === "rejected" ? (
+                  <WarningCircle size={18} color="#e11d48" weight="fill" />
+                ) : (
+                  <Clock size={18} color="#d97706" weight="fill" />
+                )}
+                <span style={{
+                  fontSize: "0.85rem", fontWeight: 700,
+                  color: isVerified ? "#15803d" : verificationStatus === "rejected" ? "#be123c" : "#b45309"
+                }}>
+                  {isVerified ? "Toko Terverifikasi" : verificationStatus === "rejected" ? "Verifikasi Ditolak" : "Menunggu Verifikasi"}
                 </span>
               </div>
-              <p style={{ fontSize: "0.75rem", color: isVerified ? "#166534" : "#92400e", lineHeight: 1.5, margin: 0 }}>
+              <p style={{
+                fontSize: "0.75rem",
+                color: isVerified ? "#166534" : verificationStatus === "rejected" ? "#9f1239" : "#92400e",
+                lineHeight: 1.5, margin: "0 0 0.75rem"
+              }}>
                 {isVerified
-                  ? "Toko Anda sudah diverifikasi oleh tim DinoyoCraft. Perubahan data utama perlu persetujuan ulang."
+                  ? "Toko Anda sudah diverifikasi oleh tim DinoyoCraft. Semua fitur transaksi aktif."
+                  : verificationStatus === "rejected"
+                  ? "Pengajuan toko ditolak oleh admin. Perbaiki dokumen yang tidak sesuai."
+                  : isDocsIncomplete
+                  ? "Dokumen persyaratan toko belum lengkap. Harap segera lengkapi agar segera diverifikasi."
                   : "Pengajuan akun toko Anda sedang dalam peninjauan oleh tim admin DinoyoCraft."}
               </p>
+              {!isVerified && (
+                <button
+                  type="button"
+                  onClick={() => setIsDocModalOpen(true)}
+                  style={{
+                    width: "100%", padding: "0.45rem",
+                    borderRadius: "0.5rem",
+                    background: verificationStatus === "rejected" ? "#be123c" : "#b45309",
+                    color: "#fff", fontSize: "0.75rem", fontWeight: 700,
+                    border: "none", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: "0.35rem"
+                  }}
+                >
+                  <UploadSimple size={14} weight="bold" />
+                  {verificationStatus === "rejected" ? "Perbaiki Dokumen" : isDocsIncomplete ? "Lengkapi Dokumen" : "Cek / Unggah Ulang"}
+                </button>
+              )}
             </div>
 
             {/* Tombol Simpan (di kolom kiri, sticky feel) */}
@@ -783,6 +1229,465 @@ export default function SellerProfilPage() {
           </div>
         </div>
       </form>
+
+      {/* ── Modal Pop-up Pengumuman Status Verifikasi ── */}
+      {isPopupAlertOpen && (
+        <div
+          onClick={() => setIsPopupAlertOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 250,
+            background: "rgba(0,0,0,0.5)", backdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem",
+            animation: "fadeIn 0.2s ease-out"
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "#fff", borderRadius: "1.25rem", width: "100%", maxWidth: 540,
+              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", overflow: "hidden",
+              display: "flex", flexDirection: "column"
+            }}
+          >
+            {/* Header Modal */}
+            <div style={{
+              background: verificationStatus === "rejected"
+                ? "linear-gradient(135deg, #9f1239, #e11d48)"
+                : "linear-gradient(135deg, #92400e, #d97706)",
+              padding: "1.25rem 1.5rem",
+              display: "flex", justifyContent: "space-between", alignItems: "center"
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <div style={{
+                  width: 42, height: 42, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.2)", border: "2px solid rgba(255,255,255,0.3)",
+                  display: "flex", alignItems: "center", justifyContent: "center"
+                }}>
+                  {verificationStatus === "rejected" ? (
+                    <WarningCircle size={22} color="#fff" weight="fill" />
+                  ) : (
+                    <Clock size={22} color="#fff" weight="fill" />
+                  )}
+                </div>
+                <div>
+                  <h3 style={{ color: "#fff", fontWeight: 800, fontSize: "1.05rem", margin: 0 }}>
+                    {verificationStatus === "rejected"
+                      ? "Pemberitahuan: Pengajuan Ditolak"
+                      : "Pemberitahuan: Status Pendaftaran Mitra"}
+                  </h3>
+                  <p style={{ color: "rgba(255,255,255,0.8)", fontSize: "0.78rem", margin: 0 }}>
+                    {verificationStatus === "rejected"
+                      ? "Terdapat berkas yang perlu diperbaiki"
+                      : "Verifikasi toko dalam proses peninjauan"}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsPopupAlertOpen(false)}
+                style={{
+                  background: "rgba(255,255,255,0.2)", border: "none", borderRadius: "50%",
+                  width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: "pointer", color: "#fff"
+                }}
+              >
+                <X size={16} weight="bold" />
+              </button>
+            </div>
+
+            {/* Isi Modal */}
+            <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+              {verificationStatus === "rejected" ? (
+                <>
+                  <p style={{ fontSize: "0.875rem", color: "var(--bark)", lineHeight: 1.6, margin: 0 }}>
+                    Halo <strong>{profile.ownerName}</strong>, admin telah meninjau pendaftaran toko <strong>{profile.storeName}</strong>, namun belum dapat menyetujuinya karena alasan berikut:
+                  </p>
+
+                  <div style={{
+                    background: "#fff1f2", border: "1px solid #fecdd3",
+                    borderLeft: "4px solid #e11d48", borderRadius: "0.625rem",
+                    padding: "1rem 1.15rem"
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", color: "#be123c", fontSize: "0.8rem", fontWeight: 700, marginBottom: "0.25rem" }}>
+                      <ChatText size={16} weight="bold" />
+                      Alasan Penolakan dari Admin:
+                    </div>
+                    <p style={{ margin: 0, fontSize: "0.9rem", color: "#881337", fontWeight: 700, lineHeight: 1.5 }}>
+                      &ldquo;{rejectionReason || "Dokumen persyaratan belum lengkap atau tidak sesuai standar kurasi DinoyoCraft."}&rdquo;
+                    </p>
+                  </div>
+
+                  <div style={{
+                    background: "#f9fafb", borderRadius: "0.75rem", padding: "0.85rem 1rem",
+                    border: "1px solid var(--line)", fontSize: "0.8rem", color: "var(--bark-muted)",
+                    display: "flex", alignItems: "flex-start", gap: "0.5rem"
+                  }}>
+                    <LockKey size={16} color="var(--bark)" style={{ flexShrink: 0, marginTop: 2 }} />
+                    <span>
+                      Menu sidebar dashboard lainnya terkunci sementara. Anda hanya dapat mengakses halaman profil ini untuk melengkapi dan memperbaiki dokumen toko Anda.
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p style={{ fontSize: "0.875rem", color: "var(--bark)", lineHeight: 1.6, margin: 0 }}>
+                    Halo <strong>{profile.ownerName}</strong>, akun toko <strong>{profile.storeName}</strong> sedang dalam antrean kurasi dan verifikasi oleh tim kurator DinoyoCraft.
+                  </p>
+
+                  <div style={{
+                    background: "#fffbeb", border: "1px solid #fde68a",
+                    borderRadius: "0.75rem", padding: "1rem"
+                  }}>
+                    <p style={{ fontWeight: 700, fontSize: "0.82rem", color: "#92400e", margin: "0 0 0.5rem" }}>
+                      Status Kelengkapan Dokumen:
+                    </p>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", fontSize: "0.82rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--bark)" }}>1. KTP Pemilik Usaha</span>
+                        <span style={{ fontWeight: 700, color: hasKtp ? "#15803d" : "#b45309" }}>
+                          {hasKtp ? "✓ Terunggah" : "⚠ Belum Lengkap"}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--bark)" }}>2. NIB / Surat Keterangan Usaha</span>
+                        <span style={{ fontWeight: 700, color: hasNib ? "#15803d" : "#b45309" }}>
+                          {hasNib ? "✓ Terunggah" : "⚠ Belum Lengkap"}
+                        </span>
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span style={{ color: "var(--bark)" }}>3. Foto Sampel Produk (Min. 3 Foto)</span>
+                        <span style={{ fontWeight: 700, color: hasProducts ? "#15803d" : "#b45309" }}>
+                          {hasProducts ? `✓ Terunggah (${productImagesList.length} Foto)` : "⚠ Belum Lengkap"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {isDocsIncomplete ? (
+                    <div style={{
+                      background: "#fff7ed", border: "1px solid #fed7aa",
+                      borderRadius: "0.625rem", padding: "0.75rem 1rem",
+                      fontSize: "0.8rem", color: "#c2410c", display: "flex", alignItems: "center", gap: "0.5rem"
+                    }}>
+                      <Warning size={16} weight="bold" />
+                      <span>Masih ada dokumen yang belum lengkap. Harap segera lengkapi agar verifikasi admin dapat disetujui.</span>
+                    </div>
+                  ) : (
+                    <div style={{
+                      background: "#f0fdf4", border: "1px solid #bbf7d0",
+                      borderRadius: "0.625rem", padding: "0.75rem 1rem",
+                      fontSize: "0.8rem", color: "#166534", display: "flex", alignItems: "center", gap: "0.5rem"
+                    }}>
+                      <CheckCircle size={16} weight="fill" color="#16a34a" />
+                      <span>Dokumen lengkap. Tim admin sedang memverifikasi toko Anda (estimasi 1x24 jam kerja).</span>
+                    </div>
+                  )}
+
+                  <div style={{
+                    background: "#f9fafb", borderRadius: "0.75rem", padding: "0.75rem 1rem",
+                    border: "1px solid var(--line)", fontSize: "0.78rem", color: "var(--bark-muted)",
+                    display: "flex", alignItems: "center", gap: "0.5rem"
+                  }}>
+                    <LockKey size={14} color="var(--bark)" />
+                    <span>Fitur transaksi & menu lainnya terbuka otomatis setelah akun diverifikasi.</span>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Footer Modal */}
+            <div style={{
+              padding: "1rem 1.5rem", borderTop: "1px solid #e5e7eb",
+              display: "flex", gap: "0.75rem", justifyContent: "flex-end", background: "#fafafa"
+            }}>
+              <button
+                type="button"
+                onClick={() => setIsPopupAlertOpen(false)}
+                style={{
+                  padding: "0.65rem 1.25rem", borderRadius: "0.625rem",
+                  border: "1px solid var(--line)", background: "#fff",
+                  color: "var(--bark)", fontSize: "0.85rem", fontWeight: 600,
+                  cursor: "pointer"
+                }}
+              >
+                {verificationStatus === "rejected" || isDocsIncomplete ? "Lanjut ke Profil" : "Saya Mengerti"}
+              </button>
+
+              {(verificationStatus === "rejected" || isDocsIncomplete) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPopupAlertOpen(false);
+                    setIsDocModalOpen(true);
+                  }}
+                  style={{
+                    padding: "0.65rem 1.25rem", borderRadius: "0.625rem",
+                    background: verificationStatus === "rejected" ? "#be123c" : "var(--clay)",
+                    color: "#fff", fontSize: "0.85rem", fontWeight: 700,
+                    border: "none", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: "0.4rem"
+                  }}
+                >
+                  <UploadSimple size={16} weight="bold" />
+                  {verificationStatus === "rejected" ? "Perbaiki Dokumen Sekarang" : "Lengkapi Dokumen"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Lengkapi / Perbaiki & Unggah Ulang Dokumen ── */}
+      {isDocModalOpen && (
+        <div
+          onClick={() => !reuploadSubmitting && setIsDocModalOpen(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 300,
+            background: "rgba(0,0,0,0.55)", backdropFilter: "blur(6px)",
+            display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem",
+            animation: "fadeIn 0.2s ease-out"
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "#fff", borderRadius: "1.25rem", width: "100%", maxWidth: 620,
+              boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)", overflow: "hidden",
+              display: "flex", flexDirection: "column", maxHeight: "90vh"
+            }}
+          >
+            {/* Header Modal */}
+            <div style={{
+              background: verificationStatus === "rejected"
+                ? "linear-gradient(135deg, #881337, #be123c)"
+                : "linear-gradient(135deg, #3b3025, #5a3d28)",
+              padding: "1.25rem 1.5rem",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              flexShrink: 0
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                <div style={{
+                  width: 44, height: 44, borderRadius: "50%",
+                  background: "rgba(255,255,255,0.15)", border: "2px solid rgba(255,255,255,0.25)",
+                  display: "flex", alignItems: "center", justifyContent: "center"
+                }}>
+                  <IdentificationCard size={22} color="#fff" weight="duotone" />
+                </div>
+                <div>
+                  <h3 style={{ color: "#fff", fontWeight: 800, fontSize: "1.05rem", margin: 0 }}>
+                    {verificationStatus === "rejected"
+                      ? "Perbaiki Dokumen Pendaftaran"
+                      : "Lengkapi Dokumen Persyaratan Toko"}
+                  </h3>
+                  <p style={{ color: "rgba(255,255,255,0.7)", fontSize: "0.78rem", margin: 0 }}>
+                    Unggah berkas KTP, NIB, dan foto produk terbaru untuk diverifikasi ulang
+                  </p>
+                </div>
+              </div>
+              <button
+                disabled={reuploadSubmitting}
+                onClick={() => setIsDocModalOpen(false)}
+                style={{
+                  background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%",
+                  width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: reuploadSubmitting ? "not-allowed" : "pointer", color: "#fff"
+                }}
+              >
+                <X size={16} weight="bold" />
+              </button>
+            </div>
+
+            {/* Body Form */}
+            <form onSubmit={handleReuploadSubmit} style={{ display: "flex", flexDirection: "column", overflowY: "auto", flex: 1 }}>
+              <div style={{ padding: "1.5rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+
+                {/* Catatan Rejection jika ditolak */}
+                {rejectionReason && (
+                  <div style={{
+                    background: "#fff1f2", border: "1px solid #fecdd3",
+                    borderLeft: "4px solid #e11d48", borderRadius: "0.625rem",
+                    padding: "0.85rem 1rem"
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", color: "#be123c", fontSize: "0.78rem", fontWeight: 700, marginBottom: "0.2rem" }}>
+                      <ChatText size={15} weight="bold" />
+                      Catatan Penolakan Admin:
+                    </div>
+                    <p style={{ margin: 0, fontSize: "0.85rem", color: "#881337", fontWeight: 600, lineHeight: 1.5 }}>
+                      {rejectionReason}
+                    </p>
+                  </div>
+                )}
+
+                {/* 1. KTP */}
+                <div style={{
+                  border: "1px solid var(--line)", borderRadius: "0.75rem", padding: "1rem",
+                  background: "#fafafa"
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                    <label style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--bark)" }}>
+                      1. KTP Pemilik Usaha
+                    </label>
+                    <span style={{
+                      fontSize: "0.72rem", fontWeight: 700,
+                      color: reuploadKtp ? "#15803d" : hasKtp ? "#15803d" : "#b45309",
+                      background: reuploadKtp ? "#dcfce7" : hasKtp ? "#f0fdf4" : "#fef3c7",
+                      padding: "0.2rem 0.5rem", borderRadius: "0.35rem"
+                    }}>
+                      {reuploadKtp
+                        ? `✓ File Baru: ${reuploadKtp.name}`
+                        : hasKtp
+                        ? "✓ Dokumen Tersimpan"
+                        : "⚠ Belum Terunggah"}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: "0.78rem", color: "var(--bark-muted)", margin: "0 0 0.65rem" }}>
+                    Format .jpg, .jpeg, .png, atau .pdf (Maks. 5MB). Pastikan tulisan dan foto KTP terbaca jelas.
+                  </p>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={e => setReuploadKtp(e.target.files?.[0] || null)}
+                    style={{ ...inputStyle, padding: "0.45rem", fontSize: "0.8rem", background: "#fff" }}
+                  />
+                  {reuploadKtp && (
+                    <span style={{ display: "block", fontSize: "0.75rem", color: "var(--clay)", fontWeight: 600, marginTop: "0.35rem" }}>
+                      File siap diunggah: {reuploadKtp.name} ({(reuploadKtp.size / 1024).toFixed(0)} KB)
+                    </span>
+                  )}
+                </div>
+
+                {/* 2. NIB */}
+                <div style={{
+                  border: "1px solid var(--line)", borderRadius: "0.75rem", padding: "1rem",
+                  background: "#fafafa"
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                    <label style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--bark)" }}>
+                      2. Surat Keterangan Usaha / NIB
+                    </label>
+                    <span style={{
+                      fontSize: "0.72rem", fontWeight: 700,
+                      color: reuploadNib ? "#15803d" : hasNib ? "#15803d" : "#b45309",
+                      background: reuploadNib ? "#dcfce7" : hasNib ? "#f0fdf4" : "#fef3c7",
+                      padding: "0.2rem 0.5rem", borderRadius: "0.35rem"
+                    }}>
+                      {reuploadNib
+                        ? `✓ File Baru: ${reuploadNib.name}`
+                        : hasNib
+                        ? "✓ Dokumen Tersimpan"
+                        : "⚠ Belum Terunggah"}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: "0.78rem", color: "var(--bark-muted)", margin: "0 0 0.65rem" }}>
+                    Format .jpg, .jpeg, .png, atau .pdf (Maks. 5MB). Surat Keterangan Domisili Usaha dari Kelurahan / NIB OSS.
+                  </p>
+                  <input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.pdf"
+                    onChange={e => setReuploadNib(e.target.files?.[0] || null)}
+                    style={{ ...inputStyle, padding: "0.45rem", fontSize: "0.8rem", background: "#fff" }}
+                  />
+                  {reuploadNib && (
+                    <span style={{ display: "block", fontSize: "0.75rem", color: "var(--clay)", fontWeight: 600, marginTop: "0.35rem" }}>
+                      File siap diunggah: {reuploadNib.name} ({(reuploadNib.size / 1024).toFixed(0)} KB)
+                    </span>
+                  )}
+                </div>
+
+                {/* 3. Foto Produk */}
+                <div style={{
+                  border: "1px solid var(--line)", borderRadius: "0.75rem", padding: "1rem",
+                  background: "#fafafa"
+                }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                    <label style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--bark)" }}>
+                      3. Foto Sampel Produk Keramik (Min. 3 Foto)
+                    </label>
+                    <span style={{
+                      fontSize: "0.72rem", fontWeight: 700,
+                      color: reuploadProducts.length > 0 ? "#15803d" : hasProducts ? "#15803d" : "#b45309",
+                      background: reuploadProducts.length > 0 ? "#dcfce7" : hasProducts ? "#f0fdf4" : "#fef3c7",
+                      padding: "0.2rem 0.5rem", borderRadius: "0.35rem"
+                    }}>
+                      {reuploadProducts.length > 0
+                        ? `✓ ${reuploadProducts.length} Foto Baru Dipilih`
+                        : hasProducts
+                        ? `✓ ${productImagesList.length} Foto Tersimpan`
+                        : "⚠ Belum Terunggah"}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: "0.78rem", color: "var(--bark-muted)", margin: "0 0 0.65rem" }}>
+                    Pilih minimal 3 foto karya keramik asli buatan workshop Anda. Format .jpg, .jpeg, .png.
+                  </p>
+                  <input
+                    type="file"
+                    multiple
+                    accept=".jpg,.jpeg,.png"
+                    onChange={e => setReuploadProducts(e.target.files ? Array.from(e.target.files) : [])}
+                    style={{ ...inputStyle, padding: "0.45rem", fontSize: "0.8rem", background: "#fff" }}
+                  />
+                  {reuploadProducts.length > 0 && (
+                    <span style={{ display: "block", fontSize: "0.75rem", color: "var(--clay)", fontWeight: 600, marginTop: "0.35rem" }}>
+                      {reuploadProducts.length} foto dipilih: {reuploadProducts.map(f => f.name).join(", ")}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{
+                  fontSize: "0.78rem", color: "var(--bark-muted)", lineHeight: 1.5,
+                  padding: "0.75rem", background: "#f5f5f4", borderRadius: "0.5rem"
+                }}>
+                  💡 <em>Catatan: Anda dapat mengunggah hanya dokumen yang ingin diperbaiki atau dilengkapi. Dokumen yang tidak dipilih ulang akan tetap menggunakan dokumen sebelumnya yang sudah ada di sistem.</em>
+                </div>
+
+              </div>
+
+              {/* Footer Modal Form */}
+              <div style={{
+                padding: "1rem 1.5rem", borderTop: "1px solid #e5e7eb",
+                display: "flex", gap: "0.75rem", justifyContent: "flex-end", background: "#fafafa",
+                flexShrink: 0
+              }}>
+                <button
+                  type="button"
+                  disabled={reuploadSubmitting}
+                  onClick={() => setIsDocModalOpen(false)}
+                  style={{
+                    padding: "0.7rem 1.25rem", borderRadius: "0.625rem",
+                    border: "1px solid var(--line)", background: "#fff",
+                    color: "var(--bark)", fontSize: "0.85rem", fontWeight: 600,
+                    cursor: reuploadSubmitting ? "not-allowed" : "pointer"
+                  }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={reuploadSubmitting}
+                  style={{
+                    padding: "0.7rem 1.5rem", borderRadius: "0.625rem",
+                    background: reuploadSubmitting ? "var(--clay-light, #d4956a)" : "var(--clay)",
+                    color: "#fff", fontSize: "0.85rem", fontWeight: 700,
+                    border: "none", cursor: reuploadSubmitting ? "not-allowed" : "pointer",
+                    display: "flex", alignItems: "center", gap: "0.5rem"
+                  }}
+                >
+                  {reuploadSubmitting ? (
+                    <>
+                      <span style={{ display: "inline-block", width: 14, height: 14, border: "2px solid rgba(255,255,255,0.4)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                      Mengunggah...
+                    </>
+                  ) : (
+                    <>
+                      <UploadSimple size={16} weight="bold" />
+                      Kirim &amp; Ajukan Ulang Verifikasi
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }

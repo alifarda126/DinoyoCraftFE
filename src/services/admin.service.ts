@@ -32,13 +32,13 @@ export const adminService = {
         return response.data;
     },
 
-    verifyStore: async (id: number, status: 'approved' | 'rejected') => {
+    verifyStore: async (id: number, status: 'approved' | 'rejected', reason?: string) => {
         const token = getToken();
         console.log("Token yang dikirim ke backend (verifyStore):", token);
 
         const response = await axios.patch(
             `${API_BASE_URL}/admin/verifikasi/${id}`,
-            { status },
+            { status, reason },
             { headers: { Authorization: `Bearer ${token}` } }
         );
         return response.data;

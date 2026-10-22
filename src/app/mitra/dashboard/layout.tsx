@@ -1,17 +1,32 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import MitraSidebar from "@/components/layout/MitraSidebar";
 import { useState, useEffect } from "react";
 import { List, X } from "@phosphor-icons/react";
+import { useAuthStore } from "@/store/useAuthStore";
 
 export default function SellerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, initAuth } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    initAuth();
+  }, [initAuth]);
+
+  useEffect(() => {
     setMobileMenuOpen(false);
-  }, [pathname]);
+
+    // Jika mitra belum diverifikasi (is_verified !== 1 atau is_verified !== true),
+    // kunci navigasi dan arahkan ke profil toko
+    if (user && user.role === "mitra" && user.is_verified !== 1 && user.is_verified !== true) {
+      if (pathname !== "/mitra/dashboard/profil") {
+        router.replace("/mitra/dashboard/profil");
+      }
+    }
+  }, [pathname, user, router]);
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-white" style={{ fontFamily: "var(--font-outfit), sans-serif" }}>
@@ -41,8 +56,8 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
       </div>
 
       {/* Main Content */}
-      <main className="no-scrollbar flex-1 overflow-y-auto mt-14 md:mt-0 p-4 md:p-6 overscroll-contain">
-        <div className="max-w-[1400px] mx-auto">
+      <main className="no-scrollbar flex-1 overflow-y-auto mt-14 md:mt-0 p-6 md:p-8 overscroll-contain">
+        <div className="w-full">
           {children}
         </div>
       </main>

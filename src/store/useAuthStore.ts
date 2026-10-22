@@ -9,6 +9,7 @@ interface User {
   is_active: boolean;
   store_name?: string;
   is_verified?: number | boolean;
+  rejection_reason?: string;
   created_at?: string;
   updated_at?: string;
 }
