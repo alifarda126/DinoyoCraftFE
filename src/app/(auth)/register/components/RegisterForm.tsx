@@ -53,8 +53,23 @@ export default function RegisterForm() {
       if (!firstErrorField) firstErrorField = field;
     };
 
-    if (!namaLengkap.trim()) addError("reg-nama", "Nama Lengkap wajib diisi");
-    if (!noWa.trim()) addError("reg-wa", "Nomor HP wajib diisi");
+    // 1. Validasi Nama Lengkap (Hanya huruf dan spasi)
+    const nameRegex = /^[a-zA-Z\s]+$/;
+    if (!namaLengkap.trim()) {
+      addError("reg-nama", "Nama Lengkap wajib diisi");
+    } else if (!nameRegex.test(namaLengkap.trim())) {
+      addError("reg-nama", "Format nama tidak valid (hanya huruf)");
+    }
+
+    // 2. Validasi Nomor HP (Hanya angka, dan panjang 10-14 karakter)
+    const phoneRegex = /^[0-9]+$/;
+    if (!noWa.trim()) {
+      addError("reg-wa", "Nomor HP wajib diisi");
+    } else if (!phoneRegex.test(noWa.trim())) {
+      addError("reg-wa", "Nomor HP hanya boleh berisi angka");
+    } else if (noWa.trim().length < 10 || noWa.trim().length > 14) {
+      addError("reg-wa", "Nomor HP harus 10-14 digit");
+    }
     if (!email.trim()) addError("mitra-email", "Email wajib diisi");
     else if (!/\S+@\S+\.\S+/.test(email)) addError("mitra-email", "Format email tidak valid");
     if (!namaToko.trim()) addError("reg-toko", "Nama Toko wajib diisi");
@@ -446,10 +461,11 @@ export default function RegisterForm() {
                 type="tel"
                 value={noWa}
                 onChange={(e) => {
-                  setNoWa(e.target.value);
+                  const cleaned = e.target.value.replace(/\D/g, "");
+                  setNoWa(cleaned);
                   if (errors["reg-wa"]) setErrors((p) => ({ ...p, "reg-wa": "" }));
                 }}
-                placeholder="08..."
+                placeholder="Contoh: 08219022xxxx"
                 style={{ ...inputStyle, borderColor: errors["reg-wa"] ? "#e53e3e" : "rgba(0,0,0,0.13)" }}
               />
             </div>
