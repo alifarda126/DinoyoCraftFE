@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Cookies from "js-cookie";
+import axios from "axios";
 import { toast } from "sonner";
 import { authService } from "@/services/auth.service";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -27,31 +29,40 @@ function LoginFormContent() {
     setLoading(true);
 
     try {
-      const response = await authService.login({ email, password });
+      const response = await axios.post(
+        "http://localhost:5000/api/auth/login",
+        {
+          email,
+          password,
+        },
+        {
+          withCredentials: true,
+        }
+      );
 
-      // 1. Cek struktur response asli dari backend
-      console.log("=== RESPONSE BACKEND ===", response);
+      console.log("=== RESPONSE BACKEND ===", response.data);
 
-      if (response.success !== false) {
-        // 2. Ekstraksi data secara aman (mendukung berbagai format objek dari backend)
-        // 2. Ekstraksi data secara aman (tanpa error TypeScript)
-        const userData = response.data?.user || response.data;
-        const userToken = response.data?.token || (response as any).token;
+      if (response.data.success) {
+        const token = response.data.data?.token || response.data.token;
+        const userData = response.data.data?.user || response.data.data;
 
         console.log("=== EXTRACTED USER ===", userData);
-        console.log("=== EXTRACTED TOKEN ===", userToken);
+        console.log("=== EXTRACTED TOKEN ===", token);
 
-        if (!userData || !userToken) {
+        if (!userData || !token) {
           toast.error("Format data dari server tidak sesuai");
           return;
         }
 
-        // 3. Simpan ke State Management & LocalStorage
-        login(userData, userToken);
+        // Simpan token ke browser cookie agar bisa dibaca oleh middleware.ts Next.js
+        Cookies.set("token", token, { expires: 1 });
+
+        // Simpan ke State Management & LocalStorage
+        login(userData, token);
 
         toast.success("Login berhasil!");
 
-        // 4. Arahkan ke dashboard
+        // Arahkan ke dashboard
         const role = userData?.role;
         if (role === "admin") {
           router.push("/admin");
@@ -59,10 +70,10 @@ function LoginFormContent() {
           router.push("/mitra/dashboard");
         }
       } else {
-        toast.error(response.message || "Login gagal");
+        toast.error(response.data.message || "Login gagal");
       }
     } catch (error: any) {
-      console.error("Login error:", error);
+      console.error("Gagal login", error);
       toast.error(error.response?.data?.message || "Terjadi kesalahan saat login");
     } finally {
       setLoading(false);
@@ -89,6 +100,9 @@ function LoginFormContent() {
           toast.error("Format data dari server tidak sesuai");
           return;
         }
+
+        // Simpan token ke browser cookie
+        Cookies.set("token", userToken, { expires: 1 });
 
         login(userData, userToken);
         toast.success("Login dengan Google berhasil!");

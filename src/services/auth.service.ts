@@ -3,8 +3,9 @@
 export const authService = {
   // --- FUNGSI LOGIN (Sudah ada sebelumnya) ---
   login: async (credentials: { email: string; password: string }) => {
-    const res = await fetch('http://localhost:5000/api/auth/login-mitra', {
+    const res = await fetch('http://localhost:5000/api/auth/login', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json', // WAJIB ADA UNTUK LOGIN
       },
@@ -17,12 +18,15 @@ export const authService = {
       throw { response: { data: { message: data.message || 'Gagal login' } } };
     }
 
+    const token = data.data?.token || data.token || "token-sementara";
+    const user = data.data?.user || data.data;
+
     return {
       success: true,
       message: data.message,
       data: {
-        user: data.data,
-        token: data.token || "token-sementara"
+        user,
+        token
       }
     };
   },
