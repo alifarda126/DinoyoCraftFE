@@ -35,7 +35,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (typeof window !== "undefined") {
       localStorage.setItem("token", token);
       localStorage.setItem("user", JSON.stringify(user));
-      Cookies.set("token", token, { expires: 1 });
+      Cookies.set("token", token, { expires: 7 });
     }
     set({ user, token, isAuthenticated: true });
   },
@@ -58,7 +58,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         try {
           const user = JSON.parse(userStr);
           if (!Cookies.get("token")) {
-            Cookies.set("token", token, { expires: 1 });
+            Cookies.set("token", token, { expires: 7 });
           }
           set({ user, token, isAuthenticated: true });
         } catch (error) {

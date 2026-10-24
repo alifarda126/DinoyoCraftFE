@@ -606,7 +606,24 @@ export default function AdminVerifikasiPage() {
               <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginBottom: "1.25rem" }}>
                 {DOCS_LIST.map(doc => {
                   const ok = selectedReg.docs[doc.key];
-                  const docUrl = doc.key === "ktp" ? selectedReg.ktp_file_url : doc.key === "usaha" ? selectedReg.nib_file_url : null;
+                  // Ambil URL file secara langsung
+                  let fileUrl = "";
+                  if (doc.key === "ktp") fileUrl = selectedReg.ktp_file_url || "";
+                  if (doc.key === "usaha") fileUrl = selectedReg.nib_file_url || "";
+
+                  // Bersihkan URL dan Ekstrak Nama Filenya Saja
+                  let docUrl = "";
+                  if (fileUrl && fileUrl.trim() !== "" && fileUrl !== "null" && fileUrl !== "undefined") {
+                    if (fileUrl.startsWith("http://") || fileUrl.startsWith("https://")) {
+                      docUrl = fileUrl;
+                    } else {
+                      const fileName = fileUrl.split(/[\/\\]/).pop();
+                      if (fileName) {
+                        const apiHost = process.env.NEXT_PUBLIC_API_URL?.replace(/\/api\/?$/, "") || "http://localhost:5000";
+                        docUrl = `${apiHost}/uploads/${fileName}`;
+                      }
+                    }
+                  }
 
                   return (
                     <div

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getDemoSession } from "@/lib/utils/demo";
+import axios from "axios";
 import { toast } from "sonner";
 import {
   Package,
@@ -19,6 +19,8 @@ import {
   Storefront,
 } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
+import Cookies from "js-cookie";
+import { useAuthStore } from "@/store/useAuthStore";
 
 type OrderStatus = "unpaid" | "packed" | "shipped" | "completed";
 
@@ -50,17 +52,6 @@ type Order = {
 
 type ChatMsg = { from: "mitra" | "customer"; text: string; time: string };
 
-const MOCK_CUSTOMER_CHATS: Record<string, ChatMsg[]> = {
-  "ORD-20231024-001": [
-    { from: "customer", text: "Halo kak, pesanan saya sudah sampai belum ya?", time: "10:15" },
-    { from: "mitra", text: "Halo Kak Budi! Pesanan sedang kami proses, sebentar lagi akan kami kirim.", time: "10:20" },
-  ],
-  "ORD-20231023-002": [
-    { from: "customer", text: "Kak, bisa minta foto produknya dulu sebelum dikirim?", time: "14:30" },
-  ],
-  "ORD-20231022-003": [],
-};
-
 export default function PesananSellerPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"all" | OrderStatus>("all");
@@ -73,6 +64,7 @@ export default function PesananSellerPage() {
   // Chat state
   const [chatOrder, setChatOrder] = useState<Order | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
+  const [customerChats, setCustomerChats] = useState<Record<string, ChatMsg[]>>({});
   const [chatInput, setChatInput] = useState("");
 
   // Atur Pengiriman state
@@ -87,99 +79,92 @@ export default function PesananSellerPage() {
   const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
   useEffect(() => {
-    // 1. Ganti getDemoSession dengan pengecekan token asli dari penyimpanan browser
-    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    useAuthStore.getState().initAuth();
 
-    if (!storedToken) {
-      router.push("/login"); // Pastikan path-nya "/login" sesuai dengan struktur Anda
-      return;
-    }
+    const fetchOrders = async () => {
+      const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
 
-    // 2. Biarkan data pesanan ini tetap ada sampai nanti Anda siap menyambungkannya ke API Backend
-    setOrders([
-      {
-        id: "ORD-20231024-001",
-        customerName: "Budi Santoso",
-        date: "24 Okt 2023 10:30",
-        status: "unpaid",
-        total: 170000,
-        items: [
-          { id: "p1", name: "Vas Minimalis", price: 85000, qty: 2, image: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=150&auto=format&fit=crop", variantName: "Sand White", variantHex: "#f0ebe3" }
-        ]
-      },
-      {
-        id: "ORD-20231023-002",
-        customerName: "Siti Aminah",
-        date: "23 Okt 2023 14:15",
-        status: "packed",
-        total: 65000,
-        items: [
-          { id: "p2", name: "Cangkir Handmade", price: 65000, qty: 1, image: "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?q=80&w=150&auto=format&fit=crop", variantName: "Terracotta", variantHex: "#c1694f" }
-        ]
-      },
-      {
-        id: "ORD-20231022-003",
-        customerName: "Joko Anwar",
-        date: "22 Okt 2023 09:00",
-        status: "shipped",
-        total: 95000,
-        resi: "JNE1234567890",
-        kurir: "JNE",
-        items: [
-          { id: "p4", name: "Piring Artisan", price: 95000, qty: 1, image: "https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?q=80&w=150&auto=format&fit=crop", variantName: "Raw Speckle", variantHex: "#d4cfc8" }
-        ]
-      },
-      {
-        id: "ORD-20231020-004",
-        customerName: "Rina Marlina",
-        date: "20 Okt 2023 11:45",
-        status: "completed",
-        total: 150000,
-        resi: "SICEPAT987654",
-        kurir: "SiCepat",
-        rating: 5,
-        ulasan: "Kualitas sangat bagus dan pengemasan super aman! Mangkuk keramiknya cantik dan kokoh, warnanya persis seperti foto. Terima kasih seller, pasti order lagi!",
-        ulasanAvatar: "https://i.pravatar.cc/48?img=31",
-        ulasanFoto: "https://images.unsplash.com/photo-1530006498959-b7884e829a04?q=80&w=300&auto=format&fit=crop",
-        items: [
-          { id: "p3", name: "Mangkuk Keramik", price: 75000, qty: 2, image: "https://images.unsplash.com/photo-1530006498959-b7884e829a04?q=80&w=150&auto=format&fit=crop", variantName: "Sand White", variantHex: "#f0ebe3" }
-        ]
-      },
-      {
-        id: "ORD-20231019-005",
-        customerName: "Tono Wijaya",
-        date: "19 Okt 2023 16:20",
-        status: "completed",
-        total: 75000,
-        resi: "JNT098765432",
-        kurir: "J&T",
-        rating: 5,
-        ulasan: "Mangkuknya luar biasa! Desainnya unik dan terasa premium. Sangat puas dengan kualitas pengrajin lokal Dinoyo. Sudah saya rekomendasikan ke teman-teman.",
-        ulasanAvatar: "https://i.pravatar.cc/48?img=8",
-        ulasanFoto: "https://images.unsplash.com/photo-1530006498959-b7884e829a04?q=80&w=300&auto=format&fit=crop",
-        items: [
-          { id: "p3", name: "Mangkuk Keramik", price: 75000, qty: 1, image: "https://images.unsplash.com/photo-1530006498959-b7884e829a04?q=80&w=150&auto=format&fit=crop", variantName: "Charcoal Ash", variantHex: "#3d3d3d" }
-        ]
-      },
-      {
-        id: "ORD-20231015-006",
-        customerName: "Mochammad Al Mizan",
-        date: "15 Okt 2023 08:30",
-        status: "completed",
-        total: 85000,
-        resi: "ANTERAJA556677",
-        kurir: "Anteraja",
-        rating: 5,
-        ulasan: "Glasirnya sangat halus dan rapi, warna aslinya lebih estetik daripada di foto. Pengemasan sangat kokoh dan aman sampai rumah tanpa retak sedikitpun. Bangga beli produk keramik lokal Dinoyo!",
-        ulasanAvatar: "https://i.pravatar.cc/48?img=11",
-        ulasanFoto: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=300&q=80",
-        items: [
-          { id: "p1", name: "Vas Minimalis", price: 85000, qty: 1, image: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=150&auto=format&fit=crop", variantName: "Sand White", variantHex: "#f0ebe3" }
-        ]
+      if (!storedToken) {
+        router.push("/login");
+        return;
       }
-    ]);
 
-    setLoading(false);
+      try {
+        setLoading(true);
+        const res = await axios.get("http://localhost:5000/api/mitra/orders", {
+          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+          withCredentials: true,
+        });
+
+        if (res.data?.success && Array.isArray(res.data?.data)) {
+          const mapStatus = (s: string): OrderStatus => {
+            const st = (s || "").toLowerCase();
+            if (st === "pending" || st === "unpaid") return "unpaid";
+            if (st === "paid" || st === "packed") return "packed";
+            if (st === "shipped") return "shipped";
+            if (st === "completed" || st === "selesai" || st === "delivered") return "completed";
+            return "packed";
+          };
+
+          const formatOrderDate = (dateVal: string | Date) => {
+            if (!dateVal) return "";
+            const d = new Date(dateVal);
+            if (isNaN(d.getTime())) return String(dateVal);
+            return d.toLocaleDateString("id-ID", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+          };
+
+          const mappedOrders: Order[] = res.data.data.map((item: any, idx: number) => {
+            const d = item.tanggal ? formatOrderDate(item.tanggal) : (item.date || "");
+            const orderItems: OrderItem[] = (item.items || []).map((it: any, itIdx: number) => {
+              let img = it.image || it.image_url;
+              if (img && !img.startsWith("http")) {
+                img = `http://localhost:5000${img.startsWith("/") ? "" : "/"}${img}`;
+              }
+              return {
+                id: it.id ? String(it.id) : `item-${idx}-${itIdx}`,
+                name: it.productName || it.name || "Produk Keramik",
+                price: Number(it.price || 0),
+                qty: Number(it.quantity || it.qty || 1),
+                image: img || "https://images.unsplash.com/photo-1610701596007-11502861dcfa?q=80&w=150&auto=format&fit=crop",
+                variantName: it.variantName,
+                variantHex: it.variantHex,
+              };
+            });
+
+            return {
+              id: item.orderId || item.id || `ORD-${idx + 1}`,
+              customerName: item.customerName || item.customer || "Customer",
+              date: d,
+              status: mapStatus(item.status),
+              total: Number(item.totalBelanja || item.total || 0),
+              items: orderItems,
+              resi: item.resi,
+              kurir: item.kurir,
+              rating: item.rating,
+              ulasan: item.ulasan,
+              ulasanAvatar: item.ulasanAvatar,
+              ulasanFoto: item.ulasanFoto,
+              balasanMitra: item.balasanMitra,
+            };
+          });
+
+          setOrders(mappedOrders);
+        }
+      } catch (error) {
+        console.error("Gagal memuat pesanan:", error);
+        toast.error("Gagal memuat data pesanan");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOrders();
   }, [router]);
 
   const tabs = [
@@ -211,7 +196,7 @@ export default function PesananSellerPage() {
 
   function openChat(order: Order) {
     setChatOrder(order);
-    setChatMessages(MOCK_CUSTOMER_CHATS[order.id] ?? []);
+    setChatMessages(customerChats[order.id] ?? []);
     setChatInput("");
   }
 
@@ -220,10 +205,14 @@ export default function PesananSellerPage() {
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
     const newMsg: ChatMsg = { from: "mitra", text: chatInput.trim(), time };
-    setChatMessages(prev => [...prev, newMsg]);
+    const updated = [...(customerChats[chatOrder.id] || []), newMsg];
+    setCustomerChats(prev => ({ ...prev, [chatOrder.id]: updated }));
+    setChatMessages(updated);
     setChatInput("");
     setTimeout(() => {
-      setChatMessages(prev => [...prev, { from: "customer", text: "Baik kak, terima kasih infonya! 🙏", time }]);
+      const replyMsg: ChatMsg = { from: "customer", text: "Baik kak, terima kasih infonya! 🙏", time };
+      setCustomerChats(prev => ({ ...prev, [chatOrder.id]: [...(prev[chatOrder.id] || []), replyMsg] }));
+      setChatMessages(prev => [...prev, replyMsg]);
     }, 1400);
   }
 
@@ -274,7 +263,14 @@ export default function PesananSellerPage() {
     }
   };
 
-  if (loading) return <div>Memuat...</div>;
+  if (loading) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", padding: "1rem" }}>
+        <div style={{ height: "32px", width: "240px", background: "var(--surface)", borderRadius: "8px" }} />
+        <div style={{ height: "400px", background: "#fff", borderRadius: "12px", border: "1px solid var(--line)" }} />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -419,9 +415,9 @@ export default function PesananSellerPage() {
                         >
                           <ChatCircle size={15} />
                           Chat Customer
-                          {(MOCK_CUSTOMER_CHATS[order.id]?.length ?? 0) > 0 && (
+                          {(customerChats[order.id]?.length ?? 0) > 0 && (
                             <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                              {MOCK_CUSTOMER_CHATS[order.id].length}
+                              {customerChats[order.id].length}
                             </span>
                           )}
                         </button>

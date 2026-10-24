@@ -1,16 +1,36 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
+import axios from "axios";
 import { CurrencyCircleDollar, Wallet, ArrowUpRight, DownloadSimple, ClockCounterClockwise } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import Cookies from "js-cookie";
 import { EarthySelect } from "@/components/ui/EarthySelect";
 import { useAuthStore } from "@/store/useAuthStore";
 
 export default function LaporanKeuanganPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [financeData, setFinanceData] = useState<{
+    saldoAktif: number;
+    pendapatanTertunda: number;
+    totalDitarik: number;
+    riwayatTransaksi: Array<{
+      id: string;
+      tanggal: string;
+      deskripsi: string;
+      status: string;
+      nominal: number;
+      type?: string;
+    }>;
+  }>({
+    saldoAktif: 0,
+    pendapatanTertunda: 0,
+    totalDitarik: 0,
+    riwayatTransaksi: [],
+  });
+
   const [isWithdrawModalOpen, setIsWithdrawModalOpen] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
@@ -22,14 +42,35 @@ export default function LaporanKeuanganPage() {
   const { user } = useAuthStore();
 
   useEffect(() => {
-    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    useAuthStore.getState().initAuth();
 
-    if (!storedToken) {
-      router.push("/login");
-      return;
-    }
+    const fetchFinance = async () => {
+      const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
 
-    setLoading(false);
+      if (!storedToken) {
+        router.push("/login");
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const res = await axios.get("http://localhost:5000/api/mitra/finance", {
+          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+          withCredentials: true,
+        });
+
+        if (res.data?.success && res.data?.data) {
+          setFinanceData(res.data.data);
+        }
+      } catch (error) {
+        console.error("Gagal memuat laporan keuangan:", error);
+        toast.error("Gagal memuat data laporan keuangan");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFinance();
   }, [router]);
 
   const handleDownload = () => {
@@ -58,20 +99,52 @@ export default function LaporanKeuanganPage() {
     setWithdrawAmount("");
   };
 
-  if (loading) return <div>Memuat data laporan...</div>;
+  if (loading) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", padding: "1rem" }}>
+        <div style={{ height: "32px", width: "240px", background: "var(--surface)", borderRadius: "8px" }} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" }}>
+          {[1, 2, 3].map((i) => (
+            <div key={i} style={{ height: "110px", background: "#fff", borderRadius: "12px", border: "1px solid var(--line)" }} />
+          ))}
+        </div>
+        <div style={{ height: "260px", background: "#fff", borderRadius: "12px", border: "1px solid var(--line)" }} />
+      </div>
+    );
+  }
 
   const stats = [
-    { label: "Saldo Aktif", value: "Rp 3.250.000", icon: Wallet, color: "var(--moss)", desc: "Siap ditarik" },
-    { label: "Pendapatan Tertunda", value: "Rp 1.250.000", icon: ClockCounterClockwise, color: "var(--sand)", desc: "Menunggu pesanan selesai" },
-    { label: "Total Ditarik", value: "Rp 15.400.000", icon: ArrowUpRight, color: "#2b6cb0", desc: "Sejak bergabung" },
+    { 
+      label: "Saldo Aktif", 
+      value: `Rp ${(financeData.saldoAktif || 0).toLocaleString('id-ID')}`, 
+      icon: Wallet, 
+      color: "var(--moss)", 
+      desc: "Siap ditarik" 
+    },
+    { 
+      label: "Pendapatan Tertunda", 
+      value: `Rp ${(financeData.pendapatanTertunda || 0).toLocaleString('id-ID')}`, 
+      icon: ClockCounterClockwise, 
+      color: "var(--sand)", 
+      desc: "Menunggu pesanan selesai" 
+    },
+    { 
+      label: "Total Ditarik", 
+      value: `Rp ${(financeData.totalDitarik || 0).toLocaleString('id-ID')}`, 
+      icon: ArrowUpRight, 
+      color: "#2b6cb0", 
+      desc: "Sejak bergabung" 
+    },
   ];
 
-  const transactions = [
-    { id: "TRX-001", date: "15 Okt 2023", desc: "Penjualan - INV/2023/10/XX1", amount: "+ Rp 450.000", type: "in", status: "Selesai" },
-    { id: "TRX-002", date: "14 Okt 2023", desc: "Penarikan Dana ke BCA", amount: "- Rp 2.000.000", type: "out", status: "Selesai" },
-    { id: "TRX-003", date: "12 Okt 2023", desc: "Penjualan - INV/2023/10/XX2", amount: "+ Rp 800.000", type: "in", status: "Selesai" },
-    { id: "TRX-004", date: "10 Okt 2023", desc: "Penjualan - INV/2023/10/XX3", amount: "+ Rp 1.250.000", type: "in", status: "Tertunda" },
-  ];
+  const transactions = (financeData.riwayatTransaksi || []).map((t: any) => ({
+    id: t.id,
+    date: t.tanggal || t.date || "-",
+    desc: t.deskripsi || t.desc || "Penjualan",
+    amount: typeof t.nominal === "number" ? `+ Rp ${t.nominal.toLocaleString('id-ID')}` : (t.amount || "+ Rp 0"),
+    type: t.type || "in",
+    status: t.status || "Selesai",
+  }));
 
   const filteredTrx = transactions.filter(t => {
     const matchType = filterTrxType === "semua" || t.type === filterTrxType;
@@ -79,33 +152,18 @@ export default function LaporanKeuanganPage() {
     return matchType && matchStatus;
   });
 
-  const data7 = [
-    { label: "Sen", value: 30, amount: "Rp 300.000" },
-    { label: "Sel", value: 50, amount: "Rp 500.000" },
-    { label: "Rab", value: 40, amount: "Rp 400.000" },
-    { label: "Kam", value: 70, amount: "Rp 700.000" },
-    { label: "Jum", value: 60, amount: "Rp 600.000" },
-    { label: "Sab", value: 90, amount: "Rp 900.000" },
-    { label: "Min", value: 80, amount: "Rp 800.000" },
-  ];
+  const dayLabels = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+  const data7 = dayLabels.map((day) => ({
+    label: day,
+    value: financeData.saldoAktif > 0 ? Math.round((financeData.saldoAktif / 7) / (financeData.saldoAktif || 1) * 100) : 0,
+    amount: `Rp ${financeData.saldoAktif > 0 ? Math.round(financeData.saldoAktif / 7).toLocaleString('id-ID') : 0}`
+  }));
 
-  const data30 = [
-    { label: '1 Okt', value: 35, amount: 'Rp 350.000' }, { label: '2 Okt', value: 40, amount: 'Rp 400.000' },
-    { label: '3 Okt', value: 30, amount: 'Rp 300.000' }, { label: '4 Okt', value: 55, amount: 'Rp 550.000' },
-    { label: '5 Okt', value: 60, amount: 'Rp 600.000' }, { label: '6 Okt', value: 45, amount: 'Rp 450.000' },
-    { label: '7 Okt', value: 50, amount: 'Rp 500.000' }, { label: '8 Okt', value: 75, amount: 'Rp 750.000' },
-    { label: '9 Okt', value: 80, amount: 'Rp 800.000' }, { label: '10 Okt', value: 65, amount: 'Rp 650.000' },
-    { label: '11 Okt', value: 70, amount: 'Rp 700.000' }, { label: '12 Okt', value: 95, amount: 'Rp 950.000' },
-    { label: '13 Okt', value: 90, amount: 'Rp 900.000' }, { label: '14 Okt', value: 85, amount: 'Rp 850.000' },
-    { label: '15 Okt', value: 100, amount: 'Rp 1.000.000' }, { label: '16 Okt', value: 40, amount: 'Rp 400.000' },
-    { label: '17 Okt', value: 50, amount: 'Rp 500.000' }, { label: '18 Okt', value: 65, amount: 'Rp 650.000' },
-    { label: '19 Okt', value: 45, amount: 'Rp 450.000' }, { label: '20 Okt', value: 55, amount: 'Rp 550.000' },
-    { label: '21 Okt', value: 80, amount: 'Rp 800.000' }, { label: '22 Okt', value: 70, amount: 'Rp 700.000' },
-    { label: '23 Okt', value: 90, amount: 'Rp 900.000' }, { label: '24 Okt', value: 85, amount: 'Rp 850.000' },
-    { label: '25 Okt', value: 60, amount: 'Rp 600.000' }, { label: '26 Okt', value: 75, amount: 'Rp 750.000' },
-    { label: '27 Okt', value: 95, amount: 'Rp 950.000' }, { label: '28 Okt', value: 100, amount: 'Rp 1.000.000' },
-    { label: '29 Okt', value: 85, amount: 'Rp 850.000' }, { label: '30 Okt', value: 110, amount: 'Rp 1.100.000' }
-  ];
+  const data30 = Array.from({ length: 30 }, (_, i) => ({
+    label: `${i + 1}`,
+    value: financeData.saldoAktif > 0 ? Math.round((financeData.saldoAktif / 30) / (financeData.saldoAktif || 1) * 100) : 0,
+    amount: `Rp ${financeData.saldoAktif > 0 ? Math.round(financeData.saldoAktif / 30).toLocaleString('id-ID') : 0}`
+  }));
 
   const currentChartData = chartPeriod === "7hari" ? data7 : data30;
 
@@ -338,25 +396,33 @@ export default function LaporanKeuanganPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredTrx.map((trx, i) => (
-                <tr key={i} style={{ borderBottom: "1px solid var(--line-light)", transition: "background 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
-                  <td style={{ padding: "1rem 1.5rem", fontSize: "0.9rem", color: "var(--bark)", fontWeight: 600 }}>{trx.id}</td>
-                  <td style={{ padding: "1rem 1.5rem", fontSize: "0.9rem", color: "var(--bark-muted)" }}>{trx.date}</td>
-                  <td style={{ padding: "1rem 1.5rem", fontSize: "0.9rem", color: "var(--bark)" }}>{trx.desc}</td>
-                  <td style={{ padding: "1rem 1.5rem" }}>
-                    <span style={{
-                      padding: "0.35rem 0.85rem", borderRadius: "9999px", fontSize: "0.75rem", fontWeight: 700,
-                      background: trx.status === "Selesai" ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
-                      color: trx.status === "Selesai" ? "#047857" : "#b45309",
-                    }}>
-                      {trx.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: "1rem 1.5rem", fontSize: "0.9rem", fontWeight: 800, textAlign: "right", color: trx.type === "in" ? "#059669" : "var(--bark)" }}>
-                    {trx.amount}
+              {filteredTrx.length > 0 ? (
+                filteredTrx.map((trx, i) => (
+                  <tr key={i} style={{ borderBottom: "1px solid var(--line-light)", transition: "background 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
+                    <td style={{ padding: "1rem 1.5rem", fontSize: "0.9rem", color: "var(--bark)", fontWeight: 600 }}>{trx.id}</td>
+                    <td style={{ padding: "1rem 1.5rem", fontSize: "0.9rem", color: "var(--bark-muted)" }}>{trx.date}</td>
+                    <td style={{ padding: "1rem 1.5rem", fontSize: "0.9rem", color: "var(--bark)" }}>{trx.desc}</td>
+                    <td style={{ padding: "1rem 1.5rem" }}>
+                      <span style={{
+                        padding: "0.35rem 0.85rem", borderRadius: "9999px", fontSize: "0.75rem", fontWeight: 700,
+                        background: trx.status === "Selesai" ? "rgba(16, 185, 129, 0.15)" : "rgba(245, 158, 11, 0.15)",
+                        color: trx.status === "Selesai" ? "#047857" : "#b45309",
+                      }}>
+                        {trx.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: "1rem 1.5rem", fontSize: "0.9rem", fontWeight: 800, textAlign: "right", color: trx.type === "in" ? "#059669" : "var(--bark)" }}>
+                      {trx.amount}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} style={{ padding: "3rem 1.5rem", textAlign: "center", color: "var(--bark-muted)", fontSize: "0.9rem" }}>
+                    Belum ada riwayat transaksi
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
@@ -370,7 +436,7 @@ export default function LaporanKeuanganPage() {
 
             <div style={{ background: "var(--surface)", padding: "1rem", borderRadius: "1rem", marginBottom: "1.5rem", border: "1px solid var(--line)" }}>
               <p style={{ fontSize: "0.85rem", color: "var(--bark-muted)", marginBottom: "0.25rem" }}>Saldo Aktif Tersedia</p>
-              <p style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--moss)" }}>Rp 3.250.000</p>
+              <p style={{ fontSize: "1.25rem", fontWeight: 800, color: "var(--moss)" }}>Rp {(financeData.saldoAktif || 0).toLocaleString('id-ID')}</p>
             </div>
 
             <form onSubmit={handleWithdraw}>
@@ -380,7 +446,7 @@ export default function LaporanKeuanganPage() {
                   type="number"
                   required
                   min="50000"
-                  max="3250000"
+                  max={String(financeData.saldoAktif || 0)}
                   value={withdrawAmount}
                   onChange={(e) => setWithdrawAmount(e.target.value)}
                   placeholder="Contoh: 1000000"

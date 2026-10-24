@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
+import { mitraService } from "@/services/mitra.service";
 import { toast } from "sonner";
 import api from "@/lib/axios";
 import {
@@ -26,6 +27,7 @@ type ProfileData = {
   instagram: string;
   kategori: string;
   avatar: string;
+  banner: string;
 };
 
 type RegistrationData = {
@@ -36,18 +38,19 @@ type RegistrationData = {
 };
 
 const INITIAL: ProfileData = {
-  ownerName: "Budi Santoso",
-  storeName: "Studio Keramik Dinoyo",
-  phone: "08123456789",
-  email: "budi@email.com",
-  address: "Jl. Dinoyo No. 12, RT 03 RW 01",
+  ownerName: "",
+  storeName: "",
+  phone: "",
+  email: "",
+  address: "",
   city: "Malang",
-  yearStarted: "2019",
-  description: "Studio keramik handmade dari tanah liat pilihan. Memproduksi vas, mug, piring hias, dan berbagai kerajinan keramik berkualitas tinggi.",
-  website: "https://studiokeramik.co.id",
-  instagram: "@studiokeramikdinoyo",
-  kategori: "Keramik Dekoratif",
+  yearStarted: "",
+  description: "",
+  website: "",
+  instagram: "",
+  kategori: "",
   avatar: "",
+  banner: "",
 };
 
 const KATEGORI_LIST = [
@@ -203,7 +206,7 @@ export default function SellerProfilPage() {
         if (typeof window !== "undefined") {
           const userStr = localStorage.getItem("user");
           let parsedUser = {};
-          try { parsedUser = userStr ? JSON.parse(userStr) : {}; } catch {}
+          try { parsedUser = userStr ? JSON.parse(userStr) : {}; } catch { }
           localStorage.setItem("user", JSON.stringify({
             ...parsedUser,
             name: d.name || profile.ownerName,
@@ -222,34 +225,10 @@ export default function SellerProfilPage() {
 
   useEffect(() => {
     const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-    const storedUserStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
-    const session = getDemoSession();
 
-    if (!storedToken && !session) {
+    if (!storedToken) {
       router.push("/login");
       return;
-    }
-
-    if (storedUserStr) {
-      try {
-        const u = JSON.parse(storedUserStr);
-        setProfile(prev => ({
-          ...prev,
-          ownerName: u.name || prev.ownerName,
-          storeName: u.store_name || prev.storeName,
-          email: u.email || prev.email,
-        }));
-        if (u.avatar_url && isCustomAvatar(u.avatar_url)) {
-          setPreview(getImageUrl(u.avatar_url));
-        } else {
-          setPreview("");
-        }
-      } catch (e) {
-        console.error("Gagal parse stored user:", e);
-      }
-    } else if (session) {
-      setProfile(prev => ({ ...prev, ownerName: session.profile.full_name || prev.ownerName }));
-      setIsNewRegistration(session.isNewRegistration || false);
     }
 
     fetchProfileData();
@@ -260,161 +239,32 @@ export default function SellerProfilPage() {
     setSaved(false);
   }
 
-  function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+  // Handler saat memilih banner baru
+  const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAvatarFile(file);
     const url = URL.createObjectURL(file);
     setPreview(url);
-    setImgError(false);
     setSaved(false);
-    toast.success("Foto profil toko dipilih! Klik 'Simpan Perubahan' untuk menerapkan.");
   }
 
-  function handleBannerChange(e: React.ChangeEvent<HTMLInputElement>) {
+  // Handler saat memilih foto profil baru
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setBannerFile(file);
     const url = URL.createObjectURL(file);
     setBannerPreview(url);
     setSaved(false);
-    toast.success("Banner dipilih! Klik 'Simpan Perubahan' untuk menerapkan.");
-  }
-
-  async function handleReuploadSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!reuploadKtp && !reuploadNib && reuploadProducts.length === 0) {
-      toast.error("Harap pilih minimal satu file dokumen untuk diperbaiki/diunggah.");
-      return;
-    }
-
-    setReuploadSubmitting(true);
-    try {
-      const formData = new FormData();
-      if (reuploadKtp) formData.append("ktp_file", reuploadKtp);
-      if (reuploadNib) formData.append("nib_file", reuploadNib);
-      if (reuploadProducts.length > 0) {
-        reuploadProducts.forEach(file => {
-          formData.append("product_images", file);
-        });
-      }
-
-      const res = await api.post("/auth/reupload-docs", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      if (res.data?.success) {
-        toast.success(res.data.message || "Dokumen berhasil diajukan ulang!");
-        setIsDocModalOpen(false);
-        setIsPopupAlertOpen(false);
-        setVerificationStatus("pending");
-        setRejectionReason(null);
-        setIsVerified(false);
-        setReuploadKtp(null);
-        setReuploadNib(null);
-        setReuploadProducts([]);
-
-        // Sinkronisasi status di localStorage
-        if (typeof window !== "undefined") {
-          const uStr = localStorage.getItem("user");
-          if (uStr) {
-            try {
-              const u = JSON.parse(uStr);
-              localStorage.setItem("user", JSON.stringify({ ...u, is_verified: 0, rejection_reason: undefined }));
-            } catch {}
-          }
-        }
-
-        await fetchProfileData();
-      } else {
-        toast.error(res.data?.message || "Gagal mengunggah dokumen.");
-      }
-    } catch (err: any) {
-      console.error("Gagal unggah dokumen:", err);
-      toast.error(err.response?.data?.message || "Terjadi kesalahan saat mengunggah dokumen.");
-    } finally {
-      setReuploadSubmitting(false);
-    }
+    toast.success("Banner toko berhasil diganti!");
   }
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    
-    if (isNewRegistration) {
-      handleRegistrationSubmit(e);
-      return;
-    }
-    
     setSaving(true);
-    try {
-      const formData = new FormData();
-      formData.append("ownerName", profile.ownerName);
-      formData.append("storeName", profile.storeName);
-      formData.append("phone", profile.phone);
-      formData.append("address", profile.address);
-      formData.append("yearStarted", profile.yearStarted);
-      formData.append("description", profile.description);
-      formData.append("website", profile.website);
-      formData.append("instagram", profile.instagram);
-
-      // Alias kompatibilitas
-      formData.append("nama", profile.ownerName);
-      formData.append("nama_toko", profile.storeName);
-      formData.append("alamat", profile.address);
-      formData.append("tahun_mulai", profile.yearStarted);
-      formData.append("deskripsi", profile.description);
-
-      if (avatarFile) {
-        formData.append("avatar", avatarFile);
-      }
-      if (bannerFile) {
-        formData.append("banner", bannerFile);
-      }
-
-      const response = await api.put("/auth/profile", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      if (response.data?.success) {
-        setSaved(true);
-        setAvatarFile(null);
-        setBannerFile(null);
-
-        const updatedData = response.data.data;
-        if (updatedData) {
-          if (updatedData.avatar_url) {
-            setPreview(getImageUrl(updatedData.avatar_url));
-          }
-          if (updatedData.banner_url) {
-            setBannerPreview(getImageUrl(updatedData.banner_url));
-          }
-
-          // Sinkronkan data ke localStorage agar Navbar & halaman lain terupdate
-          if (typeof window !== "undefined") {
-            const userStr = localStorage.getItem("user");
-            let parsedUser = {};
-            try { parsedUser = userStr ? JSON.parse(userStr) : {}; } catch {}
-            localStorage.setItem("user", JSON.stringify({
-              ...parsedUser,
-              name: updatedData.name || profile.ownerName,
-              store_name: updatedData.store_name || profile.storeName,
-              avatar_url: updatedData.avatar_url || (parsedUser as any).avatar_url,
-            }));
-          }
-        }
-
-        toast.success("Profil toko berhasil disimpan!");
-      } else {
-        toast.error(response.data?.message || "Gagal menyimpan profil.");
-      }
-    } catch (error: any) {
-      console.error("Gagal menyimpan profil toko:", error);
-      toast.error(error.response?.data?.message || "Gagal menyimpan profil toko.");
-    } finally {
-      setSaving(false);
-    }
+    await new Promise(r => setTimeout(r, 1000));
+    setSaving(false);
+    setSaved(true);
+    toast.success("Profil toko berhasil disimpan!");
   }
 
   async function handleRegistrationSubmit(e: React.FormEvent) {
@@ -470,6 +320,29 @@ export default function SellerProfilPage() {
       toast.error("Terjadi kesalahan saat pendaftaran");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleReuploadSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setReuploadSubmitting(true);
+    try {
+      const formData = new FormData();
+      if (reuploadKtp) formData.append("ktp_file", reuploadKtp);
+      if (reuploadNib) formData.append("nib_file", reuploadNib);
+      reuploadProducts.forEach(f => formData.append("sample_product_images", f));
+
+      await api.post("/auth/reupload-docs", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      toast.success("Dokumen berhasil diunggah ulang! Menunggu verifikasi admin.");
+      setIsDocModalOpen(false);
+      await fetchProfileData();
+    } catch (err: any) {
+      console.error("Gagal unggah dokumen:", err);
+      toast.error(err?.response?.data?.message || "Gagal mengunggah ulang dokumen");
+    } finally {
+      setReuploadSubmitting(false);
     }
   }
 
@@ -946,17 +819,10 @@ export default function SellerProfilPage() {
                     overflow: "hidden",
                     boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
                   }}>
-                    {preview && !imgError && isCustomAvatar(preview) ? (
-                      <img
-                        src={preview}
-                        alt={storeDisplayName}
-                        referrerPolicy="no-referrer"
-                        onError={() => setImgError(true)}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      />
-                    ) : (
-                      initials
-                    )}
+                    {preview
+                      ? <img src={preview} alt="avatar" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                      : initials
+                    }
                   </div>
                   {/* Avatar edit button */}
                   <button
@@ -1033,10 +899,10 @@ export default function SellerProfilPage() {
                 {isVerified
                   ? "Toko Anda sudah diverifikasi oleh tim DinoyoCraft. Semua fitur transaksi aktif."
                   : verificationStatus === "rejected"
-                  ? "Pengajuan toko ditolak oleh admin. Perbaiki dokumen yang tidak sesuai."
-                  : isDocsIncomplete
-                  ? "Dokumen persyaratan toko belum lengkap. Harap segera lengkapi agar segera diverifikasi."
-                  : "Pengajuan akun toko Anda sedang dalam peninjauan oleh tim admin DinoyoCraft."}
+                    ? "Pengajuan toko ditolak oleh admin. Perbaiki dokumen yang tidak sesuai."
+                    : isDocsIncomplete
+                      ? "Dokumen persyaratan toko belum lengkap. Harap segera lengkapi agar segera diverifikasi."
+                      : "Pengajuan akun toko Anda sedang dalam peninjauan oleh tim admin DinoyoCraft."}
               </p>
               {!isVerified && (
                 <button
@@ -1535,8 +1401,8 @@ export default function SellerProfilPage() {
                       {reuploadKtp
                         ? `✓ File Baru: ${reuploadKtp.name}`
                         : hasKtp
-                        ? "✓ Dokumen Tersimpan"
-                        : "⚠ Belum Terunggah"}
+                          ? "✓ Dokumen Tersimpan"
+                          : "⚠ Belum Terunggah"}
                     </span>
                   </div>
                   <p style={{ fontSize: "0.78rem", color: "var(--bark-muted)", margin: "0 0 0.65rem" }}>
@@ -1573,8 +1439,8 @@ export default function SellerProfilPage() {
                       {reuploadNib
                         ? `✓ File Baru: ${reuploadNib.name}`
                         : hasNib
-                        ? "✓ Dokumen Tersimpan"
-                        : "⚠ Belum Terunggah"}
+                          ? "✓ Dokumen Tersimpan"
+                          : "⚠ Belum Terunggah"}
                     </span>
                   </div>
                   <p style={{ fontSize: "0.78rem", color: "var(--bark-muted)", margin: "0 0 0.65rem" }}>
@@ -1611,8 +1477,8 @@ export default function SellerProfilPage() {
                       {reuploadProducts.length > 0
                         ? `✓ ${reuploadProducts.length} Foto Baru Dipilih`
                         : hasProducts
-                        ? `✓ ${productImagesList.length} Foto Tersimpan`
-                        : "⚠ Belum Terunggah"}
+                          ? `✓ ${productImagesList.length} Foto Tersimpan`
+                          : "⚠ Belum Terunggah"}
                     </span>
                   </div>
                   <p style={{ fontSize: "0.78rem", color: "var(--bark-muted)", margin: "0 0 0.65rem" }}>

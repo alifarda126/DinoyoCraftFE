@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 import { clearDemoSession } from "@/lib/utils/demo";
 import { adminService } from "@/services/admin.service";
+import { useAuthStore } from "@/store/useAuthStore";
 
 // ─── Komponen badge angka kecil ───────────────────────────────────────────────
 function NavBadge({ count }: { count: number }) {
@@ -53,6 +54,8 @@ export default function AdminSidebar() {
     "/admin/moderasi": 4, // 4 laporan menunggu tindakan
     "/admin/chat": 2,     // 2 kontak dengan pesan belum dibaca
   });
+
+  const logout = useAuthStore((state) => state.logout);
 
   useEffect(() => {
     async function updateBadges() {
@@ -124,6 +127,7 @@ export default function AdminSidebar() {
 
   async function handleSignOut() {
     clearDemoSession();
+    logout();
     router.push("/login");
   }
 

@@ -55,7 +55,7 @@ function LoginFormContent() {
         }
 
         // Simpan token ke browser cookie agar bisa dibaca oleh middleware.ts Next.js
-        Cookies.set("token", token, { expires: 1 });
+        Cookies.set("token", token, { expires: 7 });
 
         // Simpan ke State Management & LocalStorage
         login(userData, token);
@@ -111,6 +111,7 @@ function LoginFormContent() {
         Cookies.set("token", userToken, { expires: 1 });
 
         login(userData, userToken);
+        Cookies.set("token", userToken, { expires: 7 });
         toast.success("Login dengan Google berhasil!");
 
         const role = userData?.role;

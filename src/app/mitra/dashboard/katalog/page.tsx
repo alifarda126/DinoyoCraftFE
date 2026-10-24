@@ -11,6 +11,8 @@ import {
 } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
 import axios from 'axios';
+import Cookies from "js-cookie";
+import { useAuthStore } from "@/store/useAuthStore";
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
 
@@ -336,7 +338,7 @@ export default function SellerCatalogPage() {
   const loadArtworks = useCallback(async () => {
     try {
       setFetchingArtworks(true);
-      const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
       if (!storedToken) {
         setFetchingArtworks(false);
         return;
@@ -360,7 +362,8 @@ export default function SellerCatalogPage() {
   }, []);
 
   useEffect(() => {
-    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    useAuthStore.getState().initAuth();
+    const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
     const session = getDemoSession();
     if (!storedToken && (!session || session.role !== "seller")) {
       router.push("/login");
@@ -467,19 +470,42 @@ export default function SellerCatalogPage() {
     setShowForm(false);
   }
 
-  function handleEditSave(e: React.FormEvent) {
+  async function handleEditSave(e: React.FormEvent) {
     e.preventDefault();
     const finalStock = editColors.length > 0
       ? editColors.reduce((sum, v) => sum + (v.stock || 0), 0)
       : parseInt(editStock) || 0;
 
-    setArtworks(prev => prev.map(a => a.id === editingId ? {
-      ...a, title: editTitle, description: editDescription,
-      price: parseInt(editPrice) || 0, category: editCategory,
-      stock: finalStock, variants: editColors,
-    } : a));
-    setEditingId(null);
-    toast.success("Produk berhasil diperbarui!");
+    const dataBaru = {
+      name: editTitle,
+      title: editTitle,
+      description: editDescription,
+      price: parseInt(editPrice) || 0,
+      category_id: editCategory,
+      stock: finalStock,
+    };
+
+    try {
+      const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
+      if (editingId) {
+        await axios.put(`http://localhost:5000/api/mitra/products/${editingId}`, dataBaru, {
+          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+          withCredentials: true,
+        });
+      }
+
+      setArtworks(prev => prev.map(a => a.id === editingId ? {
+        ...a, title: editTitle, description: editDescription,
+        price: parseInt(editPrice) || 0, category: editCategory,
+        stock: finalStock, variants: editColors,
+      } : a));
+      setEditingId(null);
+      toast.success("Produk berhasil diperbarui!");
+      await loadArtworks();
+    } catch (error: any) {
+      console.error("Gagal memperbarui produk:", error);
+      toast.error(error?.response?.data?.message || "Gagal memperbarui produk");
+    }
   }
 
   /* ── Helpers ─────────────────────────────────────────────────────────── */
