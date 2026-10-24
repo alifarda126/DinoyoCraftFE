@@ -108,10 +108,9 @@ function LoginFormContent() {
         }
 
         // Simpan token ke browser cookie
-        Cookies.set("token", userToken, { expires: 1 });
+        Cookies.set("token", userToken, { expires: 7 });
 
         login(userData, userToken);
-        Cookies.set("token", userToken, { expires: 7 });
         toast.success("Login dengan Google berhasil!");
 
         const role = userData?.role;

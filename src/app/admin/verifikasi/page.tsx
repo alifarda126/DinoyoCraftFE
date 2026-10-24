@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Check, X, Storefront, MagnifyingGlass, Eye,
@@ -42,7 +41,6 @@ const REJECTION_PRESETS = [
 ];
 
 export default function AdminVerifikasiPage() {
-  const router = useRouter();
   const [registrations, setRegistrations] = useState<StoreRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReg, setSelectedReg] = useState<StoreRegistration | null>(null);
