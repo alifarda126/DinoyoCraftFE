@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   Check, X, Storefront, MagnifyingGlass, Eye,
@@ -41,6 +42,7 @@ const REJECTION_PRESETS = [
 ];
 
 export default function AdminVerifikasiPage() {
+  const router = useRouter();
   const [registrations, setRegistrations] = useState<StoreRegistration[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedReg, setSelectedReg] = useState<StoreRegistration | null>(null);
@@ -313,8 +315,8 @@ export default function AdminVerifikasiPage() {
                       </td>
                       <td className="p-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${reg.status === "approved" ? "bg-green-100 text-green-800" :
-                            reg.status === "rejected" ? "bg-red-100 text-red-800" :
-                              "bg-yellow-100 text-yellow-800"
+                          reg.status === "rejected" ? "bg-red-100 text-red-800" :
+                            "bg-yellow-100 text-yellow-800"
                           }`}>
                           {reg.status === "approved" ? "Disetujui" : reg.status === "rejected" ? "Ditolak" : "Menunggu"}
                         </span>

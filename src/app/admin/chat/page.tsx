@@ -1,103 +1,310 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import Pusher from "pusher-js";
+import api from "@/lib/axios";
 import { getDemoSession } from "@/lib/utils/demo";
+import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import { PaperPlaneRight, UserCircle, Robot, Storefront, ChatCircle } from "@phosphor-icons/react";
 
-type ChatMessage = { role: "user" | "admin"; text: string; time?: string };
+type ChatMessage = { id?: number; role: "user" | "admin"; text: string; time?: string; sender_id?: number };
 type ChatContact = {
   id: number; name: string; lastMsg: string; time: string; unread: number; botHandled: boolean;
   type: "customer" | "mitra";
   messages: ChatMessage[];
 };
 
-const INITIAL_CHATS: ChatContact[] = [
-  // Customer chats
-  {
-    id: 1, name: "Budi Santoso", lastMsg: "Apakah bisa pesan suvenir custom 100 pcs?", time: "10:30",
-    unread: 2, botHandled: true, type: "customer",
-    messages: [
-      { role: "user", text: "Halo, saya ingin bertanya tentang pemesanan suvenir pernikahan.", time: "10:25" },
-      { role: "admin", text: "Halo Kak! Tentu bisa. Di DinoyoCraft, kami melayani pemesanan suvenir kustom untuk pernikahan. Apakah Kakak sudah ada referensi desain?", time: "10:27" },
-      { role: "user", text: "Apakah bisa pesan suvenir custom 100 pcs?", time: "10:30" },
-    ]
-  },
-  {
-    id: 2, name: "Siti Aminah", lastMsg: "Terima kasih infonya min", time: "09:15",
-    unread: 0, botHandled: false, type: "customer",
-    messages: [
-      { role: "user", text: "Min, berapa lama pengiriman ke Bandung?", time: "09:10" },
-      { role: "admin", text: "Halo, selamat siang. Untuk Bandung estimasi 2-3 hari kerja menggunakan JNE Reguler.", time: "09:12" },
-      { role: "user", text: "Terima kasih infonya min", time: "09:15" },
-    ]
-  },
-  {
-    id: 3, name: "Joko Anwar", lastMsg: "Lokasi tepatnya dimana ya?", time: "Kemarin",
-    unread: 0, botHandled: true, type: "customer",
-    messages: [
-      { role: "user", text: "Lokasi tepatnya dimana ya?", time: "Kemarin" },
-      { role: "admin", text: "Kami berlokasi di Jl. Dinoyo, Kec. Lowokwaru, Kota Malang, Jawa Timur.", time: "Kemarin" },
-    ]
-  },
-  // Mitra chats
-  {
-    id: 4, name: "Ratna Puspitasari", lastMsg: "Katalog terbaru sudah bisa diakses?", time: "11:05",
-    unread: 1, botHandled: false, type: "mitra",
-    messages: [
-      { role: "user", text: "Halo admin, katalog terbaru sudah bisa diakses belum ya?", time: "11:05" },
-    ]
-  },
-  {
-    id: 5, name: "Bagas Anindito", lastMsg: "Terima kasih sudah dibantu!", time: "08:40",
-    unread: 0, botHandled: false, type: "mitra",
-    messages: [
-      { role: "user", text: "Admin, ada kendala di pengiriman ORD-20231022-003, kurir tidak mau menjemput.", time: "08:30" },
-      { role: "admin", text: "Halo Kak Bagas, kami bantu koordinasikan dengan kurir. Mohon tunggu sebentar.", time: "08:35" },
-      { role: "user", text: "Terima kasih sudah dibantu!", time: "08:40" },
-    ]
-  },
-];
+const getAuthUserId = (): number => {
+  if (typeof window !== "undefined") {
+    try {
+      const token = localStorage.getItem("token");
+      if (token) {
+        const payloadBase64 = token.split(".")[1];
+        if (payloadBase64) {
+          const decoded = JSON.parse(atob(payloadBase64.replace(/-/g, "+").replace(/_/g, "/")));
+          const uid = Number(decoded.userId || decoded.id);
+          if (!isNaN(uid) && uid > 0) return uid;
+        }
+      }
+    } catch {}
+    try {
+      const uStr = localStorage.getItem("user");
+      if (uStr) {
+        const u = JSON.parse(uStr);
+        const uid = Number(u.id || u.userId);
+        if (!isNaN(uid) && uid > 0) return uid;
+      }
+    } catch {}
+  }
+  return 0;
+};
 
 export default function AdminLiveChatPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"customer" | "mitra">("customer");
-  const [activeChat, setActiveChat] = useState<number>(1);
+  const [activeChat, setActiveChat] = useState<number | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
-  const [chats, setChats] = useState<ChatContact[]>(INITIAL_CHATS);
+  const [chats, setChats] = useState<ChatContact[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const { user, initAuth } = useAuthStore();
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const session = getDemoSession();
+  const [myUserId, setMyUserId] = useState<number>(() => {
+    return user?.id || getAuthUserId() || (session?.user?.id && !isNaN(Number(session.user.id)) ? Number(session.user.id) : 1) || 1;
+  });
 
   useEffect(() => {
-    const session = getDemoSession();
-    if (!session || session.role !== "admin") {
+    initAuth();
+    const uid = user?.id || getAuthUserId() || (session?.user?.id && !isNaN(Number(session.user.id)) ? Number(session.user.id) : 1);
+    if (uid) setMyUserId(uid);
+  }, [user?.id, initAuth]);
+
+  useEffect(() => {
+    const sessionData = getDemoSession();
+    if (!sessionData || sessionData.role !== "admin") {
       router.push("/auth/login");
       return;
     }
     setLoading(false);
   }, [router]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  // Fetch daftar kontak dari backend database
+  useEffect(() => {
+    const loadContacts = () => {
+      api.get("/chat/contacts")
+        .then((res) => {
+          if (res.data?.success && Array.isArray(res.data?.data)) {
+            if (res.data.current_user_id) {
+              setMyUserId(Number(res.data.current_user_id));
+            }
+            const apiContacts: ChatContact[] = res.data.data.map((c: any) => ({
+              id: c.id,
+              name: c.store_name || c.name,
+              lastMsg: c.last_message || "Belum ada percakapan",
+              time: c.last_message_time
+                ? new Date(c.last_message_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                : "",
+              unread: c.unread_count || 0,
+              botHandled: false,
+              type: c.role === "mitra" ? ("mitra" as const) : ("customer" as const),
+              messages: [],
+            }));
+
+            setChats(apiContacts);
+
+            setActiveChat((currentActive) => {
+              if (currentActive && apiContacts.some((c) => c.id === currentActive)) {
+                return currentActive;
+              }
+              const firstInTab = apiContacts.find((c) => c.type === activeTab);
+              return firstInTab ? firstInTab.id : (apiContacts[0]?.id || null);
+            });
+          }
+        })
+        .catch((err) => {
+          console.warn("Gagal memuat kontak dari database:", err?.message || err);
+        });
+    };
+
+    loadContacts();
+    const contactPoll = setInterval(loadContacts, 5000);
+    return () => clearInterval(contactPoll);
+  }, [activeTab]);
+
+  // Connect ke Pusher & subscribe event real-time serta smart auto-polling
+  useEffect(() => {
+    if (!activeChat || !myUserId) {
+      setMessages([]);
+      return;
+    }
+
+    // 1. Paksa konversi ke Number agar format channel backend & frontend 100% sama
+    const id1 = Number(myUserId);
+    const id2 = Number(activeChat);
+
+    const fetchMessages = () => {
+      api.get(`/chat/messages/${id2}`)
+        .then((res) => {
+          if (res.data?.success && Array.isArray(res.data?.data)) {
+            if (res.data.current_user_id) {
+              setMyUserId(Number(res.data.current_user_id));
+            }
+            const apiMessages: ChatMessage[] = res.data.data.map((m: any) => {
+              const date = m.created_at ? new Date(m.created_at) : new Date();
+              const time = `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+              return {
+                id: Number(m.id),
+                role: Number(m.sender_id) == id1 ? ("admin" as const) : ("user" as const),
+                text: m.message,
+                time,
+                sender_id: Number(m.sender_id),
+              };
+            });
+
+            setMessages((prev) => {
+              if (prev.length !== apiMessages.length) return apiMessages;
+              const hasDiff = apiMessages.some((msg, idx) => prev[idx]?.id !== msg.id || prev[idx]?.text !== msg.text);
+              return hasDiff ? apiMessages : prev;
+            });
+
+            const lastApiMsg = apiMessages.length > 0 ? apiMessages[apiMessages.length - 1] : null;
+            if (lastApiMsg) {
+              setChats((prev) =>
+                prev.map((c) =>
+                  c.id == id2
+                    ? {
+                        ...c,
+                        lastMsg: lastApiMsg.text,
+                        time: lastApiMsg.time || c.time,
+                      }
+                    : c
+                )
+              );
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn("Gagal mengambil riwayat dari server:", err?.message || err);
+        });
+    };
+
+    fetchMessages();
+    // Auto-polling: pesan baru otomatis tampil di layar setiap 2 detik tanpa harus klik kontak lain
+    const pollTimer = setInterval(fetchMessages, 2000);
+
+    // 2. Pusher connection
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
+
+    let channel: any = null;
+    let userChannel: any = null;
+    let pusher: any = null;
+
+    if (pusherKey) {
+      try {
+        pusher = new Pusher(pusherKey, {
+          cluster: pusherCluster,
+        });
+
+        const channelName = `chat-${Math.min(id1, id2)}-${Math.max(id1, id2)}`;
+        console.log("Mencoba subscribe ke channel:", channelName);
+        channel = pusher.subscribe(channelName);
+        userChannel = pusher.subscribe(`user-${id1}`);
+
+        const handleNewMessage = (data: any) => {
+          console.log("Pesan realtime masuk dari Pusher:", data);
+
+          const senderId = Number(data.sender_id);
+          const receiverId = Number(data.receiver_id);
+          const isForThisChat = id2 == senderId || id2 == receiverId;
+
+          const date = data.created_at ? new Date(data.created_at) : new Date();
+          const time = `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+          const isMe = senderId == id1;
+
+          const incomingMsg: ChatMessage = {
+            id: Number(data.id),
+            role: isMe ? "admin" : "user",
+            text: data.message,
+            time,
+            sender_id: senderId,
+          };
+
+          if (isForThisChat) {
+            setMessages((prevMessages) => {
+              const isDuplicate = prevMessages.some(
+                (msg) =>
+                  msg.id == data.id ||
+                  (msg.text === incomingMsg.text && msg.time === incomingMsg.time)
+              );
+              if (isDuplicate) return prevMessages;
+              return [...prevMessages, incomingMsg];
+            });
+          }
+
+          setChats((prevChats) =>
+            prevChats.map((contact) =>
+              contact.id == senderId || contact.id == receiverId
+                ? { ...contact, lastMsg: data.message, time: incomingMsg.time || contact.time }
+                : contact
+            )
+          );
+        };
+
+        channel.bind("new-message", handleNewMessage);
+        userChannel.bind("new-message", handleNewMessage);
+      } catch (e) {
+        console.warn("Pusher init error:", e);
+      }
+    }
+
+    return () => {
+      clearInterval(pollTimer);
+      if (channel) {
+        channel.unbind_all();
+        channel.unsubscribe();
+      }
+      if (userChannel) {
+        userChannel.unbind_all();
+        userChannel.unsubscribe();
+      }
+      if (pusher) {
+        pusher.disconnect();
+      }
+    };
+  }, [myUserId, activeChat]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim()) return;
+    if (!message.trim() || !activeChat || !myUserId) return;
+
+    const currentMsgText = message.trim();
+    setMessage("");
+
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+    const newMsg: ChatMessage = {
+      role: "admin",
+      text: currentMsgText,
+      time,
+      sender_id: Number(myUserId),
+    };
+
+    // Update optimis ke layar chat aktif
+    setMessages((prev) => [...prev, newMsg]);
+
+    // Update optimis ke preview sidebar kontak
     setChats(prev => prev.map(chat => {
-      if (chat.id !== activeChat) return chat;
+      if (chat.id != activeChat) return chat;
       return {
         ...chat,
-        lastMsg: message,
-        messages: [...chat.messages, { role: "admin" as const, text: message, time }],
+        lastMsg: currentMsgText,
+        time,
       };
     }));
-    setMessage("");
+
+    // Trigger ke Express backend yang akan meneruskannya ke Pusher
+    try {
+      await api.post(`/chat/send/${activeChat}`, { message: currentMsgText });
+    } catch (err: any) {
+      console.warn("Gagal mengirim pesan via API backend:", err?.message || err);
+    }
   };
 
   // When switching tab, auto select first in that tab
   const handleTabSwitch = (tab: "customer" | "mitra") => {
     setActiveTab(tab);
     const first = chats.find(c => c.type === tab);
-    if (first) setActiveChat(first.id);
+    setActiveChat(first ? first.id : null);
   };
 
   const filteredChats = chats.filter(c =>
@@ -106,6 +313,11 @@ export default function AdminLiveChatPage() {
   );
 
   const activeChatData = chats.find(c => c.id === activeChat);
+
+  // Auto-scroll ke bawah saat pesan bertambah atau berubah
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   if (loading) return <div>Memuat...</div>;
 
@@ -245,22 +457,32 @@ export default function AdminLiveChatPage() {
 
             {/* Chat Messages */}
             <div className="flex-1 p-4 pr-6 overflow-y-auto overflow-x-hidden flex flex-col gap-4 bg-zinc-50/30">
-              {activeChatData.messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === "user" ? "justify-start" : "justify-end"}`}>
-                  <div className={`flex flex-col max-w-[75%] ${msg.role === "user" ? "items-start" : "items-end"}`}>
-                    <div className={`p-3 rounded-2xl text-sm inline-block ${
-                      msg.role === "user"
-                        ? "bg-zinc-100 text-zinc-800 rounded-tl-sm"
-                        : "bg-zinc-900 text-white rounded-tr-sm"
-                    }`}>
-                      {msg.text}
-                    </div>
-                    {msg.time && (
-                      <p className="text-[10px] text-zinc-400 mt-1">{msg.time}</p>
-                    )}
-                  </div>
+              {messages.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-zinc-400 py-12">
+                  <ChatCircle size={40} className="opacity-30 mb-2" />
+                  <p className="text-sm font-medium text-zinc-500">Belum ada riwayat pesan</p>
+                  <p className="text-xs text-zinc-400">Ketik pesan di bawah untuk memulai obrolan.</p>
                 </div>
-              ))}
+              ) : (
+                messages.map((msg, i) => (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-start" : "justify-end"}`}>
+                    <div className={`flex flex-col max-w-[75%] ${msg.role === "user" ? "items-start" : "items-end"}`}>
+                      <div className={`p-3 rounded-2xl text-sm inline-block ${
+                        msg.role === "user"
+                          ? "bg-zinc-100 text-zinc-800 rounded-tl-sm"
+                          : "bg-zinc-900 text-white rounded-tr-sm"
+                      }`}>
+                        {msg.text}
+                      </div>
+                      {msg.time && (
+                        <p className="text-[10px] text-zinc-400 mt-1">{msg.time}</p>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+              {/* Penanda scroll paling bawah */}
+              <div ref={messagesEndRef} />
             </div>
 
             {/* Chat Input */}
