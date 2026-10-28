@@ -47,14 +47,17 @@
 
 ### 2. Autentikasi Multi-Peran & Keamanan Akses
 - **Login Multi-Role Terpadu (`/login`)**:
-  - Mendukung autentikasi kredensial (Email & Password) dengan validasi real-time.
+  - Validasi form modern menggunakan **React Hook Form** + **Zod Schema Validation** (`loginSchema`).
+  - Mendukung autentikasi kredensial (Email & Password) dengan validasi real-time instan tanpa *unnecessary re-render*.
   - Integrasi **Google OAuth 2.0 Single Sign-On** (`@react-oauth/google`) untuk pengalaman masuk satu klik.
   - Penyimpanan sesi terproteksi via *HTTP-aware browser cookie* (`js-cookie`) dan sinkronisasi store global.
   - *Demo Session Fallback*: Memudahkan evaluasi UI/UX dasbor mitra dan admin tanpa ketergantungan mutlak pada database live.
 - **Registrasi Mitra Baru (`/register`)**:
-  - Pendaftaran akun calon pengrajin lengkap dengan konfirmasi kata sandi dan proteksi duplikasi data.
+  - Alur *multi-step* pendaftaran calon pengrajin (Step 1: Data Pribadi & Keamanan, Step 2: Data Toko & Dokumen Legal).
+  - Skema validasi terstruktur berbasis **Zod** (`registerStep1Schema` & `registerStep2Schema`) yang 100% selaras dengan aturan backend (format nama hanya huruf, format nomor HP 10–14 digit angka, email valid, password min. 8 karakter).
+  - Umpan balik error reaktif saat pengguna berpindah kolom (*onBlur validation*).
 - **Alur Pemulihan Kata Sandi (`/lupa-kata-sandi`)**:
-  - Alur reset password terstruktur dengan input email terverifikasi dan umpan balik notifikasi instan.
+  - Alur reset password 3 langkah (*Email OTP $\rightarrow$ Verifikasi OTP 6 digit $\rightarrow$ Reset Password*) yang divalidasi dengan skema Zod terpadu (`forgotPasswordEmailSchema`, `verifyOtpSchema`, `resetPasswordSchema`).
 - **Route Guarding & RBAC**:
   - Proteksi rute dasbor secara selektif antara rute Mitra (`/mitra/dashboard/*`) dan Administrator (`/admin/*`).
 
@@ -222,7 +225,8 @@ c:\DinoyoCraftFE/
 │   ├── store/                  # Global State Management (Zustand)
 │   │   └── useAuthStore.ts     # State Autentikasi Pengguna
 │   ├── types/                  # Definisi Tipe TypeScript
-│   └── utils/                  # Format Mata Uang (IDR) & Helper Lainnya
+│   ├── utils/                  # Format Mata Uang (IDR) & Helper Lainnya
+│   └── validators/             # Skema Validasi Zod (authSchemas.ts)
 ├── .env.example                # Template Variabel Lingkungan
 ├── .env.local                  # Konfigurasi Environment Variable
 ├── package.json                # Dependensi & Skrip Node.js
@@ -238,6 +242,9 @@ c:\DinoyoCraftFE/
 | **Next.js** | `16.3.5` | Framework React modern dengan App Router & Turbopack |
 | **React** | `19.2.8` | Library antarmuka komponen web generasi terbaru |
 | **TypeScript** | `^5.x` | Static typing ketat untuk keandalan dan skalabilitas kode |
+| **Zod** | `^4.6.7` | Validasi skema TypeScript-first yang aman dan deklaratif |
+| **React Hook Form** | `^7.91.0` | Form handling performa tinggi dengan minimal re-render |
+| **@hookform/resolvers** | `^6.0.2` | Resolver jembatan integrasi Zod ke React Hook Form |
 | **Tailwind CSS** | `^4.0` | Utility-first CSS framework dengan performa generasi ke-4 |
 | **Zustand** | `^5.0.15` | State management global yang ringan, modular, dan cepat |
 | **Axios & SWR** | `^1.20 / ^2.5` | Klien HTTP REST API dengan kemampuan revalidasi data |

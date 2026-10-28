@@ -14,6 +14,11 @@ import {
   EyeSlash,
 } from "@phosphor-icons/react";
 import { authService } from "@/services/auth.service";
+import {
+  forgotPasswordEmailSchema,
+  verifyOtpSchema,
+  resetPasswordSchema,
+} from "@/validators/authSchemas";
 
 type Step = "email" | "otp" | "newpass" | "done";
 
@@ -141,8 +146,9 @@ export default function ForgotPasswordForm() {
 
   async function handleSendOtp(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.includes("@")) {
-      toast.error("Email tidak valid.");
+    const result = forgotPasswordEmailSchema.safeParse({ email });
+    if (!result.success) {
+      toast.error(result.error.issues[0]?.message || "Format email tidak valid.");
       return;
     }
     setLoading(true);
@@ -163,8 +169,9 @@ export default function ForgotPasswordForm() {
 
   async function handleVerifyOtp(e: React.FormEvent) {
     e.preventDefault();
-    if (otp.length < 6) {
-      toast.error("Masukkan 6 digit kode OTP.");
+    const result = verifyOtpSchema.safeParse({ otp });
+    if (!result.success) {
+      toast.error(result.error.issues[0]?.message || "Masukkan 6 digit kode OTP valid.");
       return;
     }
     setLoading(true);
@@ -202,12 +209,12 @@ export default function ForgotPasswordForm() {
 
   async function handleSetPassword(e: React.FormEvent) {
     e.preventDefault();
-    if (newPass.length < 8) {
-      toast.error("Kata sandi minimal 8 karakter.");
-      return;
-    }
-    if (newPass !== confirmPass) {
-      toast.error("Konfirmasi kata sandi tidak cocok.");
+    const result = resetPasswordSchema.safeParse({
+      newPassword: newPass,
+      confirmPassword: confirmPass,
+    });
+    if (!result.success) {
+      toast.error(result.error.issues[0]?.message || "Validasi kata sandi gagal.");
       return;
     }
     setLoading(true);

@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { authService } from "@/services/auth.service";
+import {
+  registerStep1Schema,
+  registerStep2Schema,
+  step1BaseSchema,
+} from "@/validators/authSchemas";
 import { ArrowRight, ArrowLeft, Storefront, CheckCircle, Check, Eye, EyeSlash } from "@phosphor-icons/react";
 import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
 import Image from "next/image";
@@ -109,62 +114,107 @@ function RegisterFormContent() {
     (googleAuthSuccess || (password && konfirmasiPassword && password.length >= 8 && password === konfirmasiPassword))
   );
 
-  // Validasi Step 1: Data Pribadi & Keamanan Akun
-  function validateStep1(): boolean {
-    const newErrors: Record<string, string> = {};
-    let firstErrorField = "";
-
-    const addError = (field: string, msg: string) => {
-      newErrors[field] = msg;
-      if (!firstErrorField) firstErrorField = field;
-    };
-
-    // 1. Validasi Nama Lengkap
-    const nameRegex = /^[a-zA-Z\s]+$/;
-    if (!namaLengkap.trim()) {
-      addError("reg-nama", "Nama Lengkap wajib diisi");
-    } else if (!nameRegex.test(namaLengkap.trim())) {
-      addError("reg-nama", "Format nama tidak valid (hanya huruf)");
-    }
-
-    // 2. Validasi Nomor HP
-    const phoneRegex = /^[0-9]+$/;
-    if (!noWa.trim()) {
-      addError("reg-wa", "Nomor HP wajib diisi");
-    } else if (!phoneRegex.test(noWa.trim())) {
-      addError("reg-wa", "Nomor HP hanya boleh berisi angka");
-    } else if (noWa.trim().length < 10 || noWa.trim().length > 14) {
-      addError("reg-wa", "Nomor HP harus 10-14 digit");
-    }
-
-    // 3. Validasi Email
-    if (!email.trim()) {
-      addError("mitra-email", "Email wajib diisi");
-    } else if (!/\S+@\S+\.\S+/.test(email)) {
-      addError("mitra-email", "Format email tidak valid");
-    }
-
-    // 4. Validasi Password jika bukan Google Auth
-    if (!googleAuthSuccess) {
+  // Helper validasi Zod interaktif per-field saat blur/ketik
+  function validateFieldWithZod(field: "namaLengkap" | "noWa" | "email" | "password" | "konfirmasiPassword") {
+    if (field === "namaLengkap") {
+      const res = step1BaseSchema.shape.namaLengkap.safeParse(namaLengkap);
+      if (!res.success) {
+        setErrors((prev) => ({ ...prev, "reg-nama": res.error.issues[0]?.message || "Format nama tidak valid" }));
+      } else {
+        setErrors((prev) => {
+          const copy = { ...prev };
+          delete copy["reg-nama"];
+          return copy;
+        });
+      }
+    } else if (field === "noWa") {
+      const res = step1BaseSchema.shape.noWa.safeParse(noWa);
+      if (!res.success) {
+        setErrors((prev) => ({ ...prev, "reg-wa": res.error.issues[0]?.message || "Format nomor HP tidak valid" }));
+      } else {
+        setErrors((prev) => {
+          const copy = { ...prev };
+          delete copy["reg-wa"];
+          return copy;
+        });
+      }
+    } else if (field === "email") {
+      const res = step1BaseSchema.shape.email.safeParse(email);
+      if (!res.success) {
+        setErrors((prev) => ({ ...prev, "mitra-email": res.error.issues[0]?.message || "Format email tidak valid" }));
+      } else {
+        setErrors((prev) => {
+          const copy = { ...prev };
+          delete copy["mitra-email"];
+          return copy;
+        });
+      }
+    } else if (field === "password" && !googleAuthSuccess) {
       if (!password) {
-        addError("mitra-password", "Password wajib diisi");
+        setErrors((prev) => ({ ...prev, "mitra-password": "Password wajib diisi" }));
       } else if (password.length < 8) {
-        addError("mitra-password", "Password min. 8 karakter");
+        setErrors((prev) => ({ ...prev, "mitra-password": "Password min. 8 karakter" }));
+      } else {
+        setErrors((prev) => {
+          const copy = { ...prev };
+          delete copy["mitra-password"];
+          return copy;
+        });
       }
-
+    } else if (field === "konfirmasiPassword" && !googleAuthSuccess) {
       if (!konfirmasiPassword) {
-        addError("mitra-konfirmasi-password", "Konfirmasi password wajib diisi");
+        setErrors((prev) => ({ ...prev, "mitra-konfirmasi-password": "Konfirmasi password wajib diisi" }));
       } else if (password !== konfirmasiPassword) {
-        addError("mitra-konfirmasi-password", "Password tidak cocok");
+        setErrors((prev) => ({ ...prev, "mitra-konfirmasi-password": "Password tidak cocok" }));
+      } else {
+        setErrors((prev) => {
+          const copy = { ...prev };
+          delete copy["mitra-konfirmasi-password"];
+          return copy;
+        });
       }
     }
+  }
 
-    if (Object.keys(newErrors).length > 0) {
+  // Validasi Step 1: Data Pribadi & Keamanan Akun menggunakan Zod Schema
+  function validateStep1(): boolean {
+    const result = registerStep1Schema.safeParse({
+      namaLengkap,
+      noWa,
+      email,
+      password,
+      konfirmasiPassword,
+      isGoogleAuth: googleAuthSuccess,
+    });
+
+    if (!result.success) {
+      const newErrors: Record<string, string> = {};
+      let firstErrorField = "";
+
+      const fieldMap: Record<string, string> = {
+        namaLengkap: "reg-nama",
+        noWa: "reg-wa",
+        email: "mitra-email",
+        password: "mitra-password",
+        konfirmasiPassword: "mitra-konfirmasi-password",
+      };
+
+      for (const issue of result.error.issues) {
+        const fieldKey = issue.path[0] as string;
+        const domId = fieldMap[fieldKey] || fieldKey;
+        if (!newErrors[domId]) {
+          newErrors[domId] = issue.message;
+          if (!firstErrorField) firstErrorField = domId;
+        }
+      }
+
       setErrors((prev) => ({ ...prev, ...newErrors }));
-      const el = document.getElementById(firstErrorField);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.focus({ preventScroll: true });
+      if (firstErrorField) {
+        const el = document.getElementById(firstErrorField);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          el.focus({ preventScroll: true });
+        }
       }
       return false;
     }
@@ -183,8 +233,15 @@ function RegisterFormContent() {
     return true;
   }
 
-  // Validasi Step 2: Data Toko / Workshop & Dokumen
+  // Validasi Step 2: Data Toko / Workshop & Dokumen menggunakan Zod Schema
   function validateStep2(): boolean {
+    const result = registerStep2Schema.safeParse({
+      namaToko,
+      alamatToko,
+      tahunUsaha,
+      agreed,
+    });
+
     const newErrors: Record<string, string> = {};
     let firstErrorField = "";
 
@@ -193,9 +250,22 @@ function RegisterFormContent() {
       if (!firstErrorField) firstErrorField = field;
     };
 
-    if (!namaToko.trim()) addError("reg-toko", "Nama Toko wajib diisi");
-    if (!alamatToko.trim()) addError("reg-alamat", "Alamat Lengkap Workshop wajib diisi");
-    if (!tahunUsaha) addError("reg-tahun", "Tahun Mulai Usaha wajib diisi");
+    if (!result.success) {
+      const fieldMap: Record<string, string> = {
+        namaToko: "reg-toko",
+        alamatToko: "reg-alamat",
+        tahunUsaha: "reg-tahun",
+        agreed: "reg-agreed",
+      };
+
+      for (const issue of result.error.issues) {
+        const fieldKey = issue.path[0] as string;
+        const domId = fieldMap[fieldKey] || fieldKey;
+        if (!newErrors[domId]) {
+          addError(domId, issue.message);
+        }
+      }
+    }
 
     const MAX_MB = 5;
     const MAX_SIZE = MAX_MB * 1024 * 1024;
@@ -714,6 +784,7 @@ function RegisterFormContent() {
                       setNamaLengkap(e.target.value);
                       if (errors["reg-nama"]) setErrors((p) => ({ ...p, "reg-nama": "" }));
                     }}
+                    onBlur={() => validateFieldWithZod("namaLengkap")}
                     placeholder="Sesuai KTP"
                     style={{ ...inputStyle, borderColor: errors["reg-nama"] ? "#e53e3e" : "rgba(0,0,0,0.13)" }}
                   />
@@ -734,6 +805,7 @@ function RegisterFormContent() {
                       setNoWa(cleaned);
                       if (errors["reg-wa"]) setErrors((p) => ({ ...p, "reg-wa": "" }));
                     }}
+                    onBlur={() => validateFieldWithZod("noWa")}
                     placeholder="Contoh: 08219022xxxx"
                     style={{ ...inputStyle, borderColor: errors["reg-wa"] ? "#e53e3e" : "rgba(0,0,0,0.13)" }}
                   />
@@ -753,6 +825,7 @@ function RegisterFormContent() {
                       if (!googleAuthSuccess) setEmail(e.target.value);
                       if (errors["mitra-email"]) setErrors((p) => ({ ...p, "mitra-email": "" }));
                     }}
+                    onBlur={() => validateFieldWithZod("email")}
                     placeholder="nama@email.com"
                     readOnly={googleAuthSuccess}
                     style={{
@@ -787,6 +860,7 @@ function RegisterFormContent() {
                             setPassword(e.target.value);
                             if (errors["mitra-password"]) setErrors((p) => ({ ...p, "mitra-password": "" }));
                           }}
+                          onBlur={() => validateFieldWithZod("password")}
                           placeholder="Minimal 8 karakter"
                           style={{
                             ...inputStyle,
@@ -835,6 +909,7 @@ function RegisterFormContent() {
                             setKonfirmasiPassword(e.target.value);
                             if (errors["mitra-konfirmasi-password"]) setErrors((p) => ({ ...p, "mitra-konfirmasi-password": "" }));
                           }}
+                          onBlur={() => validateFieldWithZod("konfirmasiPassword")}
                           placeholder="Masukkan ulang password"
                           style={{
                             ...inputStyle,

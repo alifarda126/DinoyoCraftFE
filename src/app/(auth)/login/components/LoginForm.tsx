@@ -6,12 +6,15 @@ import Link from "next/link";
 import Cookies from "js-cookie";
 import axios from "axios";
 import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { authService } from "@/services/auth.service";
 import { useAuthStore } from "@/store/useAuthStore";
 import { ArrowRight, Storefront } from "@phosphor-icons/react";
 import Image from "next/image";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
+import { loginSchema, LoginFormData } from "@/validators/authSchemas";
 
 const pjs = Plus_Jakarta_Sans({ subsets: ["latin"] });
 
@@ -19,21 +22,28 @@ function LoginFormContent() {
   const router = useRouter();
   const { login, setLoading, isLoading } = useAuthStore();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+    mode: "onTouched",
+  });
 
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: LoginFormData) => {
     setLoading(true);
 
     try {
       const response = await axios.post(
         "http://localhost:5000/api/auth/login",
         {
-          email,
-          password,
+          email: data.email,
+          password: data.password,
         },
         {
           withCredentials: true,
@@ -346,50 +356,42 @@ function LoginFormContent() {
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} noValidate style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate style={{ display: "flex", flexDirection: "column", gap: "0.9rem" }}>
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                 <label htmlFor="mitra-email" style={labelStyle}>Email</label>
-                {errors["mitra-email"] && (
+                {errors.email?.message && (
                   <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>
-                    {errors["mitra-email"]}
+                    {errors.email.message}
                   </span>
                 )}
               </div>
               <input
                 id="mitra-email"
                 type="email"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  if (errors["mitra-email"]) setErrors((p) => ({ ...p, "mitra-email": "" }));
-                }}
+                {...register("email")}
                 placeholder="nama@email.com"
                 className="input-earthy"
-                style={errors["mitra-email"] ? { borderColor: "#e53e3e" } : {}}
+                style={errors.email ? { borderColor: "#e53e3e" } : {}}
               />
             </div>
 
             <div>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                 <label htmlFor="mitra-password" style={labelStyle}>Password</label>
-                {errors["mitra-password"] && (
+                {errors.password?.message && (
                   <span style={{ fontSize: "0.7rem", color: "#e53e3e", fontWeight: 600, marginBottom: "0.35rem" }}>
-                    {errors["mitra-password"]}
+                    {errors.password.message}
                   </span>
                 )}
               </div>
               <input
                 id="mitra-password"
                 type="password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (errors["mitra-password"]) setErrors((p) => ({ ...p, "mitra-password": "" }));
-                }}
+                {...register("password")}
                 placeholder="Minimal 8 karakter"
                 className="input-earthy"
-                style={errors["mitra-password"] ? { borderColor: "#e53e3e" } : {}}
+                style={errors.password ? { borderColor: "#e53e3e" } : {}}
               />
             </div>
 
