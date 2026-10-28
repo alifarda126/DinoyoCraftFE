@@ -10,7 +10,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { authService } from "@/services/auth.service";
 import { useAuthStore } from "@/store/useAuthStore";
-import { ArrowRight, Storefront } from "@phosphor-icons/react";
+import { ArrowRight, Storefront, Eye, EyeSlash } from "@phosphor-icons/react";
 import Image from "next/image";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
@@ -21,6 +21,7 @@ const pjs = Plus_Jakarta_Sans({ subsets: ["latin"] });
 function LoginFormContent() {
   const router = useRouter();
   const { login, setLoading, isLoading } = useAuthStore();
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -385,14 +386,41 @@ function LoginFormContent() {
                   </span>
                 )}
               </div>
-              <input
-                id="mitra-password"
-                type="password"
-                {...register("password")}
-                placeholder="Minimal 8 karakter"
-                className="input-earthy"
-                style={errors.password ? { borderColor: "#e53e3e" } : {}}
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  id="mitra-password"
+                  type={showPassword ? "text" : "password"}
+                  {...register("password")}
+                  placeholder="Minimal 8 karakter"
+                  className="input-earthy"
+                  style={{
+                    ...(errors.password ? { borderColor: "#e53e3e" } : {}),
+                    paddingRight: "2.5rem",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: "absolute",
+                    right: "0.75rem",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--bark-muted)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: 0,
+                  }}
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+                >
+                  {showPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <div style={{ textAlign: "right", marginTop: "-0.3rem" }}>

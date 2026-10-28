@@ -49,6 +49,7 @@
 - **Login Multi-Role Terpadu (`/login`)**:
   - Validasi form modern menggunakan **React Hook Form** + **Zod Schema Validation** (`loginSchema`).
   - Mendukung autentikasi kredensial (Email & Password) dengan validasi real-time instan tanpa *unnecessary re-render*.
+  - Fitur interaktif *Show/Hide Password* (toggle visibilitas kata sandi).
   - Integrasi **Google OAuth 2.0 Single Sign-On** (`@react-oauth/google`) untuk pengalaman masuk satu klik.
   - Penyimpanan sesi terproteksi via *HTTP-aware browser cookie* (`js-cookie`) dan sinkronisasi store global.
   - *Demo Session Fallback*: Memudahkan evaluasi UI/UX dasbor mitra dan admin tanpa ketergantungan mutlak pada database live.
