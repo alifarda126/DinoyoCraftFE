@@ -9,19 +9,29 @@ import { useAuthStore } from "@/store/useAuthStore";
 export default function SellerLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, initAuth } = useAuthStore();
+  const { user, initAuth, fetchProfile } = useAuthStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     initAuth();
-  }, [initAuth]);
+    fetchProfile();
+  }, [initAuth, fetchProfile]);
 
   useEffect(() => {
     setMobileMenuOpen(false);
 
     // Jika mitra belum diverifikasi (is_verified !== 1 atau is_verified !== true),
     // kunci navigasi dan arahkan ke profil toko
-    if (user && user.role === "mitra" && user.is_verified !== 1 && user.is_verified !== true) {
+    const isVerified = Boolean(
+      user && (
+        user.is_verified === 1 ||
+        user.is_verified === true ||
+        user.is_verified === "1" ||
+        Number(user.is_verified) === 1
+      )
+    );
+
+    if (user && user.role === "mitra" && !isVerified) {
       if (pathname !== "/mitra/dashboard/profil") {
         router.replace("/mitra/dashboard/profil");
       }

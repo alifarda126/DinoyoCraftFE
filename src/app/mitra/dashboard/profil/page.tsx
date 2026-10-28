@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { mitraService } from "@/services/mitra.service";
+import { useAuthStore } from "@/store/useAuthStore";
 import { toast } from "sonner";
 import api from "@/lib/axios";
 import {
@@ -207,13 +208,15 @@ export default function SellerProfilPage() {
           const userStr = localStorage.getItem("user");
           let parsedUser = {};
           try { parsedUser = userStr ? JSON.parse(userStr) : {}; } catch { }
-          localStorage.setItem("user", JSON.stringify({
+          const updatedUserObj = {
             ...parsedUser,
             name: d.name || profile.ownerName,
             store_name: d.store_name || profile.storeName,
             is_verified: d.is_verified,
             rejection_reason: reason,
-          }));
+          };
+          localStorage.setItem("user", JSON.stringify(updatedUserObj));
+          useAuthStore.getState().updateUser(updatedUserObj);
         }
       }
     } catch (err) {
@@ -321,12 +324,14 @@ export default function SellerProfilPage() {
             const userStr = localStorage.getItem("user");
             let parsedUser = {};
             try { parsedUser = userStr ? JSON.parse(userStr) : {}; } catch {}
-            localStorage.setItem("user", JSON.stringify({
+            const savedUser = {
               ...parsedUser,
               name: profile.ownerName,
               store_name: profile.storeName,
               avatar_url: updatedData.avatar_url || (parsedUser as any).avatar_url,
-            }));
+            };
+            localStorage.setItem("user", JSON.stringify(savedUser));
+            useAuthStore.getState().updateUser(savedUser);
           }
         }
 
@@ -438,7 +443,9 @@ export default function SellerProfilPage() {
           if (uStr) {
             try {
               const u = JSON.parse(uStr);
-              localStorage.setItem("user", JSON.stringify({ ...u, is_verified: 0, rejection_reason: undefined }));
+              const reuploadedUser = { ...u, is_verified: 0, rejection_reason: undefined };
+              localStorage.setItem("user", JSON.stringify(reuploadedUser));
+              useAuthStore.getState().updateUser(reuploadedUser);
             } catch {}
           }
         }

@@ -51,7 +51,18 @@ export default function MitraSidebar() {
 
   useEffect(() => {
     useAuthStore.getState().initAuth();
+    useAuthStore.getState().fetchProfile();
     setSession(getDemoSession());
+
+    const handleSync = () => {
+      useAuthStore.getState().fetchProfile();
+    };
+    window.addEventListener("focus", handleSync);
+    window.addEventListener("storage", handleSync);
+    return () => {
+      window.removeEventListener("focus", handleSync);
+      window.removeEventListener("storage", handleSync);
+    };
   }, []);
 
   // Otomatis menutup saat zoom > 100%, otomatis membuka saat zoom <= 100%
@@ -90,7 +101,15 @@ export default function MitraSidebar() {
     router.push("/login");
   }
 
-  const isUnverified = user && user.role === "mitra" && user.is_verified !== 1 && user.is_verified !== true;
+  const isVerified = Boolean(
+    user && (
+      user.is_verified === 1 ||
+      user.is_verified === true ||
+      user.is_verified === "1" ||
+      Number(user.is_verified) === 1
+    )
+  );
+  const isUnverified = user && user.role === "mitra" && !isVerified;
 
   const navItems = [
     { href: "/mitra/dashboard/profil", icon: User, label: "Profil Toko" },
