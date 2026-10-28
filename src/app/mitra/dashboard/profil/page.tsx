@@ -239,32 +239,107 @@ export default function SellerProfilPage() {
     setSaved(false);
   }
 
+    // Handler saat memilih foto profil baru
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarFile(file);
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    setImgError(false);
+    setSaved(false);
+    toast.success("Foto profil toko dipilih! Klik 'Simpan Perubahan' untuk menerapkan.");
+  };
+
   // Handler saat memilih banner baru
   const handleBannerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    setSaved(false);
-  }
-
-  // Handler saat memilih foto profil baru
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    setBannerFile(file);
     const url = URL.createObjectURL(file);
     setBannerPreview(url);
     setSaved(false);
-    toast.success("Banner toko berhasil diganti!");
-  }
+    toast.success("Banner dipilih! Klik 'Simpan Perubahan' untuk menerapkan.");
+  };
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    
+    if (isNewRegistration) {
+      handleRegistrationSubmit(e);
+      return;
+    }
+    
     setSaving(true);
-    await new Promise(r => setTimeout(r, 1000));
-    setSaving(false);
-    setSaved(true);
-    toast.success("Profil toko berhasil disimpan!");
+    try {
+      const formData = new FormData();
+      formData.append("ownerName", profile.ownerName);
+      formData.append("storeName", profile.storeName);
+      formData.append("phone", profile.phone);
+      formData.append("address", profile.address);
+      formData.append("yearStarted", profile.yearStarted);
+      formData.append("description", profile.description);
+      formData.append("website", profile.website);
+      formData.append("instagram", profile.instagram);
+
+      // Alias kompatibilitas
+      formData.append("nama", profile.ownerName);
+      formData.append("nama_toko", profile.storeName);
+      formData.append("alamat", profile.address);
+      formData.append("tahun_mulai", profile.yearStarted);
+      formData.append("deskripsi", profile.description);
+
+      if (avatarFile) {
+        formData.append("avatar", avatarFile);
+      }
+      if (bannerFile) {
+        formData.append("banner", bannerFile);
+      }
+
+      const response = await api.put("/auth/profile", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      if (response.data?.success) {
+        setSaved(true);
+        setAvatarFile(null);
+        setBannerFile(null);
+
+        const updatedData = response.data.data;
+        if (updatedData) {
+          if (updatedData.avatar_url) {
+            setPreview(getImageUrl(updatedData.avatar_url));
+          }
+          if (updatedData.banner_url) {
+            setBannerPreview(getImageUrl(updatedData.banner_url));
+          }
+
+          // Sinkronkan data ke localStorage agar Navbar & halaman lain terupdate
+          if (typeof window !== "undefined") {
+            const userStr = localStorage.getItem("user");
+            let parsedUser = {};
+            try { parsedUser = userStr ? JSON.parse(userStr) : {}; } catch {}
+            localStorage.setItem("user", JSON.stringify({
+              ...parsedUser,
+              name: profile.ownerName,
+              store_name: profile.storeName,
+              avatar_url: updatedData.avatar_url || (parsedUser as any).avatar_url,
+            }));
+          }
+        }
+
+        toast.success(response.data.message || "Profil toko berhasil disimpan!");
+      } else {
+        toast.error(response.data?.message || "Gagal menyimpan perubahan");
+      }
+    } catch (err: any) {
+      console.error("Gagal simpan profil:", err);
+      toast.error(err.response?.data?.message || "Terjadi kesalahan saat menyimpan profil");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleRegistrationSubmit(e: React.FormEvent) {
@@ -325,19 +400,53 @@ export default function SellerProfilPage() {
 
   async function handleReuploadSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!reuploadKtp && !reuploadNib && reuploadProducts.length === 0) {
+      toast.error("Harap pilih minimal satu file dokumen untuk diperbaiki/diunggah.");
+      return;
+    }
+
     setReuploadSubmitting(true);
     try {
       const formData = new FormData();
       if (reuploadKtp) formData.append("ktp_file", reuploadKtp);
       if (reuploadNib) formData.append("nib_file", reuploadNib);
-      reuploadProducts.forEach(f => formData.append("sample_product_images", f));
+      if (reuploadProducts.length > 0) {
+        reuploadProducts.forEach(file => {
+          formData.append("product_images", file);
+          formData.append("sample_product_images", file);
+        });
+      }
 
-      await api.post("/auth/reupload-docs", formData, {
-        headers: { "Content-Type": "multipart/form-data" }
+      const res = await api.post("/auth/reupload-docs", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-      toast.success("Dokumen berhasil diunggah ulang! Menunggu verifikasi admin.");
-      setIsDocModalOpen(false);
-      await fetchProfileData();
+
+      if (res.data?.success) {
+        toast.success(res.data.message || "Dokumen berhasil diajukan ulang!");
+        setIsDocModalOpen(false);
+        setIsPopupAlertOpen(false);
+        setVerificationStatus("pending");
+        setRejectionReason(null);
+        setIsVerified(false);
+        setReuploadKtp(null);
+        setReuploadNib(null);
+        setReuploadProducts([]);
+
+        // Sinkronisasi status di localStorage
+        if (typeof window !== "undefined") {
+          const uStr = localStorage.getItem("user");
+          if (uStr) {
+            try {
+              const u = JSON.parse(uStr);
+              localStorage.setItem("user", JSON.stringify({ ...u, is_verified: 0, rejection_reason: undefined }));
+            } catch {}
+          }
+        }
+
+        await fetchProfileData();
+      } else {
+        toast.error(res.data?.message || "Gagal mengajukan ulang dokumen");
+      }
     } catch (err: any) {
       console.error("Gagal unggah dokumen:", err);
       toast.error(err?.response?.data?.message || "Gagal mengunggah ulang dokumen");
