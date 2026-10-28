@@ -4,6 +4,7 @@
 [![React](https://img.shields.io/badge/React-19.2-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
+[![Pusher](https://img.shields.io/badge/Pusher-Real--Time_WebSockets-300D4F?logo=pusher&logoColor=white)](https://pusher.com)
 [![Leaflet](https://img.shields.io/badge/Leaflet-Interactive_Maps-199900?logo=leaflet&logoColor=white)](https://leafletjs.com)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
@@ -22,6 +23,7 @@
   - [3. Dasbor Mitra Pengrajin (Seller Centre)](#3-dasbor-mitra-pengrajin-seller-centre)
   - [4. Dasbor Administrasi Sentral (Super Admin)](#4-dasbor-administrasi-sentral-super-admin)
   - [5. Sistem Desain Earthy & UX Adaptif](#5-sistem-desain-earthy--ux-adaptif)
+- [Integrasi Real-Time Chat (Pusher)](#-integrasi-real-time-chat-pusher)
 - [Arsitektur & Struktur Proyek](#-arsitektur--struktur-proyek)
 - [Teknologi & Dependensi](#-teknologi--dependensi)
 - [Panduan Instalasi & Menjalankan](#-panduan-instalasi--menjalankan)
@@ -82,8 +84,11 @@
   - Unggah dokumen resmi: Berkas KTP pemilik, Nomor Induk Berusaha (NIB) / Surat Keterangan Usaha, dan sampel foto produk.
   - Indikator status verifikasi dinamis (*Belum Terverifikasi, Menunggu Tinjauan, Ditolak dengan Catatan Perbaikan, atau Terverifikasi*).
   - Form pembaharuan data pemilik dan penggantian kata sandi akun.
-- **Live Chat Pengrajin (`/mitra/dashboard/chat`)**:
-  - Dua saluran obrolan terpisah: *Chat Bantuan CS Admin* dan *Pesan Langsung dari Pembeli/Pelanggan*.
+- **Live Chat Pengrajin Real-Time (`/mitra/dashboard/chat`)**:
+  - **Pusher WebSockets Integration**: Percakapan dua arah seketika (*two-way instant messaging*) tanpa perlu memuat ulang (*refresh*) halaman peramban.
+  - **Dua Saluran Terpisah**: Obrolan bantuan sentra (*Customer Support Admin*) dan pesan langsung dari pembeli/wisatawan (*Direct Customer Chat*).
+  - **Manajemen Channel Dinamis**: Otomatis berlangganan channel ruang obrolan `chat-{id1}-{id2}` dan channel personal `user-{id}` untuk menerima notifikasi pesan masuk dari kontak mana pun.
+  - **Dual Reliability & Optimistic UI**: Pesan tampil instan saat dikirim (*optimistic UI*), didukung mekanisme *smart auto-polling fallback* (interval 2 detik) untuk menjaga keandalan saat fluktuasi jaringan.
 
 ### 4. Dasbor Administrasi Sentral (Super Admin)
 - **Dasbor Analitik Sentra (`/admin`)**:
@@ -99,9 +104,10 @@
 - **Moderasi & Keamanan Platform (`/admin/moderasi`)**:
   - Pengawasan laporan pengguna atas potensi pelanggaran konten produk, ulasan tidak pantas, atau praktik toko tidak etis.
   - Manajemen tiket permohonan penghapusan akun pengguna secara terverifikasi.
-- **Meja Bantuan Live Chat (`/admin/chat`)**:
-  - Pemantauan percakapan dari wisatawan/pembeli dan pengrajin mitra.
-  - Indikator percakapan yang ditangani otomatis oleh AI vs. kebutuhan agen manusia.
+- **Meja Bantuan Live Chat Terpusat (`/admin/chat`)**:
+  - **Monitoring & Respon Cepat Berbasis Pusher**: Meja bantuan terpusat bagi Super Admin untuk melayani pertanyaan, kendala, atau konsultasi dari pengrajin mitra dan pembeli secara real-time.
+  - **Penyortiran Kontak Otomatis**: Daftar kontak obrolan terurut otomatis berdasarkan riwayat pesan terakhir (*last message timestamp*).
+  - **Indikator Otomasi AI vs Agen**: Penanda visual percakapan yang ditangani otomatis oleh ClayBot AI vs kebutuhan eskalasi langsung ke staf admin.
 - **Konfigurasi Kecerdasan Buatan ClayBot (`/admin/pengaturan-ai`)**:
   - Pengaturan saklar global chatbot AI DinoyoCraft.
   - Manajemen API Key dan pemilihan model LLM (*Google Gemini, Anthropic Claude, OpenAI GPT*).
@@ -115,6 +121,47 @@
 - **Palet Warna Sentra Keramik (Design Tokens)**:
   - Nuansa warna modern minimalis berkarakter kriya: *Terracotta*, *Clay*, *Pure White*, dan *Charcoal*.
   - Komponen kustom ramah pengguna seperti `EarthySelect` dan animasi toast elegan via **Sonner**.
+
+---
+
+## ⚡ Integrasi Real-Time Chat (Pusher)
+
+Platform DinoyoCraft mengadopsi arsitektur komunikasi berbasis event seketika (*event-driven real-time communication*) menggunakan **Pusher Channels (WebSockets)** untuk fitur perpesanan instan pada dasbor Mitra Pengrajin dan Super Admin.
+
+### 1. Alur Kerja Perpesanan (Message Flow)
+
+```
+[Pengguna A (Kirim Pesan)]
+         │
+         ▼
+[REST API: POST /chat/send/:id]  ───>  [Simpan Pesan ke Database]
+         │
+         ▼
+[Pusher Backend Broadcast]
+         │
+         ▼
+[Pusher Cloud WebSockets Service]
+         │
+         ├───> [Channel: chat-{id1}-{id2}]  ───>  [Pengguna B (Layar Obrolan Aktif)]
+         │                                        (Pesan muncul seketika di ruang chat)
+         │
+         └───> [Channel: user-{id2}]         ───>  [Pengguna B (Global/Sidebar Kontak)]
+                                                  (Pembaruan preview pesan & unread badge)
+```
+
+### 2. Struktur Channel & Event Pusher
+
+| Tipe Channel | Format Penamaan | Kegunaan | Event yang Didengarkan |
+|---|---|---|---|
+| **Room Channel** | `chat-{minId}-{maxId}` | Saluran privat dua arah antara dua pihak (misal: Mitra & Pembeli, atau Mitra & Admin) | `new-message` |
+| **Personal User Channel** | `user-{userId}` | Saluran notifikasi perorangan untuk mendeteksi pesan masuk saat pengguna sedang membuka kontak lain | `new-message` |
+
+### 3. Jaminan Keandalan (High Availability & Fallback)
+
+- **Event-Driven WebSockets (Primer)**: Mengalirkan data pesan secara *low-latency* dalam hitungan milidetik melalui library resmi `pusher-js`.
+- **Smart Auto-Polling Fallback (Sekunder)**: Sistem mengimplementasikan polling terjadwal setiap 2 detik sebagai *fail-safe* jika jaringan pengguna mengalami packet loss atau sedang dalam status reconnecting.
+- **Deduplikasi Pesan Cerdas**: Antarmuka frontend memeriksa `message.id` dan kombinasi teks/waktu untuk mencegah redundansi tampilan pesan saat event Pusher dan auto-polling berjalan bersamaan.
+- **Optimistic UI Rendering**: Pesan baru langsung muncul pada bubble chat seketika tombol kirim ditekan untuk pengalaman pengguna yang sangat responsif.
 
 ---
 
@@ -132,7 +179,7 @@ c:\DinoyoCraftFE/
 │   │   │   ├── register/       # Halaman Pendaftaran Calon Mitra
 │   │   │   └── lupa-kata-sandi/# Halaman Pemulihan Akun Pengrajin
 │   │   ├── admin/              # Dasbor Super Administrator
-│   │   │   ├── chat/           # Meja Bantuan Chat Pengrajin & Pembeli
+│   │   │   ├── chat/           # Meja Bantuan Chat Pengrajin & Pembeli (Pusher)
 │   │   │   ├── jadwal/         # Pengaturan Jadwal Workshop Sentra
 │   │   │   ├── manajemen-kategori/ # Pengaturan Kategori Keramik
 │   │   │   ├── manajemen-pengguna/ # Pengelolaan Data Pengguna Platform
@@ -144,7 +191,7 @@ c:\DinoyoCraftFE/
 │   │   │   ├── layout.tsx      # Shell Layout Admin dengan Sidebar
 │   │   │   └── page.tsx        # Dasbor Utama Metrik Sentra Dinoyo
 │   │   ├── mitra/dashboard/    # Dasbor Mitra Pengrajin (Seller Centre)
-│   │   │   ├── chat/           # Live Chat CS & Pelanggan Toko
+│   │   │   ├── chat/           # Live Chat CS & Pelanggan Toko (Pusher)
 │   │   │   ├── katalog/        # Manajemen Produk, Stok & Glaze
 │   │   │   ├── laporan-keuangan/# Finansial, Omzet, Payout & Unduh PDF/CSV
 │   │   │   ├── pesanan/        # Pelacakan Pesanan Masuk & Resi Kurir
@@ -176,6 +223,7 @@ c:\DinoyoCraftFE/
 │   │   └── useAuthStore.ts     # State Autentikasi Pengguna
 │   ├── types/                  # Definisi Tipe TypeScript
 │   └── utils/                  # Format Mata Uang (IDR) & Helper Lainnya
+├── .env.example                # Template Variabel Lingkungan
 ├── .env.local                  # Konfigurasi Environment Variable
 ├── package.json                # Dependensi & Skrip Node.js
 └── tsconfig.json               # Konfigurasi TypeScript Compiler
@@ -197,7 +245,7 @@ c:\DinoyoCraftFE/
 | **@phosphor-icons/react** | `^2.1.10` | Ikonografi modern yang tajam, estetik, dan konsisten |
 | **Sonner** | `^2.0.8` | Komponen notifikasi toast yang mulus dan interaktif |
 | **@react-oauth/google** | `^0.13.5` | Integrasi autentikasi Google OAuth 2.0 Single Sign-On |
-| **Pusher & Pusher-JS** | `^5.3 / ^8.6` | Layanan WebSocket real-time event untuk Live Chat |
+| **Pusher & Pusher-JS** | `^5.3.4 / ^8.6.0` | Layanan WebSockets real-time publish/subscribe untuk Live Chat instan |
 | **qrcode.react** | `^4.2.0` | Generator QR Code untuk pembayaran digital atau verifikasi |
 | **date-fns** | `^4.4.0` | Format dan kalkulasi tanggal yang ringan dan akurat |
 | **js-cookie** | `^3.0.8` | Pengelolaan session cookie lintas halaman browser |
@@ -219,21 +267,43 @@ cd c:\DinoyoCraftFE
 
 ### 2. Konfigurasi Environment Variable
 
-Pastikan file `.env.local` telah tersedia di root direktori proyek:
+Salin file template `.env.example` menjadi `.env.local` di root direktori proyek:
+
+```bash
+cp .env.example .env.local
+```
+
+Lalu sesuaikan nilai variabel kredensial dengan akun Anda:
 
 ```env
 # URL Layanan Backend DinoyoCraft API
 NEXT_PUBLIC_API_URL=http://localhost:5000/api
 
-# Kredensial Google OAuth 2.0
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=379734738528-dc5htqtqu1k8qn5khubul347aghuka6r.apps.googleusercontent.com
+# Kredensial Google OAuth 2.0 Single Sign-On
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+
+# Kredensial Pusher Channels (Real-Time Live Chat WebSockets)
+NEXT_PUBLIC_PUSHER_KEY=your_pusher_app_key_here
+NEXT_PUBLIC_PUSHER_CLUSTER=ap1
 ```
 
+> **Catatan Kredensial Pusher:**  
+> Klien `pusher-js` menggunakan `NEXT_PUBLIC_PUSHER_KEY` dan `NEXT_PUBLIC_PUSHER_CLUSTER` untuk menghubungkan aplikasi ke kluster Pusher Channels secara real-time. Jika variabel ini tidak ditentukan di `.env.local`, aplikasi telah menyediakan nilai fallback default agar fitur chat tetap berfungsi normal di lingkungan pengembangan lokal.
+
 ### 3. Instalasi Dependensi
+
+Jalankan perintah instalasi paket dependensi:
 
 ```bash
 npm install
 ```
+
+> **Catatan Instalasi Pusher:**  
+> Library `pusher` (`^5.3.4`) dan `pusher-js` (`^8.6.0`) sudah tercatat di dalam dependensi `package.json`, sehingga **otomatis langsung terpasang** saat Anda menjalankan `npm install`.  
+> Jika Anda ingin memasang atau memperbaruinya secara manual dan terpisah, cukup jalankan:
+> ```bash
+> npm install pusher-js pusher
+> ```
 
 ### 4. Menjalankan Server Pengembangan
 
@@ -283,8 +353,10 @@ npx tsc --noEmit
 | **Sidebar Mitra** | Klik **Pesanan** | Tinjau status pesanan, input resi, dan balas ulasan (`/mitra/dashboard/pesanan`) |
 | **Sidebar Mitra** | Klik **Laporan Keuangan** | Pantau grafik omzet, tarik saldo, & unduh rekap PDF/CSV (`/mitra/dashboard/laporan-keuangan`) |
 | **Sidebar Mitra** | Klik **Profil Toko** | Unggah KTP/NIB legalitas, atur info studio (`/mitra/dashboard/profil`) |
+| **Sidebar Mitra** | Klik **Live Chat** | Komunikasi pesan instan dua arah (*real-time Pusher*) dengan CS Admin dan Pelanggan (`/mitra/dashboard/chat`) |
 | **Sidebar Admin** | Klik **Verifikasi Toko** | Tinjau dokumen pengrajin, lakukan aksi Setujui / Tolak (`/admin/verifikasi`) |
 | **Sidebar Admin** | Klik **Transaksi Lintas Toko** | Rekap seluruh pesanan sentra & ekspor CSV (`/admin/transaksi`) |
+| **Sidebar Admin** | Klik **Meja Bantuan Chat** | Monitor dan respon konsultasi/komplain secara real-time (*Pusher Channels*) (`/admin/chat`) |
 | **Sidebar Admin** | Klik **Pengaturan AI** | Konfigurasi API Key & model bahasa ClayBot (`/admin/pengaturan-ai`) |
 | **Semua Dasbor** | Tingkatkan zoom browser (> 100%) | Sidebar **otomatis menyusut (*auto-collapse*)** menjaga kenyamanan ruang |
 
