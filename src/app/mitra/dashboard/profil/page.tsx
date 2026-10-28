@@ -184,9 +184,9 @@ export default function SellerProfilPage() {
         setRejectionReason(reason);
 
         let status: "pending" | "approved" | "rejected" = "pending";
-        if (d.is_verified === 1 || d.is_verified === true) {
+        if (d.is_verified === 1 || d.is_verified === true || d.is_verified === "1" || Number(d.is_verified) === 1) {
           status = "approved";
-        } else if (d.is_verified === 2 || reason) {
+        } else if (d.is_verified === 2 || Number(d.is_verified) === 2 || reason) {
           status = "rejected";
         } else {
           status = "pending";
@@ -235,6 +235,17 @@ export default function SellerProfilPage() {
     }
 
     fetchProfileData();
+
+    const handleVerificationUpdated = () => {
+      fetchProfileData();
+    };
+    window.addEventListener("mitra-verification-updated", handleVerificationUpdated);
+    window.addEventListener("focus", handleVerificationUpdated);
+
+    return () => {
+      window.removeEventListener("mitra-verification-updated", handleVerificationUpdated);
+      window.removeEventListener("focus", handleVerificationUpdated);
+    };
   }, [router]);
 
   function handleChange(field: keyof ProfileData, value: string) {

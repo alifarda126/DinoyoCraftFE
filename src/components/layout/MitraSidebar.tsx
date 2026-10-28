@@ -59,9 +59,11 @@ export default function MitraSidebar() {
     };
     window.addEventListener("focus", handleSync);
     window.addEventListener("storage", handleSync);
+    window.addEventListener("mitra-verification-updated", handleSync);
     return () => {
       window.removeEventListener("focus", handleSync);
       window.removeEventListener("storage", handleSync);
+      window.removeEventListener("mitra-verification-updated", handleSync);
     };
   }, []);
 
