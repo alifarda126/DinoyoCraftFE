@@ -35,6 +35,22 @@ export default function LaporanKeuanganPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawBank, setWithdrawBank] = useState("");
+  const [withdrawAccountNumber, setWithdrawAccountNumber] = useState("");
+  const [withdrawAccountName, setWithdrawAccountName] = useState("");
+  const [isSubmittingWithdraw, setIsSubmittingWithdraw] = useState(false);
+  const [riwayatPenarikan, setRiwayatPenarikan] = useState<Array<{
+    id: number;
+    amount: number;
+    fee: number;
+    bank_name: string;
+    account_number: string;
+    account_name: string;
+    status: string;
+    admin_note?: string | null;
+    created_at: string;
+  }>>([]);
+  const [minWithdrawal, setMinWithdrawal] = useState(50000);
   const [filterTrxType, setFilterTrxType] = useState("semua");
   const [filterTrxStatus, setFilterTrxStatus] = useState("semua");
   const [chartPeriod, setChartPeriod] = useState<"7hari" | "30hari">("7hari");
@@ -61,6 +77,8 @@ export default function LaporanKeuanganPage() {
 
         if (res.data?.success && res.data?.data) {
           setFinanceData(res.data.data);
+          setRiwayatPenarikan(res.data.data.riwayatPenarikan || []);
+          setMinWithdrawal(res.data.data.minWithdrawal || 50000);
         }
       } catch (error) {
         console.error("Gagal memuat laporan keuangan:", error);
@@ -91,12 +109,57 @@ export default function LaporanKeuanganPage() {
     }, 1500);
   };
 
-  const handleWithdraw = (e: React.FormEvent) => {
+  const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!withdrawAmount) return;
-    toast.success(`Permintaan penarikan dana sebesar Rp ${parseInt(withdrawAmount).toLocaleString('id-ID')} sedang diproses.`);
-    setIsWithdrawModalOpen(false);
-    setWithdrawAmount("");
+    if (!withdrawAmount || isSubmittingWithdraw) return;
+
+    const storedToken =
+      (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
+    if (!storedToken) {
+      router.push("/login");
+      return;
+    }
+
+    setIsSubmittingWithdraw(true);
+    try {
+      const res = await axios.post(
+        "http://localhost:5000/api/mitra/wallet/withdraw",
+        {
+          amount: parseInt(withdrawAmount, 10),
+          bank_name: withdrawBank,
+          account_number: withdrawAccountNumber,
+          account_name: withdrawAccountName,
+        },
+        {
+          headers: { Authorization: `Bearer ${storedToken}` },
+          withCredentials: true,
+        }
+      );
+
+      if (res.data?.success) {
+        toast.success(res.data.message || "Pengajuan penarikan terkirim. Menunggu persetujuan admin.");
+        setIsWithdrawModalOpen(false);
+        setWithdrawAmount("");
+        setWithdrawBank("");
+        setWithdrawAccountNumber("");
+        setWithdrawAccountName("");
+        // Muat ulang saldo & riwayat
+        const refresh = await axios.get("http://localhost:5000/api/mitra/finance", {
+          headers: { Authorization: `Bearer ${storedToken}` },
+          withCredentials: true,
+        });
+        if (refresh.data?.success && refresh.data?.data) {
+          setFinanceData(refresh.data.data);
+          setRiwayatPenarikan(refresh.data.data.riwayatPenarikan || []);
+        }
+      } else {
+        toast.error(res.data?.message || "Gagal mengajukan penarikan.");
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || "Gagal mengajukan penarikan.");
+    } finally {
+      setIsSubmittingWithdraw(false);
+    }
   };
 
   if (loading) {
@@ -429,6 +492,39 @@ export default function LaporanKeuanganPage() {
       </div>
 
       {/* Modal Penarikan Dana */}
+      {(riwayatPenarikan || []).length > 0 && (
+        <section style={{ background: "#fff", border: "1px solid var(--line)", borderRadius: "1rem", padding: "1.5rem", marginBottom: "1.5rem" }}>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 800, color: "var(--bark)", marginBottom: "1rem" }}>Riwayat Penarikan</h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+            {riwayatPenarikan.map((w) => {
+              const statusColor = w.status === "approved" ? "#2f855a" : w.status === "rejected" ? "#c53030" : "#b7791f";
+              const statusLabel = w.status === "approved" ? "Disetujui" : w.status === "rejected" ? "Ditolak" : "Menunggu";
+              return (
+                <div key={w.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0.85rem 1rem", borderRadius: "0.75rem", border: "1px solid var(--line)", flexWrap: "wrap", gap: "0.5rem" }}>
+                  <div>
+                    <p style={{ fontWeight: 700, color: "var(--bark)", fontSize: "0.95rem" }}>
+                      Rp {w.amount.toLocaleString('id-ID')}
+                    </p>
+                    <p style={{ fontSize: "0.8rem", color: "var(--bark-muted)" }}>
+                      {w.bank_name} • {w.account_number} • {w.account_name}
+                    </p>
+                    {w.admin_note ? (
+                      <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", marginTop: "0.2rem" }}>Catatan: {w.admin_note}</p>
+                    ) : null}
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <span style={{ fontSize: "0.8rem", fontWeight: 700, color: statusColor }}>{statusLabel}</span>
+                    <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)" }}>
+                      {new Date(w.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
       {isWithdrawModalOpen && (
         <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem", background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}>
           <div style={{ background: "#fff", borderRadius: "1.5rem", padding: "2rem", maxWidth: "450px", width: "100%", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.25)" }}>
@@ -452,7 +548,43 @@ export default function LaporanKeuanganPage() {
                   placeholder="Contoh: 1000000"
                   style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "0.75rem", border: "1px solid var(--line)", fontSize: "1rem", outline: "none", transition: "border-color 0.2s" }}
                 />
-                <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", marginTop: "0.5rem" }}>Minimal penarikan Rp 50.000</p>
+                <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", marginTop: "0.5rem" }}>Minimal penarikan Rp {minWithdrawal.toLocaleString('id-ID')}</p>
+              </div>
+
+              <div style={{ marginBottom: "1.5rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.4rem" }}>Nama Bank</label>
+                  <input
+                    type="text"
+                    required
+                    value={withdrawBank}
+                    onChange={(e) => setWithdrawBank(e.target.value)}
+                    placeholder="Contoh: BCA, Mandiri, BRI"
+                    style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "0.75rem", border: "1px solid var(--line)", fontSize: "0.95rem", outline: "none" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.4rem" }}>Nomor Rekening</label>
+                  <input
+                    type="text"
+                    required
+                    value={withdrawAccountNumber}
+                    onChange={(e) => setWithdrawAccountNumber(e.target.value)}
+                    placeholder="Nomor rekening tujuan"
+                    style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "0.75rem", border: "1px solid var(--line)", fontSize: "0.95rem", outline: "none" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.4rem" }}>Nama Pemilik Rekening</label>
+                  <input
+                    type="text"
+                    required
+                    value={withdrawAccountName}
+                    onChange={(e) => setWithdrawAccountName(e.target.value)}
+                    placeholder="Sesuai buku tabungan"
+                    style={{ width: "100%", padding: "0.75rem 1rem", borderRadius: "0.75rem", border: "1px solid var(--line)", fontSize: "0.95rem", outline: "none" }}
+                  />
+                </div>
               </div>
 
               <div style={{ display: "flex", gap: "1rem" }}>
@@ -465,9 +597,10 @@ export default function LaporanKeuanganPage() {
                 </button>
                 <button
                   type="submit"
-                  style={{ flex: 1, padding: "0.75rem", borderRadius: "0.75rem", background: "var(--clay)", color: "#fff", fontWeight: 700, border: "none", cursor: "pointer" }}
+                  disabled={isSubmittingWithdraw}
+                  style={{ flex: 1, padding: "0.75rem", borderRadius: "0.75rem", background: "var(--clay)", color: "#fff", fontWeight: 700, border: "none", cursor: isSubmittingWithdraw ? "wait" : "pointer", opacity: isSubmittingWithdraw ? 0.7 : 1 }}
                 >
-                  Proses
+                  {isSubmittingWithdraw ? "Mengirim..." : "Proses"}
                 </button>
               </div>
             </form>
