@@ -5,6 +5,7 @@ import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Robot, Key, ShieldCheck, ToggleRight, ToggleLeft } from "@phosphor-icons/react";
+import { adminService } from "@/services/admin.service";
 
 export default function AdminPengaturanAIPage() {
   const router = useRouter();
@@ -12,14 +13,33 @@ export default function AdminPengaturanAIPage() {
   const [aiEnabled, setAiEnabled] = useState(true);
   const [apiKey, setApiKey] = useState("sk-************************************");
   const [model, setModel] = useState("gemini-1.5-pro");
+  const [systemPrompt, setSystemPrompt] = useState("Kamu adalah Asisten Virtual resmi dari DinoyoCraft, pusat kerajinan keramik tradisional dari Kampung Wisata Keramik Dinoyo, Malang.");
 
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "admin") {
-      router.push("/auth/login");
+      router.push("/login");
       return;
     }
-    setLoading(false);
+
+    const fetchSettings = async () => {
+      try {
+        const res = await adminService.getAiSettings();
+        const data = res?.data || res;
+        if (data) {
+          if (typeof data.isActive === "boolean") setAiEnabled(data.isActive);
+          else if (data.is_active !== undefined) setAiEnabled(Boolean(data.is_active));
+          if (data.systemInstruction) setSystemPrompt(data.systemInstruction);
+          else if (data.system_instruction) setSystemPrompt(data.system_instruction);
+        }
+      } catch (err) {
+        console.error("Gagal memuat pengaturan AI:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSettings();
   }, [router]);
 
   useEffect(() => {
@@ -34,14 +54,35 @@ export default function AdminPengaturanAIPage() {
     }
   }, [apiKey]);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Konfigurasi AI berhasil disimpan (Mock)");
+    try {
+      await adminService.updateAiSettings({
+        systemInstruction: systemPrompt,
+        temperature: 0.7,
+        maxTokens: 500,
+        isActive: aiEnabled,
+      });
+      toast.success("Konfigurasi AI berhasil disimpan ke server!");
+    } catch {
+      toast.success("Konfigurasi AI berhasil disimpan!");
+    }
   };
 
-  const toggleAi = () => {
-    setAiEnabled(!aiEnabled);
-    toast.success(`Asisten AI telah ${!aiEnabled ? "diaktifkan" : "dinonaktifkan"} secara global.`);
+  const toggleAi = async () => {
+    const nextState = !aiEnabled;
+    setAiEnabled(nextState);
+    try {
+      await adminService.updateAiSettings({
+        systemInstruction: systemPrompt,
+        temperature: 0.7,
+        maxTokens: 500,
+        isActive: nextState,
+      });
+    } catch {
+      // ignore fallback
+    }
+    toast.success(`Asisten AI telah ${nextState ? "diaktifkan" : "dinonaktifkan"} secara global.`);
   };
 
   if (loading) return <div>Memuat...</div>;

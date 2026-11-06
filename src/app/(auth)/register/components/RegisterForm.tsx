@@ -1389,7 +1389,9 @@ function RegisterFormContent() {
 }
 
 export default function RegisterForm() {
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "";
+  const clientId =
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+    "195383861521-pqcjfqlvm37khngn41umpotvu3msd2u6.apps.googleusercontent.com";
 
   return (
     <GoogleOAuthProvider clientId={clientId}>

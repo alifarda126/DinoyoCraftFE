@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Receipt, MagnifyingGlass, DownloadSimple, ClockCounterClockwise } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
 import { toast } from "sonner";
+import { adminService } from "@/services/admin.service";
 
 type Transaction = {
   id: string;
@@ -28,18 +29,43 @@ export default function AdminTransaksiPage() {
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "admin") {
-      router.push("/auth/login");
+      router.push("/login");
       return;
     }
 
-    // Mock data
-    setTransactions([
-      { id: "INV/2023/10/XX1", store: "Studio Bumi", customer: "Budi Santoso", amount: 150000, status: "success", date: "24 Okt 2023" },
-      { id: "INV/2023/10/XX2", store: "Keramik Rina", customer: "Siti Aminah", amount: 85000, status: "success", date: "23 Okt 2023" },
-      { id: "INV/2023/10/XX3", store: "Tanah Liat Art", customer: "Joko Anwar", amount: 250000, status: "pending", date: "23 Okt 2023" },
-      { id: "INV/2023/10/XX4", store: "Studio Bumi", customer: "Rina Nose", amount: 120000, status: "failed", date: "22 Okt 2023" },
-    ]);
-    setLoading(false);
+    const fetchTransactions = async () => {
+      try {
+        const res = await adminService.getTransactions();
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          const mapped: Transaction[] = res.data.map((item: any) => ({
+            id: item.id,
+            store: item.toko || item.store || "Toko Mitra",
+            customer: item.pembeli || item.customer || "Pelanggan",
+            amount: Number(item.nominal || item.amount || 0),
+            status:
+              item.status === "Berhasil" || item.status === "success"
+                ? "success"
+                : item.status === "Dibatalkan" || item.status === "failed"
+                ? "failed"
+                : "pending",
+            date: item.tanggal || item.date || "-",
+          }));
+          setTransactions(mapped);
+          return;
+        }
+      } catch (err) {
+        console.error("Gagal mengambil transaksi dari backend:", err);
+      }
+
+      setTransactions([
+        { id: "INV/2023/10/XX1", store: "Studio Bumi", customer: "Budi Santoso", amount: 150000, status: "success", date: "24 Okt 2023" },
+        { id: "INV/2023/10/XX2", store: "Keramik Rina", customer: "Siti Aminah", amount: 85000, status: "success", date: "23 Okt 2023" },
+        { id: "INV/2023/10/XX3", store: "Tanah Liat Art", customer: "Joko Anwar", amount: 250000, status: "pending", date: "23 Okt 2023" },
+        { id: "INV/2023/10/XX4", store: "Studio Bumi", customer: "Rina Nose", amount: 120000, status: "failed", date: "22 Okt 2023" },
+      ]);
+    };
+
+    fetchTransactions().finally(() => setLoading(false));
   }, [router]);
 
   const filtered = transactions.filter(t => {

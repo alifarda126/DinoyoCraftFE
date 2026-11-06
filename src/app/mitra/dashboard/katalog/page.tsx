@@ -403,9 +403,11 @@ export default function SellerCatalogPage() {
     formData.append("stock", stock);
     formData.append("category_id", category || "1"); // Pastikan ini mengambil ID / nama kategori
 
-    // Jika ada file gambar produk
+    // Jika ada file gambar produk atau URL eksternal
     if (selectedFile) {
       formData.append("image", selectedFile);
+    } else if (imageSource === "url" && imageUrl.trim()) {
+      formData.append("image_url", imageUrl.trim());
     }
 
     try {

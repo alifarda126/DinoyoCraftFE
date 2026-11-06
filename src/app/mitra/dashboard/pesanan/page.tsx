@@ -97,11 +97,11 @@ export default function PesananSellerPage() {
         });
 
         if (res.data?.success && Array.isArray(res.data?.data)) {
-          const mapStatus = (s: string): OrderStatus => {
-            const st = (s || "").toLowerCase();
-            if (st === "pending" || st === "unpaid") return "unpaid";
-            if (st === "paid" || st === "packed") return "packed";
-            if (st === "shipped") return "shipped";
+          const mapStatus = (s: string, dbSt?: string): OrderStatus => {
+            const st = (dbSt || s || "").toLowerCase();
+            if (st === "pending" || st === "unpaid" || st === "menunggu pembayaran") return "unpaid";
+            if (st === "paid" || st === "packed" || st === "perlu dikirim") return "packed";
+            if (st === "shipped" || st === "dikirim") return "shipped";
             if (st === "completed" || st === "selesai" || st === "delivered") return "completed";
             return "packed";
           };
@@ -141,16 +141,16 @@ export default function PesananSellerPage() {
               id: item.orderId || item.id || `ORD-${idx + 1}`,
               customerName: item.customerName || item.customer || "Customer",
               date: d,
-              status: mapStatus(item.status),
+              status: mapStatus(item.status, item.dbStatus),
               total: Number(item.totalBelanja || item.total || 0),
               items: orderItems,
               resi: item.resi,
               kurir: item.kurir,
-              rating: item.rating,
-              ulasan: item.ulasan,
+              rating: item.review?.rating ?? item.rating,
+              ulasan: item.review?.comment ?? item.ulasan,
               ulasanAvatar: item.ulasanAvatar,
               ulasanFoto: item.ulasanFoto,
-              balasanMitra: item.balasanMitra,
+              balasanMitra: item.review?.reply ?? item.balasanMitra,
             };
           });
 
@@ -189,8 +189,21 @@ export default function PesananSellerPage() {
     return list;
   })();
 
-  const handleUpdateStatus = (orderId: string, newStatus: OrderStatus) => {
+  const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
     setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+    try {
+      const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
+      await axios.patch(
+        `http://localhost:5000/api/mitra/orders/${encodeURIComponent(orderId)}/shipping`,
+        { status: newStatus },
+        {
+          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+          withCredentials: true,
+        }
+      );
+    } catch {
+      // ignore fallback
+    }
     toast.success("Status pesanan berhasil diperbarui.");
   };
 
@@ -226,7 +239,19 @@ export default function PesananSellerPage() {
     e.preventDefault();
     if (!shippingOrder || !resi.trim()) return;
     setIsSubmittingShipping(true);
-    await new Promise(r => setTimeout(r, 900));
+    try {
+      const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
+      await axios.patch(
+        `http://localhost:5000/api/mitra/orders/${encodeURIComponent(shippingOrder.id)}/shipping`,
+        { kurir, resi: resi.trim(), status: "shipped" },
+        {
+          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+          withCredentials: true,
+        }
+      );
+    } catch (err) {
+      console.error("Gagal menyimpan resi ke server:", err);
+    }
     setOrders(prev => prev.map(o =>
       o.id === shippingOrder.id
         ? { ...o, status: "shipped" as OrderStatus, resi: resi.trim(), kurir }
@@ -242,7 +267,19 @@ export default function PesananSellerPage() {
     if (e) e.preventDefault();
     if (!replyOrder || !replyInput.trim()) return;
     setIsSubmittingReply(true);
-    await new Promise(r => setTimeout(r, 600));
+    try {
+      const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
+      await axios.post(
+        `http://localhost:5000/api/mitra/orders/${encodeURIComponent(replyOrder.id)}/reply`,
+        { reply: replyInput.trim() },
+        {
+          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+          withCredentials: true,
+        }
+      );
+    } catch (err) {
+      console.error("Gagal menyimpan balasan ulasan:", err);
+    }
     setOrders(prev => prev.map(o =>
       o.id === replyOrder.id
         ? { ...o, balasanMitra: replyInput.trim() }

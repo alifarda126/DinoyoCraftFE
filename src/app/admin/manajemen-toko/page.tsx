@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Storefront, MagnifyingGlass, CheckCircle, XCircle, Eye } from "@phosphor-icons/react";
 import Link from "next/link";
 
 import { Toaster, toast } from "sonner";
+import { adminService } from "@/services/admin.service";
 
 const INITIAL_SHOPS = [
   { id: 1, name: "Studio Keramik Bumi", owner: "Siti Rahma", status: "Active", rating: 4.8, joined: "15 Okt 2023" },
@@ -14,17 +15,70 @@ const INITIAL_SHOPS = [
 
 export default function ManajemenTokoPage() {
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [shops, setShops] = useState(INITIAL_SHOPS);
 
-  const handleAccept = (id: number, name: string) => {
+  useEffect(() => {
+    const fetchShops = async () => {
+      try {
+        const res = await adminService.getVerifikasiList();
+        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
+          setShops(
+            res.data.map((m: any) => ({
+              id: Number(m.id),
+              name: m.store_name || "Toko Mitra",
+              owner: m.owner_name || "Mitra Pengrajin",
+              status:
+                m.is_active === 0 || m.is_verified === 2
+                  ? "Suspended"
+                  : m.is_verified === 1
+                  ? "Active"
+                  : "Pending",
+              rating: m.is_verified === 1 ? 4.9 : 0,
+              joined: m.created_at
+                ? new Date(m.created_at).toLocaleDateString("id-ID", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "-",
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Gagal memuat daftar toko:", err);
+      }
+    };
+    fetchShops();
+  }, []);
+
+  const handleAccept = async (id: number, name: string) => {
     setShops(shops.map(shop => shop.id === id ? { ...shop, status: "Active" } : shop));
+    try {
+      await adminService.verifyStore(id, "approved");
+    } catch {
+      // ignore fallback
+    }
     toast.success(`Toko ${name} berhasil diverifikasi dan diaktifkan.`);
   };
 
-  const handleReject = (id: number, name: string) => {
+  const handleReject = async (id: number, name: string) => {
     setShops(shops.map(shop => shop.id === id ? { ...shop, status: "Suspended" } : shop));
+    try {
+      await adminService.verifyStore(id, "rejected", "Ditolak dari Manajemen Toko");
+    } catch {
+      // ignore fallback
+    }
     toast.error(`Pendaftaran toko ${name} ditolak.`);
   };
+
+  const filteredShops = shops.filter((s) => {
+    const matchSearch =
+      s.name.toLowerCase().includes(search.toLowerCase()) ||
+      s.owner.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = !statusFilter || s.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
 
   return (
     <div className="p-6">
@@ -51,7 +105,11 @@ export default function ManajemenTokoPage() {
           </div>
           
           <div className="flex gap-2">
-            <select className="px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm focus:outline-none">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm focus:outline-none"
+            >
               <option value="">Semua Status</option>
               <option value="Active">Aktif</option>
               <option value="Pending">Menunggu Verifikasi</option>
@@ -73,7 +131,7 @@ export default function ManajemenTokoPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-              {shops.map((shop) => (
+              {filteredShops.map((shop) => (
                 <tr key={shop.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-semibold text-zinc-900 dark:text-zinc-100">{shop.name}</div>

@@ -141,17 +141,46 @@ export default function SellerDashboardHome() {
 
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!withdrawAmount || parseInt(withdrawAmount, 10) > currentBalance) {
-      toast.error("Nominal tidak valid atau melebihi saldo!");
+    const amountNum = parseInt(withdrawAmount, 10);
+    if (!withdrawAmount || amountNum > currentBalance || amountNum < 50000) {
+      toast.error("Nominal tidak valid (minimal Rp 50.000) atau melebihi saldo!");
       return;
     }
     setIsWithdrawing(true);
-    // Simulate API call
-    await new Promise((res) => setTimeout(res, 1000));
-    setIsWithdrawing(false);
-    setShowWithdraw(false);
-    setWithdrawAmount("");
-    toast.success("Penarikan saldo sedang diproses ke rekening Anda.");
+    try {
+      const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      await axios.post(
+        "http://localhost:5000/api/mitra/wallet/withdraw",
+        {
+          amount: amountNum,
+          bank_name: selectedPayment.name,
+          account_number: accountNumber || "-",
+          account_holder: sellerName || "Mitra",
+        },
+        {
+          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+          withCredentials: true,
+        }
+      );
+      setDashboardData((prev) =>
+        prev
+          ? {
+              ...prev,
+              stats: {
+                ...prev.stats,
+                saldoAktif: Math.max(0, (prev.stats.saldoAktif || 0) - amountNum),
+              },
+            }
+          : prev
+      );
+      toast.success("Penarikan saldo sedang diproses ke rekening Anda.");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Gagal memproses penarikan saldo");
+    } finally {
+      setIsWithdrawing(false);
+      setShowWithdraw(false);
+      setWithdrawAmount("");
+    }
   };
 
   const defaultSampleImages = [

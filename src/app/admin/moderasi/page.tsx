@@ -10,6 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { EarthySelect } from "@/components/ui/EarthySelect";
+import { adminService } from "@/services/admin.service";
 
 type ReportType = "toko" | "ulasan" | "produk";
 type ReportStatus = "pending" | "resolved";
@@ -66,21 +67,76 @@ export default function AdminModerasiPage() {
   useEffect(() => {
     const session = getDemoSession();
     if (!session || session.role !== "admin") {
-      router.push("/auth/login");
+      router.push("/login");
       return;
     }
-    setLoading(false);
+
+    const fetchModerationData = async () => {
+      try {
+        const [repRes, delRes] = await Promise.all([
+          adminService.getReports(),
+          adminService.getDeletionRequests(),
+        ]);
+
+        if (repRes?.success && Array.isArray(repRes.data) && repRes.data.length > 0) {
+          setReports(
+            repRes.data.map((r: any) => ({
+              id: String(r.id),
+              type: (["toko", "ulasan", "produk"].includes(String(r.type).toLowerCase())
+                ? String(r.type).toLowerCase()
+                : "toko") as ReportType,
+              target: r.target || r.target_name || "-",
+              reporter: r.reporter || r.reporter_name || "Pengguna",
+              reason: r.reason || "-",
+              status: r.status === "resolved" ? "resolved" : "pending",
+              date: r.date || "-",
+            }))
+          );
+        }
+
+        if (delRes?.success && Array.isArray(delRes.data) && delRes.data.length > 0) {
+          setDeletes(
+            delRes.data.map((d: any) => ({
+              id: String(d.id),
+              name: d.name || "Pengguna",
+              email: d.email || "-",
+              reason: d.reason || "-",
+              date: d.date || "-",
+              status: (["pending", "approved", "rejected"].includes(d.status)
+                ? d.status
+                : "pending") as DeleteStatus,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error("Gagal memuat data moderasi dari server:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchModerationData();
   }, [router]);
 
-  const handleReport = (id: string, action: "suspend" | "delete" | "ignore") => {
+  const handleReport = async (id: string, action: "suspend" | "delete" | "ignore") => {
     setReports(prev => prev.map(r => r.id === id ? { ...r, status: "resolved" as ReportStatus } : r));
+    try {
+      await adminService.handleReportAction(id, { action });
+    } catch (err) {
+      console.error("Gagal memproses tindakan laporan:", err);
+    }
     const msg = action === "ignore" ? "Laporan diabaikan" :
       action === "suspend" ? "Tindakan suspend berhasil dieksekusi" : "Konten berhasil dihapus";
     toast.success(msg);
   };
 
-  const handleDelete = (id: string, action: "approved" | "rejected") => {
+  const handleDelete = async (id: string, action: "approved" | "rejected") => {
     setDeletes(prev => prev.map(d => d.id === id ? { ...d, status: action } : d));
+    try {
+      await adminService.handleDeletionAction(id, action);
+    } catch (err) {
+      console.error("Gagal memproses pengajuan hapus akun:", err);
+    }
     toast.success(action === "approved"
       ? "Pengajuan penghapusan akun disetujui. Akun akan dihapus dalam 7 hari."
       : "Pengajuan penghapusan akun ditolak.");
