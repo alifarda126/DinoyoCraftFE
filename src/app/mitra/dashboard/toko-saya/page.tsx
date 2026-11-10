@@ -31,41 +31,13 @@ interface StoreProfileData {
 const formatRupiah = (val: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
-// Sample fallback items matching the exact reference UI
-const DEFAULT_PRODUCTS: ProductItem[] = [
-  {
-    id: 1,
-    name: 'Vas Minimalis',
-    price: 85000,
-    imageUrl: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=600&q=80',
-    isHot: true,
-    rating: 4.9,
-  },
-  {
-    id: 2,
-    name: 'Cangkir Handmade',
-    price: 65000,
-    imageUrl: 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&w=600&q=80',
-    isHot: true,
-    rating: 4.9,
-  },
-  {
-    id: 3,
-    name: 'Mangkuk Keramik',
-    price: 75000,
-    imageUrl: 'https://images.unsplash.com/photo-1578749556568-bc2c40e68b61?auto=format&fit=crop&w=600&q=80',
-    isHot: false,
-    rating: 4.9,
-  },
-  {
-    id: 4,
-    name: 'Piring Artisan',
-    price: 95000,
-    imageUrl: 'https://images.unsplash.com/photo-1590736969955-71cc94801759?auto=format&fit=crop&w=600&q=80',
-    isHot: false,
-    rating: 4.9,
-  },
-];
+const isCustomAvatar = (url?: string | null) => {
+  if (!url) return false;
+  if (url.includes('googleusercontent.com') || url.includes('google.com')) {
+    return false;
+  }
+  return true;
+};
 
 export default function TokoSaya() {
   const router = useRouter();
@@ -125,15 +97,23 @@ export default function TokoSaya() {
   const storeRating = data?.store?.rating || 4.9;
   const storeReviewCount = data?.store?.reviewCount || 128;
 
-  // Combine real database products with fallbacks if empty
-  const rawProducts = data?.products && data.products.length > 0 ? data.products : DEFAULT_PRODUCTS;
+  const initials = storeName
+    .trim()
+    .split(/\s+/)
+    .map((w: string) => w[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
 
-  const displayProducts = rawProducts.map((p, idx) => ({
+  // Hanya ambil produk asli milik toko dari database
+  const realProducts = data?.products || [];
+
+  const displayProducts = realProducts.map((p) => ({
     id: p.id,
     name: p.name,
     price: p.price,
-    imageUrl: p.imageUrl || DEFAULT_PRODUCTS[idx % DEFAULT_PRODUCTS.length].imageUrl,
-    isHot: p.isHot !== undefined ? p.isHot : idx < 2,
+    imageUrl: p.imageUrl,
+    isHot: p.isHot !== undefined ? p.isHot : false,
     rating: p.rating || 4.9,
   }));
 
@@ -178,12 +158,20 @@ export default function TokoSaya() {
           <div className="px-6 sm:px-8 pb-8 pt-0 relative">
             {/* Avatar Row */}
             <div className="flex justify-between items-end -mt-12 sm:-mt-14 mb-4 relative z-20">
-              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-white bg-linear-to-b from-[#2E1810] to-[#1A0D08] text-white flex items-center justify-center text-3xl font-extrabold shadow-md overflow-hidden shrink-0">
-                {storeAvatar ? (
+              <div
+                className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-4 border-white text-white flex items-center justify-center text-3xl sm:text-4xl font-extrabold shadow-md overflow-hidden shrink-0"
+                style={{
+                  background:
+                    storeAvatar && isCustomAvatar(storeAvatar)
+                      ? "transparent"
+                      : "linear-gradient(135deg, var(--clay), #c0673d)",
+                }}
+              >
+                {storeAvatar && isCustomAvatar(storeAvatar) ? (
                   /* eslint-disable-next-line @next/next/no-img-element */
                   <img src={storeAvatar} alt="Avatar Toko" className="object-cover w-full h-full" />
                 ) : (
-                  storeName.charAt(0).toUpperCase()
+                  initials
                 )}
               </div>
             </div>
@@ -240,55 +228,79 @@ export default function TokoSaya() {
           </div>
         </div>
 
-        {/* Grid Produk (4 Kolom Sesuai Screenshot) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {filteredProducts.map((product) => (
-            <div
-              key={product.id}
-              onClick={() => router.push('/mitra/dashboard/katalog')}
-              className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden group cursor-pointer hover:shadow-md transition flex flex-col justify-between"
-            >
-              <div className="relative h-56 bg-stone-100 overflow-hidden">
-                {product.imageUrl ? (
-                  /* eslint-disable-next-line @next/next/no-img-element */
-                  <img
-                    src={product.imageUrl}
-                    alt={product.name}
-                    className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
-                  />
-                ) : (
-                  <div className="w-full h-full bg-stone-200 flex items-center justify-center text-stone-400 text-xs">
-                    Tidak ada gambar
-                  </div>
-                )}
+        {/* Grid Produk atau Empty State */}
+        {filteredProducts.length === 0 ? (
+          <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center shadow-xs">
+            <div className="w-16 h-16 rounded-full bg-stone-100 text-stone-400 flex items-center justify-center mx-auto mb-4 text-2xl">
+              📦
+            </div>
+            <h3 className="text-base font-bold text-gray-900 mb-1">
+              {searchTerm ? 'Produk tidak ditemukan' : 'Belum ada produk di katalog'}
+            </h3>
+            <p className="text-sm text-gray-500 mb-5 max-w-md mx-auto">
+              {searchTerm
+                ? `Tidak ada produk yang cocok dengan kata kunci "${searchTerm}".`
+                : 'Toko Anda belum memiliki karya keramik aktif. Tambahkan karya pertama Anda di katalog untuk mulai memajangnya.'}
+            </p>
+            {!searchTerm && (
+              <button
+                onClick={() => router.push('/mitra/dashboard/katalog')}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white rounded-xl text-sm font-semibold hover:bg-stone-800 transition cursor-pointer shadow-sm"
+              >
+                + Tambah Produk Sekarang
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filteredProducts.map((product) => (
+              <div
+                key={product.id}
+                onClick={() => router.push('/mitra/dashboard/katalog')}
+                className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden group cursor-pointer hover:shadow-md transition flex flex-col justify-between"
+              >
+                <div className="relative h-56 bg-stone-100 overflow-hidden">
+                  {product.imageUrl ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-stone-200 flex items-center justify-center text-stone-400 text-xs">
+                      Tidak ada gambar
+                    </div>
+                  )}
 
-                {/* Top-Left Badge: Hot */}
-                {product.isHot && (
-                  <div className="absolute top-3 left-3 px-2.5 py-1 bg-gray-900/90 text-white text-[11px] font-bold rounded-full flex items-center gap-1 shadow-sm">
-                    🔥 Hot
-                  </div>
-                )}
+                  {/* Top-Left Badge: Hot */}
+                  {product.isHot && (
+                    <div className="absolute top-3 left-3 px-2.5 py-1 bg-gray-900/90 text-white text-[11px] font-bold rounded-full flex items-center gap-1 shadow-sm">
+                      🔥 Hot
+                    </div>
+                  )}
 
-                {/* Top-Right Badge: Rating */}
-                <div className="absolute top-3 right-3 px-2.5 py-1 bg-white/95 text-gray-900 text-[11px] font-bold rounded-full flex items-center gap-1 shadow-sm">
-                  ★ {product.rating}
+                  {/* Top-Right Badge: Rating */}
+                  <div className="absolute top-3 right-3 px-2.5 py-1 bg-white/95 text-gray-900 text-[11px] font-bold rounded-full flex items-center gap-1 shadow-sm">
+                    ★ {product.rating}
+                  </div>
+                </div>
+
+                <div className="p-5">
+                  <h3 className="font-bold text-gray-900 text-base mb-1 line-clamp-1">
+                    {product.name}
+                  </h3>
+                  <p className="text-xs text-gray-400 mb-3 font-medium">
+                    {storeName}
+                  </p>
+                  <p className="font-extrabold text-base text-gray-900">
+                    {formatRupiah(product.price)}
+                  </p>
                 </div>
               </div>
-
-              <div className="p-5">
-                <h3 className="font-bold text-gray-900 text-base mb-1 line-clamp-1">
-                  {product.name}
-                </h3>
-                <p className="text-xs text-gray-400 mb-3 font-medium">
-                  {storeName}
-                </p>
-                <p className="font-extrabold text-base text-gray-900">
-                  {formatRupiah(product.price)}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
