@@ -32,6 +32,16 @@ export const adminService = {
         return response.data;
     },
 
+    getTransactions: async (params?: { status?: string; q?: string; page?: number; limit?: number }) => {
+        const token = getToken();
+        const response = await axios.get(`${API_BASE_URL}/admin/transactions`, {
+            params,
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true,
+        });
+        return response.data;
+    },
+
     verifyStore: async (id: number, status: 'approved' | 'rejected', reason?: string) => {
         const token = getToken();
         console.log("Token yang dikirim ke backend (verifyStore):", token);

@@ -94,8 +94,8 @@ export default function TokoSaya() {
     : 'Studio keramik keluarga yang melestarikan seni tembikar Dinoyo sejak 1985. Menyediakan perlengkapan makan stoneware, vas hias, hingga suvenir keramik buatan tangan langsung dari tungku pembakaran lokal.';
   const storeBanner = data?.store?.bannerUrl || 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=1200&q=80';
   const storeAvatar = data?.store?.avatarUrl || null;
-  const storeRating = data?.store?.rating || 4.9;
-  const storeReviewCount = data?.store?.reviewCount || 128;
+  const storeRating = data?.store?.rating ?? 0;
+  const storeReviewCount = data?.store?.reviewCount ?? 0;
 
   const initials = storeName
     .trim()
@@ -114,7 +114,7 @@ export default function TokoSaya() {
     price: p.price,
     imageUrl: p.imageUrl,
     isHot: p.isHot !== undefined ? p.isHot : false,
-    rating: p.rating || 4.9,
+    rating: p.rating ?? 0,
   }));
 
   const filteredProducts = displayProducts.filter((product) =>
@@ -187,7 +187,7 @@ export default function TokoSaya() {
                     {storeAddress}
                   </span>
                   <span className="flex items-center gap-1 text-amber-500 font-bold">
-                    ★ {storeRating} <span className="text-gray-400 font-normal">({storeReviewCount} Ulasan)</span>
+                    ★ {storeRating > 0 ? storeRating.toFixed(1) : 'Baru'} <span className="text-gray-400 font-normal">({storeReviewCount} Ulasan)</span>
                   </span>
                 </div>
               </div>
@@ -282,7 +282,7 @@ export default function TokoSaya() {
 
                   {/* Top-Right Badge: Rating */}
                   <div className="absolute top-3 right-3 px-2.5 py-1 bg-white/95 text-gray-900 text-[11px] font-bold rounded-full flex items-center gap-1 shadow-sm">
-                    ★ {product.rating}
+                    ★ {product.rating > 0 ? product.rating.toFixed(1) : 'Baru'}
                   </div>
                 </div>
 

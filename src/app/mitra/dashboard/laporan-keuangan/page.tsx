@@ -9,6 +9,8 @@ import Cookies from "js-cookie";
 import { EarthySelect } from "@/components/ui/EarthySelect";
 import { useAuthStore } from "@/store/useAuthStore";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
 export default function LaporanKeuanganPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,7 @@ export default function LaporanKeuanganPage() {
 
       try {
         setLoading(true);
-        const res = await axios.get("http://localhost:5000/api/mitra/finance", {
+        const res = await axios.get(`${API_BASE_URL}/mitra/finance`, {
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           withCredentials: true,
         });
@@ -123,7 +125,7 @@ export default function LaporanKeuanganPage() {
     setIsSubmittingWithdraw(true);
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/mitra/wallet/withdraw",
+        `${API_BASE_URL}/mitra/wallet/withdraw`,
         {
           amount: parseInt(withdrawAmount, 10),
           bank_name: withdrawBank,
@@ -144,7 +146,7 @@ export default function LaporanKeuanganPage() {
         setWithdrawAccountNumber("");
         setWithdrawAccountName("");
         // Muat ulang saldo & riwayat
-        const refresh = await axios.get("http://localhost:5000/api/mitra/finance", {
+        const refresh = await axios.get(`${API_BASE_URL}/mitra/finance`, {
           headers: { Authorization: `Bearer ${storedToken}` },
           withCredentials: true,
         });
@@ -241,7 +243,23 @@ export default function LaporanKeuanganPage() {
             Kelola saldo, pendapatan, dan riwayat penarikan dana tokomu.
           </p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem" }}>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <button
+            onClick={() => setIsWithdrawModalOpen(true)}
+            style={{
+              display: "flex", alignItems: "center", gap: "0.5rem",
+              background: "#059669",
+              color: "#fff",
+              border: "none",
+              padding: "0.6rem 1.25rem", borderRadius: "0.5rem",
+              fontWeight: 700, fontSize: "0.85rem",
+              cursor: "pointer",
+              boxShadow: "0 4px 10px rgba(5, 150, 105, 0.2)",
+            }}
+          >
+            <Wallet size={18} />
+            Tarik Saldo
+          </button>
           {/* Unduh CSV */}
           <button
             onClick={handleDownloadCsv}

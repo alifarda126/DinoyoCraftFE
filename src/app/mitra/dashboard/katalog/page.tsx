@@ -67,12 +67,36 @@ const inputStyle: React.CSSProperties = {
 /* ── Color helpers ───────────────────────────────────────────────────────── */
 
 function toggleColor(c: ColorVariant, list: ColorVariant[], setList: (v: ColorVariant[]) => void) {
-  const existing = list.find(x => x.name === c.name);
+  const target = c.name.trim().toLowerCase();
+  const existing = list.find(x => x.name.trim().toLowerCase() === target);
   if (existing) {
-    setList(list.filter(x => x.name !== c.name));
+    setList(list.filter(x => x.name.trim().toLowerCase() !== target));
   } else {
     setList([...list, { ...c, stock: c.stock ?? 5 }]);
   }
+}
+
+function mergePendingCustomVariant(
+  list: ColorVariant[],
+  name: string,
+  hex: string,
+  label: string,
+  stockQty: number,
+): ColorVariant[] {
+  const cleanName = name.trim();
+  if (!cleanName) return list;
+  const duplicate = list.some(x => x.name.trim().toLowerCase() === cleanName.toLowerCase());
+  if (duplicate) return list;
+  const parsedStock = Number.isFinite(stockQty) ? Math.max(0, stockQty) : 5;
+  return [
+    ...list,
+    {
+      name: cleanName,
+      hex: hex || "#b85c3c",
+      label: label.trim() || "Custom",
+      stock: parsedStock,
+    },
+  ];
 }
 
 function addCustomColor(
@@ -81,9 +105,13 @@ function addCustomColor(
   setName: (v: string) => void, setLabel: (v: string) => void, setHex: (v: string) => void,
   setStockQty?: (v: number) => void
 ) {
-  if (!name.trim()) { toast.error("Nama warna wajib diisi"); return; }
-  if (list.find(x => x.name === name)) { toast.error("Warna sudah ada"); return; }
-  setList([...list, { name, hex, label: label || "Custom", stock: stockQty || 5 }]);
+  const cleanName = name.trim();
+  if (!cleanName) { toast.error("Nama warna wajib diisi"); return; }
+  if (list.some(x => x.name.trim().toLowerCase() === cleanName.toLowerCase())) {
+    toast.error("Warna sudah ada");
+    return;
+  }
+  setList(mergePendingCustomVariant(list, cleanName, hex, label, stockQty));
   setName(""); setLabel(""); setHex("#b85c3c");
   if (setStockQty) setStockQty(5);
 }
@@ -395,21 +423,39 @@ export default function SellerCatalogPage() {
     e.preventDefault();
     setLoading(true);
 
+    const variantsToSave = mergePendingCustomVariant(
+      selectedColors,
+      customColorName,
+      customColorHex,
+      customColorLabel,
+      customColorStock,
+    );
+
+    const finalStock = variantsToSave.length > 0
+      ? variantsToSave.reduce((sum, v) => sum + (v.stock ?? 0), 0)
+      : (parseInt(stock, 10) || 0);
+
     // Buat objek FormData
     const formData = new FormData();
     formData.append("name", title);
     formData.append("description", description);
     formData.append("price", price);
-    formData.append("stock", stock);
+    formData.append("stock", String(finalStock));
     formData.append("category_id", category || "1"); // Pastikan ini mengambil ID / nama kategori
+    formData.append("variants", JSON.stringify(variantsToSave));
 
-    // Jika ada file gambar produk
-    if (selectedFile) {
+    // Jika ada file gambar produk atau URL eksternal
+    if (imageSource === "upload" && selectedFile) {
+      formData.append("image", selectedFile);
+    } else if (imageSource === "url" && imageUrl.trim()) {
+      formData.append("image_url", imageUrl.trim());
+    } else if (selectedFile) {
       formData.append("image", selectedFile);
     }
 
     try {
-      const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const storedToken =
+        (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
       const response = await axios.post("http://localhost:5000/api/products", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -467,13 +513,24 @@ export default function SellerCatalogPage() {
       stock: v.stock !== undefined ? v.stock : Math.max(1, Math.floor(item.stock / (item.variants.length || 1))),
     }));
     setEditColors(variantsWithStock);
+    setEditCustomName("");
+    setEditCustomLabel("");
+    setEditCustomHex("#b85c3c");
+    setEditCustomStock(5);
     setShowForm(false);
   }
 
   async function handleEditSave(e: React.FormEvent) {
     e.preventDefault();
-    const finalStock = editColors.length > 0
-      ? editColors.reduce((sum, v) => sum + (v.stock || 0), 0)
+    const variantsToSave = mergePendingCustomVariant(
+      editColors,
+      editCustomName,
+      editCustomHex,
+      editCustomLabel,
+      editCustomStock,
+    );
+    const finalStock = variantsToSave.length > 0
+      ? variantsToSave.reduce((sum, v) => sum + (v.stock ?? 0), 0)
       : parseInt(editStock) || 0;
 
     const dataBaru = {
@@ -483,6 +540,7 @@ export default function SellerCatalogPage() {
       price: parseInt(editPrice) || 0,
       category_id: editCategory,
       stock: finalStock,
+      variants: variantsToSave,
     };
 
     try {
@@ -497,9 +555,13 @@ export default function SellerCatalogPage() {
       setArtworks(prev => prev.map(a => a.id === editingId ? {
         ...a, title: editTitle, description: editDescription,
         price: parseInt(editPrice) || 0, category: editCategory,
-        stock: finalStock, variants: editColors,
+        stock: finalStock, variants: variantsToSave,
       } : a));
       setEditingId(null);
+      setEditCustomName("");
+      setEditCustomLabel("");
+      setEditCustomHex("#b85c3c");
+      setEditCustomStock(5);
       toast.success("Produk berhasil diperbarui!");
       await loadArtworks();
     } catch (error: any) {
@@ -599,7 +661,7 @@ export default function SellerCatalogPage() {
                 { value: "Dekorasi", label: "Dekorasi" },
                 { value: "Peralatan Makan", label: "Peralatan Makan" },
                 { value: "Souvenir", label: "Souvenir" },
-                { value: "Pot", label: "Pot Tanaman" },
+                { value: "Pot Tanaman", label: "Pot Tanaman" },
               ]}
               style={{ width: "100%" }}
             />
@@ -893,7 +955,7 @@ export default function SellerCatalogPage() {
                       { value: "Dekorasi", label: "Dekorasi" },
                       { value: "Peralatan Makan", label: "Peralatan Makan" },
                       { value: "Souvenir", label: "Souvenir" },
-                      { value: "Pot", label: "Pot Tanaman" },
+                      { value: "Pot Tanaman", label: "Pot Tanaman" },
                     ]}
                     style={{ width: "100%" }}
                   />

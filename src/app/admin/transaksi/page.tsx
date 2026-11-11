@@ -5,16 +5,50 @@ import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { Receipt, MagnifyingGlass, DownloadSimple, ClockCounterClockwise } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
+import { adminService } from "@/services/admin.service";
 import { toast } from "sonner";
 
 type Transaction = {
   id: string;
+  reference_code?: string;
+  gateway?: string;
+  gateway_order_id?: string | null;
   store: string;
   customer: string;
+  payment_method?: string;
+  bank?: string | null;
   amount: number;
   status: "success" | "pending" | "failed";
+  raw_status?: string;
   date: string;
 };
+
+function formatMethodLabel(method?: string, bank?: string | null): string {
+  const m = (method || "").toLowerCase();
+  if (m === "qris") return "QRIS";
+  if (m === "bca_va") return "BCA VA";
+  if (m === "bni_va") return "BNI VA";
+  if (m === "bri_va") return "BRI VA";
+  if (m === "permata_va") return "Permata VA";
+  if (m === "mandiri_bill") return "Mandiri Bill";
+  if (m === "gopay") return "GoPay";
+  if (m === "shopeepay") return "ShopeePay";
+  if (bank) return `${bank.toUpperCase()} VA`;
+  return m ? m.toUpperCase() : "Midtrans";
+}
+
+function formatTrxDate(raw?: string | null): string {
+  if (!raw) return "-";
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return String(raw);
+  return d.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export default function AdminTransaksiPage() {
   const router = useRouter();
@@ -32,21 +66,48 @@ export default function AdminTransaksiPage() {
       return;
     }
 
-    // Mock data
-    setTransactions([
-      { id: "INV/2023/10/XX1", store: "Studio Bumi", customer: "Budi Santoso", amount: 150000, status: "success", date: "24 Okt 2023" },
-      { id: "INV/2023/10/XX2", store: "Keramik Rina", customer: "Siti Aminah", amount: 85000, status: "success", date: "23 Okt 2023" },
-      { id: "INV/2023/10/XX3", store: "Tanah Liat Art", customer: "Joko Anwar", amount: 250000, status: "pending", date: "23 Okt 2023" },
-      { id: "INV/2023/10/XX4", store: "Studio Bumi", customer: "Rina Nose", amount: 120000, status: "failed", date: "22 Okt 2023" },
-    ]);
-    setLoading(false);
+    const fetchTransactions = async () => {
+      try {
+        setLoading(true);
+        const res = await adminService.getTransactions({ limit: 100 });
+        const list = Array.isArray(res?.data) ? res.data : [];
+        const mapped: Transaction[] = list.map((t: any) => ({
+          id: String(t.id || t.reference_code || t.gateway_order_id || "-"),
+          reference_code: t.reference_code || t.id,
+          gateway: t.gateway || "midtrans",
+          gateway_order_id: t.gateway_order_id || null,
+          store: t.store || "-",
+          customer: t.customer || "-",
+          payment_method: t.payment_method || "qris",
+          bank: t.bank || null,
+          amount: Number(t.amount || 0),
+          status:
+            t.status === "success" || t.status === "failed"
+              ? t.status
+              : "pending",
+          raw_status: t.raw_status,
+          date: formatTrxDate(t.paid_at || t.date),
+        }));
+        setTransactions(mapped);
+      } catch (err) {
+        console.error("Gagal mengambil daftar transaksi:", err);
+        toast.error("Gagal memuat daftar transaksi dari server.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTransactions();
   }, [router]);
 
   const filtered = transactions.filter(t => {
+    const q = search.toLowerCase();
     const matchSearch =
-      t.id.toLowerCase().includes(search.toLowerCase()) ||
-      t.customer.toLowerCase().includes(search.toLowerCase()) ||
-      t.store.toLowerCase().includes(search.toLowerCase());
+      t.id.toLowerCase().includes(q) ||
+      (t.gateway_order_id || "").toLowerCase().includes(q) ||
+      t.customer.toLowerCase().includes(q) ||
+      t.store.toLowerCase().includes(q) ||
+      formatMethodLabel(t.payment_method, t.bank).toLowerCase().includes(q);
     const matchStatus = filterStatus === "semua" || t.status === filterStatus;
     return matchSearch && matchStatus;
   });
@@ -55,13 +116,19 @@ export default function AdminTransaksiPage() {
     setIsDownloadingCsv(true);
     toast.info("Menyiapkan file CSV...");
     setTimeout(() => {
-      const header = ["Invoice", "Mitra Pengrajin", "Pelanggan", "Tanggal", "Nominal", "Status"];
+      const header = ["Invoice", "Mitra Pengrajin", "Pelanggan", "Metode", "Tanggal", "Nominal", "Status"];
       const rows = filtered.map(t => [
-        t.id, t.store, t.customer, t.date,
+        t.id,
+        t.store,
+        t.customer,
+        formatMethodLabel(t.payment_method, t.bank),
+        t.date,
         `Rp ${t.amount.toLocaleString("id-ID")}`,
         t.status === "success" ? "Berhasil" : t.status === "failed" ? "Gagal" : "Tertunda",
       ]);
-      const csv = [header, ...rows].map(r => r.join(",")).join("\n");
+      const csv = [header, ...rows]
+        .map(r => r.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(","))
+        .join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -71,16 +138,16 @@ export default function AdminTransaksiPage() {
       URL.revokeObjectURL(url);
       setIsDownloadingCsv(false);
       toast.success("Laporan transaksi berhasil diunduh dalam format CSV.");
-    }, 800);
+    }, 500);
   }
 
   function exportPDF() {
     setIsDownloadingPdf(true);
-    toast.info("Menyiapkan file PDF...");
+    toast.info("Membuka dialog cetak / simpan PDF...");
     setTimeout(() => {
       setIsDownloadingPdf(false);
-      toast.success("Laporan transaksi berhasil diunduh dalam format PDF.");
-    }, 1500);
+      if (typeof window !== "undefined") window.print();
+    }, 300);
   }
 
 
@@ -186,32 +253,46 @@ export default function AdminTransaksiPage() {
                 <th className="p-4 font-medium">Invoice</th>
                 <th className="p-4 font-medium">Mitra Pengrajin</th>
                 <th className="p-4 font-medium">Pelanggan</th>
+                <th className="p-4 font-medium">Metode</th>
                 <th className="p-4 font-medium">Tanggal</th>
                 <th className="p-4 font-medium text-right">Nominal</th>
                 <th className="p-4 font-medium text-center">Status</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((trx) => (
-                <tr key={trx.id} className="border-b border-zinc-200  hover:bg-zinc-50 :bg-zinc-900/50 transition-colors">
-                  <td className="p-4 font-medium text-zinc-900 ">{trx.id}</td>
-                  <td className="p-4 text-sm text-zinc-600 ">{trx.store}</td>
-                  <td className="p-4 text-sm text-zinc-600 ">{trx.customer}</td>
-                  <td className="p-4 text-sm text-zinc-600 ">{trx.date}</td>
-                  <td className="p-4 text-right font-medium text-zinc-900 ">
-                    Rp {trx.amount.toLocaleString("id-ID")}
-                  </td>
-                  <td className="p-4 text-center">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      trx.status === "success" ? "bg-green-100 text-green-800  " :
-                      trx.status === "failed" ? "bg-red-100 text-red-800  " :
-                      "bg-yellow-100 text-yellow-800  "
-                    }`}>
-                      {trx.status === "success" ? "Berhasil" : trx.status === "failed" ? "Gagal" : "Tertunda"}
-                    </span>
+              {filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-sm text-zinc-500">
+                    Belum ada transaksi yang sesuai filter.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filtered.map((trx) => (
+                  <tr key={trx.id} className="border-b border-zinc-200  hover:bg-zinc-50 :bg-zinc-900/50 transition-colors">
+                    <td className="p-4 font-medium text-zinc-900 ">{trx.id}</td>
+                    <td className="p-4 text-sm text-zinc-600 ">{trx.store}</td>
+                    <td className="p-4 text-sm text-zinc-600 ">{trx.customer}</td>
+                    <td className="p-4 text-sm">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 text-xs font-medium">
+                        {formatMethodLabel(trx.payment_method, trx.bank)}
+                      </span>
+                    </td>
+                    <td className="p-4 text-sm text-zinc-600 ">{trx.date}</td>
+                    <td className="p-4 text-right font-medium text-zinc-900 ">
+                      Rp {trx.amount.toLocaleString("id-ID")}
+                    </td>
+                    <td className="p-4 text-center">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        trx.status === "success" ? "bg-green-100 text-green-800  " :
+                        trx.status === "failed" ? "bg-red-100 text-red-800  " :
+                        "bg-yellow-100 text-yellow-800  "
+                      }`}>
+                        {trx.status === "success" ? "Berhasil" : trx.status === "failed" ? "Gagal" : "Tertunda"}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
