@@ -9,12 +9,14 @@ import {
   ShieldCheck, 
   ChatCircle,
   Robot,
+  TerminalWindow,
   SignOut, 
   ArrowLeft,
   List
 } from "@phosphor-icons/react";
 import { clearDemoSession } from "@/lib/utils/demo";
 import { adminService } from "@/services/admin.service";
+import { logsService } from "@/services/logs.service";
 import { useAuthStore } from "@/store/useAuthStore";
 
 // ─── Komponen badge angka kecil ───────────────────────────────────────────────
@@ -53,6 +55,7 @@ export default function AdminSidebar() {
     "/admin/verifikasi": 0,
     "/admin/moderasi": 4, // 4 laporan menunggu tindakan
     "/admin/chat": 2,     // 2 kontak dengan pesan belum dibaca
+    "/admin/logs": 0,     // jumlah critical + error belum diakui 15 menit terakhir (§8.1)
   });
 
   const logout = useAuthStore((state) => state.logout);
@@ -81,6 +84,17 @@ export default function AdminSidebar() {
       } catch (err) {
         console.warn("Gagal memuat badge count di sidebar:", err);
       }
+
+      try {
+        const logSummary = await logsService.getSummary({ range: "24h" });
+        if (logSummary?.success && logSummary?.data) {
+          const unack = Number(logSummary.data.unacknowledgedErrors15m ?? 0);
+          setBadges(prev => ({
+            ...prev,
+            "/admin/logs": unack,
+          }));
+        }
+      } catch {}
     }
 
     updateBadges();
@@ -90,8 +104,10 @@ export default function AdminSidebar() {
     };
 
     window.addEventListener("admin_verifikasi_updated", handleVerifikasiUpdate);
+    window.addEventListener("admin_logs_updated", handleVerifikasiUpdate);
     return () => {
       window.removeEventListener("admin_verifikasi_updated", handleVerifikasiUpdate);
+      window.removeEventListener("admin_logs_updated", handleVerifikasiUpdate);
     };
   }, [pathname]);
 
@@ -138,6 +154,7 @@ export default function AdminSidebar() {
     { href: "/admin/moderasi", icon: ShieldCheck, label: "Moderasi & Keamanan" },
     { href: "/admin/chat", icon: ChatCircle, label: "Live Chat" },
     { href: "/admin/pengaturan-ai", icon: Robot, label: "Pengaturan AI" },
+    { href: "/admin/logs", icon: TerminalWindow, label: "System Logs" },
   ];
 
   return (

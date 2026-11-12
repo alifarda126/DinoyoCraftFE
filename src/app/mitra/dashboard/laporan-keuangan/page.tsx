@@ -9,6 +9,8 @@ import Cookies from "js-cookie";
 import { EarthySelect } from "@/components/ui/EarthySelect";
 import { useAuthStore } from "@/store/useAuthStore";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
 export default function LaporanKeuanganPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -70,7 +72,7 @@ export default function LaporanKeuanganPage() {
 
       try {
         setLoading(true);
-        const res = await axios.get("http://localhost:5000/api/mitra/finance", {
+        const res = await axios.get(`${API_BASE_URL}/mitra/finance`, {
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           withCredentials: true,
         });
@@ -123,7 +125,7 @@ export default function LaporanKeuanganPage() {
     setIsSubmittingWithdraw(true);
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/mitra/wallet/withdraw",
+        `${API_BASE_URL}/mitra/wallet/withdraw`,
         {
           amount: parseInt(withdrawAmount, 10),
           bank_name: withdrawBank,
@@ -144,7 +146,7 @@ export default function LaporanKeuanganPage() {
         setWithdrawAccountNumber("");
         setWithdrawAccountName("");
         // Muat ulang saldo & riwayat
-        const refresh = await axios.get("http://localhost:5000/api/mitra/finance", {
+        const refresh = await axios.get(`${API_BASE_URL}/mitra/finance`, {
           headers: { Authorization: `Bearer ${storedToken}` },
           withCredentials: true,
         });
@@ -216,17 +218,51 @@ export default function LaporanKeuanganPage() {
   });
 
   const dayLabels = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
-  const data7 = dayLabels.map((day) => ({
-    label: day,
-    value: financeData.saldoAktif > 0 ? Math.round((financeData.saldoAktif / 7) / (financeData.saldoAktif || 1) * 100) : 0,
-    amount: `Rp ${financeData.saldoAktif > 0 ? Math.round(financeData.saldoAktif / 7).toLocaleString('id-ID') : 0}`
-  }));
+  const serverChart = Array.isArray((financeData as any).chartMingguan) && (financeData as any).chartMingguan.length > 0
+    ? (financeData as any).chartMingguan
+    : (Array.isArray((financeData as any).chartData) && (financeData as any).chartData.length > 0 ? (financeData as any).chartData : null);
 
-  const data30 = Array.from({ length: 30 }, (_, i) => ({
-    label: `${i + 1}`,
-    value: financeData.saldoAktif > 0 ? Math.round((financeData.saldoAktif / 30) / (financeData.saldoAktif || 1) * 100) : 0,
-    amount: `Rp ${financeData.saldoAktif > 0 ? Math.round(financeData.saldoAktif / 30).toLocaleString('id-ID') : 0}`
-  }));
+  const maxWeeklyAmount = serverChart 
+    ? Math.max(1, ...serverChart.map((c: any) => Number(c.total ?? c.total_amount ?? 0)))
+    : 1;
+
+  const data7 = serverChart
+    ? serverChart.map((d: any) => {
+        const val = Number(d.total ?? d.total_amount ?? 0);
+        return {
+          label: d.hari || d.label || "-",
+          value: Math.round((val / maxWeeklyAmount) * 100),
+          amount: `Rp ${val.toLocaleString('id-ID')}`
+        };
+      })
+    : dayLabels.map((day) => ({
+        label: day,
+        value: financeData.saldoAktif > 0 ? Math.round((financeData.saldoAktif / 7) / (financeData.saldoAktif || 1) * 100) : 0,
+        amount: `Rp ${financeData.saldoAktif > 0 ? Math.round(financeData.saldoAktif / 7).toLocaleString('id-ID') : 0}`
+      }));
+
+  const serverMonthlyChart = Array.isArray((financeData as any).chartBulanan) && (financeData as any).chartBulanan.length > 0
+    ? (financeData as any).chartBulanan
+    : null;
+
+  const maxMonthlyAmount = serverMonthlyChart
+    ? Math.max(1, ...serverMonthlyChart.map((c: any) => Number(c.total ?? c.total_amount ?? 0)))
+    : 1;
+
+  const data30 = serverMonthlyChart
+    ? serverMonthlyChart.map((d: any) => {
+        const val = Number(d.total ?? d.total_amount ?? 0);
+        return {
+          label: d.label || d.hari || "-",
+          value: Math.round((val / maxMonthlyAmount) * 100),
+          amount: `Rp ${val.toLocaleString('id-ID')}`
+        };
+      })
+    : Array.from({ length: 30 }, (_, i) => ({
+        label: `${i + 1}`,
+        value: financeData.saldoAktif > 0 ? Math.round((financeData.saldoAktif / 30) / (financeData.saldoAktif || 1) * 100) : 0,
+        amount: `Rp ${financeData.saldoAktif > 0 ? Math.round(financeData.saldoAktif / 30).toLocaleString('id-ID') : 0}`
+      }));
 
   const currentChartData = chartPeriod === "7hari" ? data7 : data30;
 
@@ -241,7 +277,23 @@ export default function LaporanKeuanganPage() {
             Kelola saldo, pendapatan, dan riwayat penarikan dana tokomu.
           </p>
         </div>
-        <div style={{ display: "flex", gap: "0.75rem" }}>
+        <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
+          <button
+            onClick={() => setIsWithdrawModalOpen(true)}
+            style={{
+              display: "flex", alignItems: "center", gap: "0.5rem",
+              background: "#059669",
+              color: "#fff",
+              border: "none",
+              padding: "0.6rem 1.25rem", borderRadius: "0.5rem",
+              fontWeight: 700, fontSize: "0.85rem",
+              cursor: "pointer",
+              boxShadow: "0 4px 10px rgba(5, 150, 105, 0.2)",
+            }}
+          >
+            <Wallet size={18} />
+            Tarik Saldo
+          </button>
           {/* Unduh CSV */}
           <button
             onClick={handleDownloadCsv}
@@ -368,8 +420,8 @@ export default function LaporanKeuanganPage() {
           display: "flex", alignItems: "flex-end", padding: "1rem", gap: "0.2rem",
           position: "relative"
         }}>
-          {currentChartData.map((d, i) => {
-            const isHighest = d.value === Math.max(...currentChartData.map(c => c.value));
+          {currentChartData.map((d: any, i: number) => {
+            const isHighest = d.value === Math.max(...currentChartData.map((c: any) => c.value));
             return (
               <div
                 key={i}

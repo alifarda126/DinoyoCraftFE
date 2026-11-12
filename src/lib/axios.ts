@@ -25,17 +25,24 @@ api.interceptors.request.use(
   }
 );
 
-// Interceptor untuk menangani error respons dari server
+// Interceptor untuk menangani error respons dari server & menyertakan requestId (§10.3)
 api.interceptors.response.use(
   (response) => {
+    const reqId = response.headers?.["x-request-id"];
+    if (reqId && response.data && typeof response.data === "object") {
+      response.data._requestId = reqId;
+    }
     return response;
   },
   (error) => {
+    const reqId = error.response?.headers?.["x-request-id"];
+    if (reqId) {
+      error.requestId = reqId;
+    }
     if (error.response?.status === 401) {
       // Token tidak valid atau kedaluwarsa -> otomatis logout
       if (typeof window !== "undefined") {
         localStorage.removeItem("token");
-        // Gunakan event atau redirect ke login
         window.location.href = "/login";
       }
     }

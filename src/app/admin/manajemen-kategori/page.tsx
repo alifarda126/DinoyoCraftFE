@@ -1,9 +1,8 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Folder, MagnifyingGlass, Plus, PencilSimple, Trash, Check, X } from "@phosphor-icons/react";
 import { toast } from "sonner";
-import { adminService } from "@/services/admin.service";
 
 type Category = {
   id: number;
@@ -30,50 +29,17 @@ export default function ManajemenKategoriPage() {
   const [editName, setEditName] = useState("");
   const [editStatus, setEditStatus] = useState<"Active" | "Inactive">("Active");
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await adminService.getCategories();
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          setCategories(
-            res.data.map((c: any) => ({
-              id: Number(c.id),
-              name: c.name || "Kategori",
-              slug: String(c.name || "kategori")
-                .trim()
-                .toLowerCase()
-                .replace(/\s+/g, "-")
-                .replace(/[^a-z0-9-]/g, ""),
-              products: Number(c.total_products || 0),
-              status: "Active" as const,
-            }))
-          );
-        }
-      } catch (err) {
-        console.error("Gagal memuat daftar kategori:", err);
-      }
-    };
-    fetchCategories();
-  }, []);
-
   const filtered = categories.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.slug.toLowerCase().includes(search.toLowerCase())
   );
 
-  async function handleAdd(e: React.FormEvent) {
+  function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim()) return;
     const slug = newName.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    let createdId = Math.max(0, ...categories.map(c => c.id)) + 1;
-    try {
-      const res = await adminService.createCategory({ name: newName.trim() });
-      if (res?.data?.id) createdId = Number(res.data.id);
-    } catch {
-      // ignore fallback
-    }
     const newCat: Category = {
-      id: createdId,
+      id: Math.max(0, ...categories.map(c => c.id)) + 1,
       name: newName.trim(), slug, products: 0, status: newStatus,
     };
     setCategories(prev => [...prev, newCat]);
@@ -87,27 +53,17 @@ export default function ManajemenKategoriPage() {
     setEditStatus(cat.status);
   }
 
-  async function handleEdit(e: React.FormEvent, id: number) {
+  function handleEdit(e: React.FormEvent, id: number) {
     e.preventDefault();
     if (!editName.trim()) return;
     const slug = editName.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
     setCategories(prev => prev.map(c => c.id === id ? { ...c, name: editName.trim(), slug, status: editStatus } : c));
     setEditingId(null);
-    try {
-      await adminService.updateCategory(id, { name: editName.trim() });
-    } catch {
-      // ignore fallback
-    }
     toast.success("Kategori berhasil diperbarui!");
   }
 
-  async function handleDelete(id: number, name: string) {
+  function handleDelete(id: number, name: string) {
     setCategories(prev => prev.filter(c => c.id !== id));
-    try {
-      await adminService.deleteCategory(id);
-    } catch {
-      // ignore fallback
-    }
     toast.success(`Kategori "${name}" berhasil dihapus!`);
   }
 

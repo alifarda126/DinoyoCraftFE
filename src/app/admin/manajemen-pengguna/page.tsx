@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { Users, MagnifyingGlass, Plus, DotsThree, Trash, PencilSimple } from "@phosphor-icons/react";
 
 import { Toaster, toast } from "sonner";
-import { adminService } from "@/services/admin.service";
 
 const INITIAL_USERS = [
   { id: 1, name: "Budi Santoso", email: "budi@example.com", role: "Customer", status: "Active", joined: "12 Okt 2023" },
@@ -16,76 +15,20 @@ const INITIAL_USERS = [
 
 export default function ManajemenPenggunaPage() {
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
   const [users, setUsers] = useState(INITIAL_USERS);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await adminService.getUsers();
-        if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-          setUsers(
-            res.data.map((u: any) => ({
-              id: Number(u.id),
-              name: u.name || "Pengguna",
-              email: u.email || "-",
-              role: u.role === "admin" ? "Admin" : u.role === "mitra" ? "Seller" : "Customer",
-              status: u.is_active === 0 || u.is_active === false ? "Suspended" : "Active",
-              joined: u.created_at
-                ? new Date(u.created_at).toLocaleDateString("id-ID", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })
-                : "-",
-            }))
-          );
-        }
-      } catch (err) {
-        console.error("Gagal memuat daftar pengguna:", err);
-      }
-    };
-    fetchUsers();
-  }, []);
-
   const handleAdd = () => {
-    toast.info("Gunakan formulir registrasi untuk mendaftarkan pengguna baru.");
+    toast.info("Modal 'Tambah Pengguna' akan muncul di sini (Mock)");
   };
 
-  const handleEdit = async (name: string) => {
-    const target = users.find((u) => u.name === name);
-    if (!target) return;
-    const nextActive = target.status !== "Active";
-    setUsers(
-      users.map((u) =>
-        u.id === target.id ? { ...u, status: nextActive ? "Active" : "Suspended" } : u
-      )
-    );
-    try {
-      await adminService.updateUserStatus(target.id, nextActive);
-    } catch {
-      // ignore fallback
-    }
-    toast.success(`Status pengguna ${name} diubah menjadi ${nextActive ? "Active" : "Suspended"}`);
+  const handleEdit = (name: string) => {
+    toast.info(`Modal Edit untuk pengguna ${name} akan muncul di sini (Mock)`);
   };
 
-  const handleDelete = async (id: number, name: string) => {
+  const handleDelete = (id: number, name: string) => {
     setUsers(users.filter(u => u.id !== id));
-    try {
-      await adminService.deleteUser(id);
-    } catch {
-      // ignore fallback
-    }
-    toast.success(`Pengguna ${name} berhasil dihapus`);
+    toast.success(`Pengguna ${name} berhasil dihapus (Mock)`);
   };
-
-  const filteredUsers = users.filter((u) => {
-    const matchSearch =
-      u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase());
-    const matchRole = !roleFilter || u.role === roleFilter;
-    return matchSearch && matchRole;
-  });
 
   return (
     <div className="p-6">
@@ -116,11 +59,7 @@ export default function ManajemenPenggunaPage() {
           </div>
           
           <div className="flex gap-2">
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm focus:outline-none"
-            >
+            <select className="px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm focus:outline-none">
               <option value="">Semua Role</option>
               <option value="Admin">Admin</option>
               <option value="Seller">Seller</option>
@@ -141,7 +80,7 @@ export default function ManajemenPenggunaPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-              {filteredUsers.map((user) => (
+              {users.map((user) => (
                 <tr key={user.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-semibold text-zinc-900 dark:text-zinc-100">{user.name}</div>

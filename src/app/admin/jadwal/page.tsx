@@ -16,7 +16,6 @@ import {
   Trash,
 } from "@phosphor-icons/react";
 import Link from "next/link";
-import { adminService } from "@/services/admin.service";
 
 type Schedule = {
   id: string;
@@ -40,32 +39,12 @@ export default function AdminSchedulesPage() {
   const checkAdmin = async () => {
     const demo = getDemoSession();
     if (!demo || demo.role !== "admin") {
-      router.push("/login");
+      router.push("/auth/login");
       return;
     }
   };
 
   const loadSchedules = async () => {
-    try {
-      const res = await adminService.getSchedules();
-      if (res?.success && Array.isArray(res.data) && res.data.length > 0) {
-        setSchedules(
-          res.data.map((r: any) => ({
-            id: String(r.rawId || r.id),
-            date: r.tanggal || format(new Date(), "yyyy-MM-dd"),
-            start_time: String(r.waktu || "09:00").replace(" WIB", "").slice(0, 5),
-            end_time: "17:00",
-            max_capacity: Number(r.peserta || 20),
-            current_bookings: r.status === "Terjadwal" ? Math.min(5, Number(r.peserta || 20)) : 0,
-            is_locked: r.status === "Dibatalkan" || r.status === "Selesai",
-          }))
-        );
-        return;
-      }
-    } catch (err) {
-      console.error("Gagal memuat jadwal dari server:", err);
-    }
-
     setSchedules([
       { id: "s1", date: format(new Date(), "yyyy-MM-dd"), start_time: "09:00", end_time: "11:00", max_capacity: 20, current_bookings: 5, is_locked: false }
     ]);
@@ -80,26 +59,9 @@ export default function AdminSchedulesPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      let createdId = `s${Date.now()}`;
-      try {
-        const res = await adminService.createSchedule({
-          instansi: "Kunjungan Edukasi DinoyoCraft",
-          pic: "Admin",
-          telepon: "-",
-          tanggal: newDate,
-          waktu: `${startTime} WIB`,
-          peserta: maxCapacity,
-          mitraTujuan: "Kampung Keramik Dinoyo",
-          status: "Terjadwal",
-        });
-        if (res?.data?.rawId || res?.data?.id) {
-          createdId = String(res.data.rawId || res.data.id);
-        }
-      } catch {
-        // ignore fallback
-      }
+      await new Promise(resolve => setTimeout(resolve, 500));
       const newSchedule: Schedule = {
-        id: createdId,
+        id: `s${Date.now()}`,
         date: newDate,
         start_time: startTime,
         end_time: endTime,
@@ -120,24 +82,12 @@ export default function AdminSchedulesPage() {
 
   async function toggleLock(scheduleId: string, currentLock: boolean) {
     setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, is_locked: !currentLock } : s));
-    try {
-      await adminService.updateSchedule(scheduleId, {
-        status: !currentLock ? "Dibatalkan" : "Terjadwal",
-      });
-    } catch {
-      // ignore fallback
-    }
     toast.success(!currentLock ? "Jadwal dikunci" : "Jadwal dibuka");
   }
 
   async function deleteSchedule(scheduleId: string) {
     if (!confirm("Hapus jadwal ini?")) return;
     setSchedules(prev => prev.filter(s => s.id !== scheduleId));
-    try {
-      await adminService.deleteSchedule(scheduleId);
-    } catch {
-      // ignore fallback
-    }
     toast.success("Jadwal berhasil dihapus!");
   }
 

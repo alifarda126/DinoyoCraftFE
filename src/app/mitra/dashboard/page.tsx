@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { Package, Receipt, Users, CurrencyCircleDollar, TrendUp, ArrowRight, X, Bank, CaretDown } from "@phosphor-icons/react";
 import Image from "next/image";
 import axios from "axios";
+import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/useAuthStore";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 interface DashboardData {
   mitraName: string;
@@ -50,6 +53,7 @@ export default function SellerDashboardHome() {
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS[0]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [accountNumber, setAccountNumber] = useState("");
+  const [accountName, setAccountName] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
 
   // 1. Inisialisasi Auth Store
@@ -59,7 +63,8 @@ export default function SellerDashboardHome() {
 
   // 2. Fetch data dari endpoint backend & cek session
   useEffect(() => {
-    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    const storedToken =
+      (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
     const storedUserStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
 
     if (!storedToken) {
@@ -82,7 +87,7 @@ export default function SellerDashboardHome() {
 
     const fetchDashboardData = async () => {
       try {
-        const response = await axios.get("http://localhost:5000/api/mitra/dashboard", {
+        const response = await axios.get(`${API_BASE_URL}/mitra/dashboard`, {
           withCredentials: true,
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
         });
@@ -141,45 +146,56 @@ export default function SellerDashboardHome() {
 
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amountNum = parseInt(withdrawAmount, 10);
-    if (!withdrawAmount || amountNum > currentBalance || amountNum < 50000) {
-      toast.error("Nominal tidak valid (minimal Rp 50.000) atau melebihi saldo!");
+    const numericAmount = parseInt(withdrawAmount, 10);
+    if (!numericAmount || numericAmount < 50000) {
+      toast.error("Minimal penarikan adalah Rp 50.000.");
       return;
     }
+    if (numericAmount > currentBalance) {
+      toast.error("Nominal melebihi Saldo Aktif tersedia!");
+      return;
+    }
+    if (!accountNumber.trim()) {
+      toast.error("Nomor rekening / HP wajib diisi.");
+      return;
+    }
+    const storedToken =
+      (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
     setIsWithdrawing(true);
     try {
-      const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
-      await axios.post(
-        "http://localhost:5000/api/mitra/wallet/withdraw",
+      const res = await axios.post(
+        `${API_BASE_URL}/mitra/wallet/withdraw`,
         {
-          amount: amountNum,
+          amount: numericAmount,
           bank_name: selectedPayment.name,
-          account_number: accountNumber || "-",
-          account_holder: sellerName || "Mitra",
+          account_number: accountNumber.trim(),
+          account_name: (accountName.trim() || sellerName || "Pemilik Toko"),
         },
         {
-          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           withCredentials: true,
+          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
         }
       );
-      setDashboardData((prev) =>
-        prev
-          ? {
-              ...prev,
-              stats: {
-                ...prev.stats,
-                saldoAktif: Math.max(0, (prev.stats.saldoAktif || 0) - amountNum),
-              },
-            }
-          : prev
-      );
-      toast.success("Penarikan saldo sedang diproses ke rekening Anda.");
+      if (res.data?.success) {
+        const refresh = await axios.get(`${API_BASE_URL}/mitra/dashboard`, {
+          withCredentials: true,
+          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+        });
+        if (refresh.data?.success && refresh.data?.data) {
+          setDashboardData(refresh.data.data);
+        }
+        toast.success(res.data.message || "Penarikan saldo berhasil diproses.");
+        setShowWithdraw(false);
+        setWithdrawAmount("");
+        setAccountNumber("");
+        setAccountName("");
+      } else {
+        toast.error(res.data?.message || "Gagal memproses penarikan.");
+      }
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Gagal memproses penarikan saldo");
+      toast.error(err?.response?.data?.message || "Gagal memproses penarikan.");
     } finally {
       setIsWithdrawing(false);
-      setShowWithdraw(false);
-      setWithdrawAmount("");
     }
   };
 
@@ -335,8 +351,9 @@ export default function SellerDashboardHome() {
               <div>
                 <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.4rem" }}>Nominal Penarikan (Rp)</label>
                 <input type="number" value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)}
-                  placeholder="Misal: 1000000" required max={currentBalance}
+                  placeholder="Minimal Rp 50.000" required min={50000} max={currentBalance}
                   style={{ width: "100%", padding: "0.75rem", borderRadius: "0.5rem", border: "1px solid var(--line)", fontSize: "1rem" }} />
+                <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", marginTop: "0.35rem", marginBottom: 0 }}>Minimal penarikan Rp 50.000</p>
               </div>
 
               <div style={{ display: "flex", gap: "1rem" }}>
@@ -398,6 +415,13 @@ export default function SellerDashboardHome() {
                     placeholder="Masukkan nomor..."
                     style={{ width: "100%", padding: "0.75rem", borderRadius: "0.5rem", border: "1px solid var(--line)", fontSize: "0.9rem", height: "46px" }} />
                 </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.4rem" }}>Nama Pemilik Rekening</label>
+                <input type="text" value={accountName} onChange={(e) => setAccountName(e.target.value)}
+                  placeholder={sellerName || "Sesuai buku tabungan / e-wallet"}
+                  style={{ width: "100%", padding: "0.75rem", borderRadius: "0.5rem", border: "1px solid var(--line)", fontSize: "0.9rem", height: "46px" }} />
               </div>
 
               <button type="submit" disabled={isWithdrawing} style={{

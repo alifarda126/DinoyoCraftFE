@@ -22,7 +22,10 @@ import { EarthySelect } from "@/components/ui/EarthySelect";
 import Cookies from "js-cookie";
 import { useAuthStore } from "@/store/useAuthStore";
 
-type OrderStatus = "unpaid" | "packed" | "shipped" | "completed";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_HOST = API_BASE_URL.replace(/\/api\/?$/, "");
+
+type OrderStatus = "unpaid" | "packed" | "shipped" | "completed" | "cancelled";
 
 type OrderItem = {
   id: string;
@@ -36,6 +39,8 @@ type OrderItem = {
 
 type Order = {
   id: string;
+  numericId: number;
+  rawStatus?: string;
   customerName: string;
   date: string;
   status: OrderStatus;
@@ -43,12 +48,33 @@ type Order = {
   items: OrderItem[];
   resi?: string;
   kurir?: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
+  bank?: string | null;
+  gateway?: string;
+  paidAt?: string | null;
   rating?: number;
   ulasan?: string;
   ulasanAvatar?: string;
   ulasanFoto?: string;
   balasanMitra?: string;
 };
+
+function formatPaymentLabel(method?: string, bank?: string | null): string {
+  const m = (method || "").toLowerCase();
+  if (m === "qris") return "QRIS";
+  if (m === "bca_va") return "BCA VA";
+  if (m === "bni_va") return "BNI VA";
+  if (m === "bri_va") return "BRI VA";
+  if (m === "permata_va") return "Permata VA";
+  if (m === "mandiri_bill") return "Mandiri Bill";
+  if (m === "gopay") return "GoPay";
+  if (m === "shopeepay") return "ShopeePay";
+  if (bank) return `${bank.toUpperCase()} VA`;
+  return m ? m.toUpperCase() : "Midtrans";
+}
+
+const COURIER_OPTIONS = ["JNE", "J&T", "SiCepat", "Anteraja", "Pos Indonesia", "Tiki"] as const;
 
 type ChatMsg = { from: "mitra" | "customer"; text: string; time: string };
 
@@ -67,7 +93,8 @@ export default function PesananSellerPage() {
   const [customerChats, setCustomerChats] = useState<Record<string, ChatMsg[]>>({});
   const [chatInput, setChatInput] = useState("");
 
-  // Atur Pengiriman state
+  // Kemas & Atur Pengiriman state
+  const [packingOrderId, setPackingOrderId] = useState<string | null>(null);
   const [shippingOrder, setShippingOrder] = useState<Order | null>(null);
   const [kurir, setKurir] = useState("JNE");
   const [resi, setResi] = useState("");
@@ -91,18 +118,19 @@ export default function PesananSellerPage() {
 
       try {
         setLoading(true);
-        const res = await axios.get("http://localhost:5000/api/mitra/orders", {
+        const res = await axios.get(`${API_BASE_URL}/mitra/orders`, {
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           withCredentials: true,
         });
 
         if (res.data?.success && Array.isArray(res.data?.data)) {
-          const mapStatus = (s: string, dbSt?: string): OrderStatus => {
-            const st = (dbSt || s || "").toLowerCase();
-            if (st === "pending" || st === "unpaid" || st === "menunggu pembayaran") return "unpaid";
-            if (st === "paid" || st === "packed" || st === "perlu dikirim") return "packed";
-            if (st === "shipped" || st === "dikirim") return "shipped";
+          const mapStatus = (s: string): OrderStatus => {
+            const st = (s || "").toLowerCase();
+            if (st === "pending" || st === "unpaid") return "unpaid";
+            if (st === "paid" || st === "packed") return "packed";
+            if (st === "shipped") return "shipped";
             if (st === "completed" || st === "selesai" || st === "delivered") return "completed";
+            if (st === "cancelled" || st === "expired" || st === "failed") return "cancelled";
             return "packed";
           };
 
@@ -124,7 +152,7 @@ export default function PesananSellerPage() {
             const orderItems: OrderItem[] = (item.items || []).map((it: any, itIdx: number) => {
               let img = it.image || it.image_url;
               if (img && !img.startsWith("http")) {
-                img = `http://localhost:5000${img.startsWith("/") ? "" : "/"}${img}`;
+                img = `${API_HOST}${img.startsWith("/") ? "" : "/"}${img}`;
               }
               return {
                 id: it.id ? String(it.id) : `item-${idx}-${itIdx}`,
@@ -137,20 +165,33 @@ export default function PesananSellerPage() {
               };
             });
 
+            const numericId =
+              Number(item.id) ||
+              Number(String(item.orderId || "").replace(/\D/g, "")) ||
+              0;
+            const rawStatus = String(item.status || "").toLowerCase();
+
             return {
               id: item.orderId || item.id || `ORD-${idx + 1}`,
+              numericId,
+              rawStatus,
               customerName: item.customerName || item.customer || "Customer",
               date: d,
-              status: mapStatus(item.status, item.dbStatus),
+              status: mapStatus(item.status),
               total: Number(item.totalBelanja || item.total || 0),
               items: orderItems,
               resi: item.resi,
               kurir: item.kurir,
-              rating: item.review?.rating ?? item.rating,
-              ulasan: item.review?.comment ?? item.ulasan,
+              paymentMethod: item.payment_method,
+              paymentStatus: item.payment_status,
+              bank: item.bank,
+              gateway: item.gateway,
+              paidAt: item.paid_at,
+              rating: item.rating,
+              ulasan: item.ulasan,
               ulasanAvatar: item.ulasanAvatar,
               ulasanFoto: item.ulasanFoto,
-              balasanMitra: item.review?.reply ?? item.balasanMitra,
+              balasanMitra: item.balasanMitra,
             };
           });
 
@@ -173,6 +214,7 @@ export default function PesananSellerPage() {
     { id: "packed", label: "Perlu Dikemas" },
     { id: "shipped", label: "Sedang Dikirim" },
     { id: "completed", label: "Selesai" },
+    { id: "cancelled", label: "Dibatalkan" },
   ];
 
   const filteredOrders = (() => {
@@ -189,23 +231,38 @@ export default function PesananSellerPage() {
     return list;
   })();
 
-  const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
-    setOrders(orders.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+  const getStoredToken = () =>
+    (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
+
+  async function markAsPacked(order: Order) {
+    if (!order.numericId) {
+      toast.error("ID pesanan tidak valid.");
+      return;
+    }
+    const storedToken = getStoredToken();
+    setPackingOrderId(order.id);
     try {
-      const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
       await axios.patch(
-        `http://localhost:5000/api/mitra/orders/${encodeURIComponent(orderId)}/shipping`,
-        { status: newStatus },
+        `${API_BASE_URL}/orders/${order.numericId}/status`,
+        { status: "packed" },
         {
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           withCredentials: true,
         }
       );
-    } catch {
-      // ignore fallback
+      setOrders(prev =>
+        prev.map(o =>
+          o.id === order.id ? { ...o, status: "packed" as OrderStatus, rawStatus: "packed" } : o
+        )
+      );
+      toast.success(`Pesanan ${order.id} ditandai sedang dikemas.`);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Gagal memperbarui status pengemasan.";
+      toast.error(msg);
+    } finally {
+      setPackingOrderId(null);
     }
-    toast.success("Status pesanan berhasil diperbarui.");
-  };
+  }
 
   function openChat(order: Order) {
     setChatOrder(order);
@@ -231,55 +288,59 @@ export default function PesananSellerPage() {
 
   function openShipping(order: Order) {
     setShippingOrder(order);
-    setKurir(order.kurir ?? "JNE");
+    const currentCourier = order.kurir || "";
+    setKurir(
+      COURIER_OPTIONS.includes(currentCourier as (typeof COURIER_OPTIONS)[number])
+        ? currentCourier
+        : "JNE"
+    );
     setResi(order.resi ?? "");
   }
 
   async function submitShipping(e: React.FormEvent) {
     e.preventDefault();
     if (!shippingOrder || !resi.trim()) return;
+    if (!shippingOrder.numericId) {
+      toast.error("ID pesanan tidak valid.");
+      return;
+    }
+    const storedToken = getStoredToken();
+    const submittedResi = resi.trim();
     setIsSubmittingShipping(true);
     try {
-      const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
       await axios.patch(
-        `http://localhost:5000/api/mitra/orders/${encodeURIComponent(shippingOrder.id)}/shipping`,
-        { kurir, resi: resi.trim(), status: "shipped" },
+        `${API_BASE_URL}/orders/${shippingOrder.numericId}/status`,
+        {
+          status: "shipped",
+          tracking_number: submittedResi,
+          shipping_method: kurir,
+        },
         {
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           withCredentials: true,
         }
       );
-    } catch (err) {
-      console.error("Gagal menyimpan resi ke server:", err);
+      setOrders(prev => prev.map(o =>
+        o.id === shippingOrder.id
+          ? { ...o, status: "shipped" as OrderStatus, rawStatus: "shipped", resi: submittedResi, kurir }
+          : o
+      ));
+      toast.success(`Pesanan ${shippingOrder.id} berhasil diserahkan ke ${kurir}. Resi: ${submittedResi}`);
+      setShippingOrder(null);
+      setResi("");
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || "Gagal menyimpan pengiriman ke server.";
+      toast.error(msg);
+    } finally {
+      setIsSubmittingShipping(false);
     }
-    setOrders(prev => prev.map(o =>
-      o.id === shippingOrder.id
-        ? { ...o, status: "shipped" as OrderStatus, resi: resi.trim(), kurir }
-        : o
-    ));
-    toast.success(`Pesanan ${shippingOrder.id} berhasil diserahkan ke ${kurir}. Resi: ${resi}`);
-    setShippingOrder(null);
-    setIsSubmittingShipping(false);
-    setResi("");
   }
 
   async function submitReply(e?: React.FormEvent) {
     if (e) e.preventDefault();
     if (!replyOrder || !replyInput.trim()) return;
     setIsSubmittingReply(true);
-    try {
-      const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
-      await axios.post(
-        `http://localhost:5000/api/mitra/orders/${encodeURIComponent(replyOrder.id)}/reply`,
-        { reply: replyInput.trim() },
-        {
-          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
-          withCredentials: true,
-        }
-      );
-    } catch (err) {
-      console.error("Gagal menyimpan balasan ulasan:", err);
-    }
+    await new Promise(r => setTimeout(r, 600));
     setOrders(prev => prev.map(o =>
       o.id === replyOrder.id
         ? { ...o, balasanMitra: replyInput.trim() }
@@ -297,6 +358,7 @@ export default function PesananSellerPage() {
       case "packed": return <div className="flex items-center gap-1.5 text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md text-xs font-semibold"><Package size={14} /> Perlu Dikemas</div>;
       case "shipped": return <div className="flex items-center gap-1.5 text-purple-600 bg-purple-50 px-2.5 py-1 rounded-md text-xs font-semibold"><Truck size={14} /> Sedang Dikirim</div>;
       case "completed": return <div className="flex items-center gap-1.5 text-green-600 bg-green-50 px-2.5 py-1 rounded-md text-xs font-semibold"><CheckCircle size={14} /> Selesai</div>;
+      case "cancelled": return <div className="flex items-center gap-1.5 text-red-600 bg-red-50 px-2.5 py-1 rounded-md text-xs font-semibold"><X size={14} /> Dibatalkan</div>;
     }
   };
 
@@ -413,6 +475,12 @@ export default function PesananSellerPage() {
                       <div className="w-full flex justify-between md:flex-col md:items-end gap-2 mb-4">
                         <p className="text-sm text-zinc-500">Total Belanja</p>
                         <p className="text-lg font-bold text-zinc-900">Rp {order.total.toLocaleString("id-ID")}</p>
+                        {order.paymentMethod && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-zinc-100 text-zinc-600 text-[11px] font-medium">
+                            {formatPaymentLabel(order.paymentMethod, order.bank)}
+                            {order.paymentStatus === "paid" ? " · Lunas" : order.paymentStatus === "pending" ? " · Menunggu" : ""}
+                          </span>
+                        )}
                       </div>
 
                       <div className="w-full flex flex-col gap-2">
@@ -422,12 +490,23 @@ export default function PesananSellerPage() {
 
                         {/* Action Buttons */}
                         {order.status === "packed" && (
-                          <button
-                            onClick={() => openShipping(order)}
-                            className="w-full px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-semibold hover:bg-zinc-800 transition-colors"
-                          >
-                            Atur Pengiriman
-                          </button>
+                          <div className="flex flex-col gap-2">
+                            {order.rawStatus === "paid" && (
+                              <button
+                                onClick={() => markAsPacked(order)}
+                                disabled={packingOrderId === order.id}
+                                className="w-full px-4 py-2 bg-amber-50 text-amber-800 border border-amber-200 rounded-lg text-sm font-semibold hover:bg-amber-100 transition-colors disabled:opacity-60"
+                              >
+                                {packingOrderId === order.id ? "Memproses..." : "Kemas Pesanan"}
+                              </button>
+                            )}
+                            <button
+                              onClick={() => openShipping(order)}
+                              className="w-full px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-semibold hover:bg-zinc-800 transition-colors"
+                            >
+                              Atur Pengiriman
+                            </button>
+                          </div>
                         )}
 
                         {order.status === "shipped" && (
@@ -442,6 +521,12 @@ export default function PesananSellerPage() {
                         {order.status === "unpaid" && (
                           <button className="w-full px-4 py-2 bg-zinc-100 text-zinc-400 rounded-lg text-sm font-semibold cursor-not-allowed">
                             Menunggu Pembayaran
+                          </button>
+                        )}
+
+                        {order.status === "cancelled" && (
+                          <button className="w-full px-4 py-2 bg-red-50 text-red-400 rounded-lg text-sm font-semibold cursor-not-allowed">
+                            Pesanan Dibatalkan / Kedaluwarsa
                           </button>
                         )}
 
@@ -620,7 +705,7 @@ export default function PesananSellerPage() {
               <div>
                 <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.5rem" }}>Kurir Pengiriman</label>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem" }}>
-                  {["JNE", "J&T", "SiCepat", "Anteraja", "Pos Indonesia", "Tiki"].map(k => (
+                  {COURIER_OPTIONS.map(k => (
                     <button
                       key={k}
                       type="button"
