@@ -218,17 +218,51 @@ export default function LaporanKeuanganPage() {
   });
 
   const dayLabels = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
-  const data7 = dayLabels.map((day) => ({
-    label: day,
-    value: financeData.saldoAktif > 0 ? Math.round((financeData.saldoAktif / 7) / (financeData.saldoAktif || 1) * 100) : 0,
-    amount: `Rp ${financeData.saldoAktif > 0 ? Math.round(financeData.saldoAktif / 7).toLocaleString('id-ID') : 0}`
-  }));
+  const serverChart = Array.isArray((financeData as any).chartMingguan) && (financeData as any).chartMingguan.length > 0
+    ? (financeData as any).chartMingguan
+    : (Array.isArray((financeData as any).chartData) && (financeData as any).chartData.length > 0 ? (financeData as any).chartData : null);
 
-  const data30 = Array.from({ length: 30 }, (_, i) => ({
-    label: `${i + 1}`,
-    value: financeData.saldoAktif > 0 ? Math.round((financeData.saldoAktif / 30) / (financeData.saldoAktif || 1) * 100) : 0,
-    amount: `Rp ${financeData.saldoAktif > 0 ? Math.round(financeData.saldoAktif / 30).toLocaleString('id-ID') : 0}`
-  }));
+  const maxWeeklyAmount = serverChart 
+    ? Math.max(1, ...serverChart.map((c: any) => Number(c.total ?? c.total_amount ?? 0)))
+    : 1;
+
+  const data7 = serverChart
+    ? serverChart.map((d: any) => {
+        const val = Number(d.total ?? d.total_amount ?? 0);
+        return {
+          label: d.hari || d.label || "-",
+          value: Math.round((val / maxWeeklyAmount) * 100),
+          amount: `Rp ${val.toLocaleString('id-ID')}`
+        };
+      })
+    : dayLabels.map((day) => ({
+        label: day,
+        value: financeData.saldoAktif > 0 ? Math.round((financeData.saldoAktif / 7) / (financeData.saldoAktif || 1) * 100) : 0,
+        amount: `Rp ${financeData.saldoAktif > 0 ? Math.round(financeData.saldoAktif / 7).toLocaleString('id-ID') : 0}`
+      }));
+
+  const serverMonthlyChart = Array.isArray((financeData as any).chartBulanan) && (financeData as any).chartBulanan.length > 0
+    ? (financeData as any).chartBulanan
+    : null;
+
+  const maxMonthlyAmount = serverMonthlyChart
+    ? Math.max(1, ...serverMonthlyChart.map((c: any) => Number(c.total ?? c.total_amount ?? 0)))
+    : 1;
+
+  const data30 = serverMonthlyChart
+    ? serverMonthlyChart.map((d: any) => {
+        const val = Number(d.total ?? d.total_amount ?? 0);
+        return {
+          label: d.label || d.hari || "-",
+          value: Math.round((val / maxMonthlyAmount) * 100),
+          amount: `Rp ${val.toLocaleString('id-ID')}`
+        };
+      })
+    : Array.from({ length: 30 }, (_, i) => ({
+        label: `${i + 1}`,
+        value: financeData.saldoAktif > 0 ? Math.round((financeData.saldoAktif / 30) / (financeData.saldoAktif || 1) * 100) : 0,
+        amount: `Rp ${financeData.saldoAktif > 0 ? Math.round(financeData.saldoAktif / 30).toLocaleString('id-ID') : 0}`
+      }));
 
   const currentChartData = chartPeriod === "7hari" ? data7 : data30;
 
