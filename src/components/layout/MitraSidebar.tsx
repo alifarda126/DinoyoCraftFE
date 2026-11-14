@@ -2,7 +2,10 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import axios from "axios";
+import Cookies from "js-cookie";
+import Pusher from "pusher-js";
 import {
   Storefront, Package, Receipt, SignOut, ArrowLeft, ChartLineUp,
   IdentificationCard, ChatCircle, User, List, Lock
@@ -11,11 +14,7 @@ import { clearDemoSession, getDemoSession } from "@/lib/utils/demo";
 import { useAuthStore } from "@/store/useAuthStore";
 import { toast } from "sonner";
 
-// ─── Badge notifikasi mock (angka nyata akan dari API) ───────────────────────
-const NAV_BADGES: Record<string, number> = {
-  "/mitra/dashboard/pesanan": 4,   // 4 pesanan baru menunggu
-  "/mitra/dashboard/chat": 2,      // 2 pesan belum dibaca
-};
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 function NavBadge({ count }: { count: number }) {
   if (!count) return null;
@@ -112,6 +111,92 @@ export default function MitraSidebar() {
     )
   );
   const isUnverified = user && user.role === "mitra" && !isVerified;
+
+  const [badges, setBadges] = useState<Record<string, number>>({
+    "/mitra/dashboard/pesanan": 0,
+    "/mitra/dashboard/chat": 0,
+  });
+
+  const updateBadges = useCallback(async () => {
+    const storedToken =
+      (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
+
+    if (!storedToken || !isVerified) {
+      setBadges({ "/mitra/dashboard/pesanan": 0, "/mitra/dashboard/chat": 0 });
+      return;
+    }
+
+    const headers = { Authorization: `Bearer ${storedToken}` };
+    const [ordersRes, chatRes] = await Promise.allSettled([
+      axios.get(`${API_BASE_URL}/mitra/orders`, { headers, withCredentials: true }),
+      axios.get(`${API_BASE_URL}/chat/unread-count`, { headers, withCredentials: true }),
+    ]);
+
+    const nextUpdates: Record<string, number> = {};
+
+    // 1. Pesanan perlu tindakan mitra (status "paid" / "packed" -> Perlu Dikemas)
+    if (ordersRes.status === "fulfilled" && ordersRes.value.data?.success && Array.isArray(ordersRes.value.data?.data)) {
+      const needActionCount = ordersRes.value.data.data.filter((item: any) => {
+        const st = String(item.status || "").toLowerCase();
+        return st === "paid" || st === "packed";
+      }).length;
+      nextUpdates["/mitra/dashboard/pesanan"] = needActionCount;
+    }
+
+    // 2. Live Chat (jumlah pesan belum dibaca)
+    if (chatRes.status === "fulfilled" && chatRes.value.data?.success) {
+      nextUpdates["/mitra/dashboard/chat"] = Number(chatRes.value.data?.data?.unread_count ?? 0);
+    }
+
+    if (Object.keys(nextUpdates).length > 0) {
+      setBadges((prev) => ({ ...prev, ...nextUpdates }));
+    }
+  }, [isVerified]);
+
+  useEffect(() => {
+    updateBadges();
+
+    const handleBadgeUpdate = () => {
+      updateBadges();
+    };
+
+    const pollInterval = setInterval(updateBadges, 15000);
+
+    window.addEventListener("focus", handleBadgeUpdate);
+    window.addEventListener("mitra_orders_updated", handleBadgeUpdate);
+    window.addEventListener("chat_unread_updated", handleBadgeUpdate);
+    window.addEventListener("mitra-verification-updated", handleBadgeUpdate);
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", handleBadgeUpdate);
+      window.removeEventListener("mitra_orders_updated", handleBadgeUpdate);
+      window.removeEventListener("chat_unread_updated", handleBadgeUpdate);
+      window.removeEventListener("mitra-verification-updated", handleBadgeUpdate);
+    };
+  }, [pathname, updateBadges]);
+
+  // Real-time update via Pusher untuk pesan & pesanan baru
+  useEffect(() => {
+    if (!user?.id || !isVerified) return;
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
+    let pusher: Pusher | null = null;
+    try {
+      pusher = new Pusher(pusherKey, { cluster: pusherCluster });
+      const userChannel = pusher.subscribe(`user-${user.id}`);
+      userChannel.bind("new-message", updateBadges);
+      userChannel.bind("order-status-updated", updateBadges);
+      userChannel.bind("new-order", updateBadges);
+    } catch {}
+
+    return () => {
+      if (pusher) {
+        try {
+          pusher.disconnect();
+        } catch {}
+      }
+    };
+  }, [user?.id, isVerified, updateBadges]);
 
   const navItems = [
     { href: "/mitra/dashboard/profil", icon: User, label: "Profil Toko" },
@@ -247,7 +332,11 @@ export default function MitraSidebar() {
                 </span>
               )}
 
-              {!isItemLocked && !isCollapsed && <NavBadge count={NAV_BADGES[item.href] ?? 0} />}
+              {!isItemLocked && !isCollapsed && <NavBadge count={badges[item.href] ?? 0} />}
+
+              {isCollapsed && !isItemLocked && (badges[item.href] ?? 0) > 0 && (
+                <div style={{ position: "absolute", top: 4, right: 12, width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
+              )}
               
               {isCollapsed && isItemLocked && (
                 <div style={{ position: "absolute", top: 6, right: 10 }}>

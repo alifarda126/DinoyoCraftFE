@@ -196,6 +196,9 @@ export default function PesananSellerPage() {
           });
 
           setOrders(mappedOrders);
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("mitra_orders_updated"));
+          }
         }
       } catch (error) {
         console.error("Gagal memuat pesanan:", error);
@@ -255,6 +258,9 @@ export default function PesananSellerPage() {
           o.id === order.id ? { ...o, status: "packed" as OrderStatus, rawStatus: "packed" } : o
         )
       );
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("mitra_orders_updated"));
+      }
       toast.success(`Pesanan ${order.id} ditandai sedang dikemas.`);
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Gagal memperbarui status pengemasan.";
@@ -325,6 +331,9 @@ export default function PesananSellerPage() {
           ? { ...o, status: "shipped" as OrderStatus, rawStatus: "shipped", resi: submittedResi, kurir }
           : o
       ));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("mitra_orders_updated"));
+      }
       toast.success(`Pesanan ${shippingOrder.id} berhasil diserahkan ke ${kurir}. Resi: ${submittedResi}`);
       setShippingOrder(null);
       setResi("");

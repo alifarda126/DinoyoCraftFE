@@ -45,8 +45,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       {/* Main Content */}
-      <main className="no-scrollbar flex-1 overflow-y-auto mt-14 md:mt-0 p-6 md:p-8 overscroll-contain">
-        <div className="w-full">
+      <main className="no-scrollbar min-w-0 flex-1 overflow-y-auto mt-14 md:mt-0 p-4 sm:p-6 md:p-8 overscroll-contain">
+        <div className="w-full min-w-0">
           {children}
         </div>
       </main>

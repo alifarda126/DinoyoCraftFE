@@ -116,11 +116,25 @@ function getHttpReasonLabel(statusCode?: number | null): string {
 function HttpStatusChip({
   statusCode,
   severity,
+  outcome,
 }: {
   statusCode?: number | null;
   severity: LogSeverity;
+  outcome?: SystemLogItem["outcome"];
 }) {
   const code = statusCode ?? 0;
+
+  if (outcome === "pending" && code < 400) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-400 whitespace-nowrap"
+        title={code > 0 ? `HTTP ${code} — Menunggu pembayaran (Pending)` : "Pending"}
+      >
+        <Clock size={13} weight="bold" />
+        PENDING
+      </span>
+    );
+  }
 
   if (code >= 200 && code < 300) {
     return (
@@ -267,6 +281,9 @@ function AdminSystemLogsContent() {
     const raw = searchParams.get("severity");
     return raw ? (raw.split(",") as LogSeverity[]) : [];
   });
+  const [outcomeFilter, setOutcomeFilter] = useState<string>(
+    searchParams.get("outcome") || "all"
+  );
   const [statusCodeFilter, setStatusCodeFilter] = useState<string>(
     searchParams.get("statusCode") || "all"
   );
@@ -333,6 +350,7 @@ function AdminSystemLogsContent() {
     if (range && range !== "live") params.set("range", range);
     if (category && category !== "all") params.set("category", category);
     if (selectedSeverities.length > 0) params.set("severity", selectedSeverities.join(","));
+    if (outcomeFilter && outcomeFilter !== "all") params.set("outcome", outcomeFilter);
     if (statusCodeFilter && statusCodeFilter !== "all") params.set("statusCode", statusCodeFilter);
     if (sourceFilter && sourceFilter !== "all") params.set("source", sourceFilter);
     if (roleFilter && roleFilter !== "all") params.set("role", roleFilter);
@@ -351,6 +369,7 @@ function AdminSystemLogsContent() {
     range,
     category,
     selectedSeverities,
+    outcomeFilter,
     statusCodeFilter,
     sourceFilter,
     roleFilter,
@@ -371,6 +390,7 @@ function AdminSystemLogsContent() {
       range,
       category: category === "all" ? undefined : category,
       severity: selectedSeverities.length > 0 ? selectedSeverities.join(",") : undefined,
+      outcome: outcomeFilter === "all" ? undefined : outcomeFilter,
       statusCode: statusCodeFilter === "all" ? undefined : statusCodeFilter,
       source: sourceFilter === "all" ? undefined : sourceFilter,
       role: roleFilter === "all" ? undefined : roleFilter,
@@ -388,6 +408,7 @@ function AdminSystemLogsContent() {
       range,
       category,
       selectedSeverities,
+      outcomeFilter,
       statusCodeFilter,
       sourceFilter,
       roleFilter,
@@ -409,6 +430,9 @@ function AdminSystemLogsContent() {
       if (item.deletedAt) return false;
       if (category !== "all" && item.category !== category) return false;
       if (selectedSeverities.length > 0 && !selectedSeverities.includes(item.severity)) {
+        return false;
+      }
+      if (outcomeFilter !== "all" && item.outcome !== outcomeFilter) {
         return false;
       }
       if (statusCodeFilter !== "all") {
@@ -455,6 +479,7 @@ function AdminSystemLogsContent() {
       onlyDeleted,
       category,
       selectedSeverities,
+      outcomeFilter,
       statusCodeFilter,
       sourceFilter,
       roleFilter,
@@ -768,6 +793,7 @@ function AdminSystemLogsContent() {
     setRange("live");
     setCategory("all");
     setSelectedSeverities([]);
+    setOutcomeFilter("all");
     setStatusCodeFilter("all");
     setSourceFilter("all");
     setRoleFilter("all");
@@ -852,20 +878,20 @@ function AdminSystemLogsContent() {
   return (
     <div className="space-y-6 pb-12">
       {/* 1. HEADER & STATUS REAL-TIME (§8.2) */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-zinc-200 pb-5">
-        <div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="w-10 h-10 rounded-xl bg-zinc-900 text-white flex items-center justify-center shadow-sm">
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 border-b border-zinc-200 pb-5">
+        <div className="min-w-0">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 shrink-0 rounded-xl bg-zinc-900 text-white flex items-center justify-center shadow-sm">
               <TerminalWindow size={22} weight="bold" />
             </div>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-2xl font-extrabold text-zinc-900 tracking-tight">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight">
                   System Logs &amp; Live Monitoring
                 </h1>
                 {/* Indikator Koneksi Real-Time */}
                 <span
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border ${
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border whitespace-nowrap ${
                     connectionState === "Live" && !isPaused
                       ? "bg-emerald-50 text-emerald-700 border-emerald-300"
                       : connectionState === "Reconnecting"
@@ -885,17 +911,19 @@ function AdminSystemLogsContent() {
                   {isPaused ? "Paused" : connectionState}
                 </span>
               </div>
-              <p className="text-xs text-zinc-500 mt-0.5 flex items-center gap-1.5">
-                <Clock size={13} />
-                Pembaruan terakhir: <strong>{formatWibTime(lastUpdated)}</strong> • Data sensitif
-                (password, OTP, token, isi chat) disamarkan otomatis.
+              <p className="text-xs text-zinc-500 mt-1 flex items-start sm:items-center gap-1.5">
+                <Clock size={13} className="shrink-0 mt-0.5 sm:mt-0" />
+                <span>
+                  Pembaruan terakhir: <strong>{formatWibTime(lastUpdated)}</strong> • Data sensitif
+                  (password, OTP, token, isi chat) disamarkan otomatis.
+                </span>
               </p>
             </div>
           </div>
         </div>
 
         {/* Tombol Kontrol Header */}
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap shrink-0">
           <button
             type="button"
             onClick={() => {
@@ -905,7 +933,7 @@ function AdminSystemLogsContent() {
                 setIsPaused(true);
               }
             }}
-            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold border transition ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold border transition whitespace-nowrap ${
               isPaused
                 ? "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700"
                 : "bg-white text-zinc-800 border-zinc-300 hover:bg-zinc-50"
@@ -918,7 +946,7 @@ function AdminSystemLogsContent() {
           <button
             type="button"
             onClick={() => fetchLogsAndSummary(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-white text-zinc-800 border border-zinc-300 hover:bg-zinc-50 transition"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-white text-zinc-800 border border-zinc-300 hover:bg-zinc-50 transition whitespace-nowrap"
           >
             <ArrowsClockwise size={15} weight="bold" className={loading ? "animate-spin" : ""} />
             Refresh
@@ -928,7 +956,7 @@ function AdminSystemLogsContent() {
             type="button"
             onClick={handleExportCsv}
             disabled={isExporting || logs.length === 0}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50 transition"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50 transition whitespace-nowrap"
           >
             <DownloadSimple size={15} weight="bold" />
             {isExporting ? "Mengekspor..." : "Ekspor CSV"}
@@ -952,7 +980,7 @@ function AdminSystemLogsContent() {
               }
             }}
             disabled={logs.length === 0 || onlyDeleted}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 disabled:opacity-40 transition"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 disabled:opacity-40 transition whitespace-nowrap"
           >
             <Trash size={15} weight="bold" />
             {selectedIds.size > 0 ? `Hapus (${selectedIds.size})` : "Hapus Hasil Filter"}
@@ -961,17 +989,17 @@ function AdminSystemLogsContent() {
       </div>
 
       {/* 2. KARTU RINGKASAN 24 JAM / RENTANG AKTIF (§8.2) */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3.5">
         <button
           type="button"
           onClick={() => toggleSeverity("critical")}
-          className={`text-left p-4 rounded-xl border transition ${
+          className={`min-w-0 text-left p-4 rounded-xl border transition ${
             selectedSeverities.includes("critical")
               ? "bg-red-950 text-white border-red-700 ring-2 ring-red-500"
               : "bg-white border-zinc-200 hover:border-red-300"
           }`}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span
               className={`text-xs font-bold uppercase tracking-wider ${
                 selectedSeverities.includes("critical") ? "text-red-200" : "text-red-800"
@@ -982,7 +1010,9 @@ function AdminSystemLogsContent() {
             <WarningOctagon
               size={20}
               weight="fill"
-              className={selectedSeverities.includes("critical") ? "text-red-300" : "text-red-600"}
+              className={`shrink-0 ${
+                selectedSeverities.includes("critical") ? "text-red-300" : "text-red-600"
+              }`}
             />
           </div>
           <div className="text-2xl font-extrabold mt-1">
@@ -1000,13 +1030,13 @@ function AdminSystemLogsContent() {
         <button
           type="button"
           onClick={() => toggleSeverity("error")}
-          className={`text-left p-4 rounded-xl border transition ${
+          className={`min-w-0 text-left p-4 rounded-xl border transition ${
             selectedSeverities.includes("error")
               ? "bg-red-600 text-white border-red-700 ring-2 ring-red-400"
               : "bg-white border-zinc-200 hover:border-red-300"
           }`}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span
               className={`text-xs font-bold uppercase tracking-wider ${
                 selectedSeverities.includes("error") ? "text-red-100" : "text-red-600"
@@ -1017,7 +1047,9 @@ function AdminSystemLogsContent() {
             <WarningCircle
               size={20}
               weight="fill"
-              className={selectedSeverities.includes("error") ? "text-white" : "text-red-500"}
+              className={`shrink-0 ${
+                selectedSeverities.includes("error") ? "text-white" : "text-red-500"
+              }`}
             />
           </div>
           <div className="text-2xl font-extrabold mt-1">
@@ -1035,13 +1067,13 @@ function AdminSystemLogsContent() {
         <button
           type="button"
           onClick={() => toggleSeverity("warning")}
-          className={`text-left p-4 rounded-xl border transition ${
+          className={`min-w-0 text-left p-4 rounded-xl border transition ${
             selectedSeverities.includes("warning")
               ? "bg-amber-500 text-white border-amber-600 ring-2 ring-amber-300"
               : "bg-white border-zinc-200 hover:border-amber-300"
           }`}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span
               className={`text-xs font-bold uppercase tracking-wider ${
                 selectedSeverities.includes("warning") ? "text-amber-50" : "text-amber-700"
@@ -1052,7 +1084,9 @@ function AdminSystemLogsContent() {
             <Warning
               size={20}
               weight="fill"
-              className={selectedSeverities.includes("warning") ? "text-white" : "text-amber-500"}
+              className={`shrink-0 ${
+                selectedSeverities.includes("warning") ? "text-white" : "text-amber-500"
+              }`}
             />
           </div>
           <div className="text-2xl font-extrabold mt-1">
@@ -1070,13 +1104,13 @@ function AdminSystemLogsContent() {
         <button
           type="button"
           onClick={() => toggleSeverity("success")}
-          className={`text-left p-4 rounded-xl border transition ${
+          className={`min-w-0 text-left p-4 rounded-xl border transition ${
             selectedSeverities.includes("success")
               ? "bg-emerald-600 text-white border-emerald-700 ring-2 ring-emerald-300"
               : "bg-white border-zinc-200 hover:border-emerald-300"
           }`}
         >
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span
               className={`text-xs font-bold uppercase tracking-wider ${
                 selectedSeverities.includes("success") ? "text-emerald-50" : "text-emerald-700"
@@ -1087,7 +1121,9 @@ function AdminSystemLogsContent() {
             <CheckCircle
               size={20}
               weight="fill"
-              className={selectedSeverities.includes("success") ? "text-white" : "text-emerald-600"}
+              className={`shrink-0 ${
+                selectedSeverities.includes("success") ? "text-white" : "text-emerald-600"
+              }`}
             />
           </div>
           <div className="text-2xl font-extrabold mt-1">
@@ -1102,12 +1138,12 @@ function AdminSystemLogsContent() {
           </p>
         </button>
 
-        <div className="p-4 rounded-xl border border-zinc-200 bg-zinc-50">
-          <div className="flex items-center justify-between">
+        <div className="min-w-0 sm:col-span-2 lg:col-span-1 p-4 rounded-xl border border-zinc-200 bg-zinc-50">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-600">
               API Error Rate
             </span>
-            <Pulse size={20} weight="bold" className="text-zinc-700" />
+            <Pulse size={20} weight="bold" className="shrink-0 text-zinc-700" />
           </div>
           <div className="text-2xl font-extrabold text-zinc-900 mt-1">
             {summary?.apiErrorRate ?? 0}%
@@ -1120,10 +1156,10 @@ function AdminSystemLogsContent() {
 
       {/* 3. PILIHAN JANGKAUAN WAKTU & TAB KATEGORI (§8.2, §8.3) */}
       <div className="bg-white border border-zinc-200 rounded-xl p-4 space-y-4 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-zinc-100 pb-3.5">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-3 border-b border-zinc-100 pb-3.5">
           {/* Jangkauan Waktu (§8.3) */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs font-bold text-zinc-500 mr-1.5 uppercase tracking-wider">
+            <span className="text-xs font-bold text-zinc-500 mr-1 uppercase tracking-wider">
               Rentang Waktu:
             </span>
             {TIME_RANGES.map((tr) => {
@@ -1137,7 +1173,7 @@ function AdminSystemLogsContent() {
                     setRange(tr.id);
                     if (tr.id === "live") setIsPaused(false);
                   }}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap ${
                     active
                       ? "bg-zinc-900 text-white shadow-xs"
                       : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
@@ -1155,13 +1191,13 @@ function AdminSystemLogsContent() {
             <button
               type="button"
               onClick={() => setOnlyDeleted(!onlyDeleted)}
-              className={`ml-2 px-3 py-1.5 rounded-lg text-xs font-bold border transition inline-flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition inline-flex items-center gap-1.5 whitespace-nowrap ${
                 onlyDeleted
                   ? "bg-red-700 text-white border-red-800"
                   : "bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-50"
               }`}
             >
-              <Trash size={14} />
+              <Trash size={14} className="shrink-0" />
               Tempat Sampah ({summary?.deletedCount ?? 0})
             </button>
           </div>
@@ -1187,7 +1223,7 @@ function AdminSystemLogsContent() {
         </div>
 
         {/* Tab Kategori (§6, §8.2) */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {CATEGORY_TABS.map((tab) => {
             const active = category === tab.id;
             const count =
@@ -1222,9 +1258,9 @@ function AdminSystemLogsContent() {
 
         {/* 4. PANEL PENCARIAN & FILTER (§8.2) */}
         <div className="space-y-3 pt-1">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-12 gap-2.5">
             {/* Pencarian Kata Kunci */}
-            <div className="md:col-span-5 relative">
+            <div className="sm:col-span-2 xl:col-span-5 relative">
               <MagnifyingGlass
                 size={16}
                 className="text-zinc-400 absolute left-3 top-1/2 -translate-y-1/2"
@@ -1248,7 +1284,7 @@ function AdminSystemLogsContent() {
             </div>
 
             {/* Filter HTTP Status Group */}
-            <div className="md:col-span-2">
+            <div className="xl:col-span-2">
               <select
                 value={statusCodeFilter}
                 onChange={(e) => setStatusCodeFilter(e.target.value)}
@@ -1264,7 +1300,7 @@ function AdminSystemLogsContent() {
             </div>
 
             {/* Filter Source */}
-            <div className="md:col-span-2">
+            <div className="xl:col-span-2">
               <select
                 value={sourceFilter}
                 onChange={(e) => setSourceFilter(e.target.value)}
@@ -1280,11 +1316,11 @@ function AdminSystemLogsContent() {
             </div>
 
             {/* Tombol Filter Korelasi & Reset */}
-            <div className="md:col-span-3 flex items-center gap-2">
+            <div className="sm:col-span-2 xl:col-span-3 flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition ${
+                className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold border transition whitespace-nowrap ${
                   showAdvancedFilters ||
                   requestIdFilter ||
                   orderIdFilter ||
@@ -1294,15 +1330,15 @@ function AdminSystemLogsContent() {
                     : "bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-50"
                 }`}
               >
-                <Funnel size={14} weight="bold" />
+                <Funnel size={14} weight="bold" className="shrink-0" />
                 ID Korelasi
-                <CaretDown size={12} />
+                <CaretDown size={12} className="shrink-0" />
               </button>
 
               <button
                 type="button"
                 onClick={handleResetFilters}
-                className="px-3 py-2 rounded-lg text-xs font-bold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition"
+                className="px-3 py-2 rounded-lg text-xs font-bold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 transition whitespace-nowrap shrink-0"
               >
                 Reset
               </button>
@@ -1329,11 +1365,28 @@ function AdminSystemLogsContent() {
                 </button>
               );
             })}
+
+            <span className="h-4 w-px bg-zinc-200 mx-1 hidden xl:inline-block" />
+            <button
+              type="button"
+              onClick={() =>
+                setOutcomeFilter((prev) => (prev === "pending" ? "all" : "pending"))
+              }
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border transition whitespace-nowrap ${
+                outcomeFilter === "pending"
+                  ? "bg-amber-600 text-white border-amber-700"
+                  : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
+              }`}
+              title="Tampilkan log transaksi/pembayaran berstatus pending (belum dibayar)"
+            >
+              <Clock size={12} weight="bold" className="shrink-0" />
+              Pending (Belum Bayar)
+            </button>
           </div>
 
           {/* Panel Filter ID Korelasi Lanjutan */}
           {showAdvancedFilters && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5 p-3 bg-zinc-50 rounded-lg border border-zinc-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-2.5 p-3 bg-zinc-50 rounded-lg border border-zinc-200">
               <div>
                 <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-1">
                   Request / Trace ID
@@ -1405,9 +1458,9 @@ function AdminSystemLogsContent() {
 
       {/* BANNER PAUSED / EVENT BARU (§8.4) */}
       {pausedBuffer.length > 0 && (
-        <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-center justify-between shadow-xs">
+        <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-center justify-between flex-wrap gap-3 shadow-xs">
           <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
-            <Pulse size={18} weight="bold" className="text-amber-600" />
+            <Pulse size={18} weight="bold" className="text-amber-600 shrink-0" />
             <span>
               Terdapat <strong>{pausedBuffer.length} event baru</strong> sejak stream dijeda.
             </span>
@@ -1415,7 +1468,7 @@ function AdminSystemLogsContent() {
           <button
             type="button"
             onClick={handleFlushPausedBuffer}
-            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 transition"
+            className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 transition whitespace-nowrap"
           >
             Tampilkan Event Baru &amp; Lanjutkan Live
           </button>
@@ -1424,12 +1477,12 @@ function AdminSystemLogsContent() {
 
       {/* BANNER ERROR LOAD HISTORIS (§8.6) */}
       {loadError && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between">
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between flex-wrap gap-3">
           <div className="text-xs font-semibold text-red-800">{loadError}</div>
           <button
             type="button"
             onClick={() => fetchLogsAndSummary(false)}
-            className="px-3 py-1 rounded-md text-xs font-bold bg-red-600 text-white hover:bg-red-700"
+            className="px-3 py-1 rounded-md text-xs font-bold bg-red-600 text-white hover:bg-red-700 whitespace-nowrap"
           >
             Coba Lagi
           </button>
@@ -1505,6 +1558,7 @@ function AdminSystemLogsContent() {
                   const isWarning =
                     item.severity === "warning" ||
                     ((item.http?.statusCode ?? 0) >= 400 && (item.http?.statusCode ?? 0) < 500);
+                  const isPendingOutcome = item.outcome === "pending";
                   const isSelected = selectedIds.has(item.eventId);
 
                   return (
@@ -1518,6 +1572,8 @@ function AdminSystemLogsContent() {
                           ? "bg-red-50/50 hover:bg-red-50 border-l-4 border-l-red-500"
                           : isWarning
                           ? "bg-amber-50/30 hover:bg-amber-50/70 border-l-4 border-l-amber-400"
+                          : isPendingOutcome
+                          ? "bg-yellow-50/40 hover:bg-yellow-50/80 border-l-4 border-l-yellow-400"
                           : "hover:bg-zinc-50"
                       }`}
                     >
@@ -1555,11 +1611,12 @@ function AdminSystemLogsContent() {
                         </span>
                       </td>
 
-                      {/* Status HTTP (§7: 2xx hijau teks putih, 5xx merah) */}
+                      {/* Status HTTP / Outcome (§7: 2xx hijau teks putih, pending kuning, 5xx merah) */}
                       <td className="py-2.5 px-3 whitespace-nowrap">
                         <HttpStatusChip
                           statusCode={item.http?.statusCode}
                           severity={item.severity}
+                          outcome={item.outcome}
                         />
                       </td>
 
@@ -1669,7 +1726,7 @@ function AdminSystemLogsContent() {
           onClick={() => setActiveLog(null)}
         >
           <div
-            className="w-full max-w-2xl bg-white h-full overflow-y-auto shadow-2xl p-6 space-y-6"
+            className="w-full max-w-2xl bg-white h-full overflow-y-auto shadow-2xl p-4 sm:p-6 space-y-5 sm:space-y-6"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header Drawer */}
@@ -1680,6 +1737,7 @@ function AdminSystemLogsContent() {
                   <HttpStatusChip
                     statusCode={activeLog.http?.statusCode}
                     severity={activeLog.severity}
+                    outcome={activeLog.outcome}
                   />
                   <span className="px-2 py-0.5 rounded bg-zinc-100 text-zinc-800 font-bold text-xs">
                     {activeLog.category}
@@ -1713,6 +1771,8 @@ function AdminSystemLogsContent() {
               className={`p-4 rounded-xl border ${
                 activeLog.severity === "critical" || activeLog.severity === "error"
                   ? "bg-red-50 border-red-200 text-red-900"
+                  : activeLog.outcome === "pending"
+                  ? "bg-yellow-50 border-yellow-300 text-yellow-950"
                   : "bg-zinc-50 border-zinc-200 text-zinc-900"
               }`}
             >
@@ -1818,10 +1878,10 @@ function AdminSystemLogsContent() {
             </div>
 
             {/* Metadata HTTP, Korelasi & Klien */}
-            <div className="grid grid-cols-2 gap-3 text-xs bg-zinc-50 p-4 rounded-xl border border-zinc-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-zinc-50 p-4 rounded-xl border border-zinc-200">
               <div>
                 <span className="text-zinc-500 block">Method &amp; Route Template</span>
-                <span className="font-mono font-bold text-zinc-900">
+                <span className="font-mono font-bold text-zinc-900 break-all">
                   {activeLog.http ? `${activeLog.http.method} ${activeLog.http.route}` : "-"}
                 </span>
               </div>
@@ -1923,6 +1983,7 @@ function AdminSystemLogsContent() {
                             <HttpStatusChip
                               statusCode={rel.http?.statusCode}
                               severity={rel.severity}
+                              outcome={rel.outcome}
                             />
                             <span className="font-mono font-bold text-zinc-900">
                               {rel.eventName}

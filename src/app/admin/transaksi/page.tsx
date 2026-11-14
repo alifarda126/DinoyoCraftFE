@@ -141,13 +141,224 @@ export default function AdminTransaksiPage() {
     }, 500);
   }
 
-  function exportPDF() {
+  async function exportPDF() {
+    if (filtered.length === 0) {
+      toast.warning("Tidak ada data transaksi untuk diekspor.");
+      return;
+    }
+
     setIsDownloadingPdf(true);
-    toast.info("Membuka dialog cetak / simpan PDF...");
-    setTimeout(() => {
+    toast.info("Menyiapkan laporan PDF...");
+
+    try {
+      const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+
+      const doc = new jsPDF({
+        orientation: "landscape",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginX = 14;
+
+      const statusLabelMap: Record<string, string> = {
+        semua: "Semua Status",
+        success: "Berhasil",
+        pending: "Tertunda",
+        failed: "Gagal",
+      };
+
+      const printedAt = new Date().toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      // Hitung ringkasan hanya dari data penting
+      const successTrx = filtered.filter((t) => t.status === "success");
+      const pendingTrx = filtered.filter((t) => t.status === "pending");
+      const failedTrx = filtered.filter((t) => t.status === "failed");
+
+      const sumAmount = (list: Transaction[]) =>
+        list.reduce((acc, item) => acc + (Number.isFinite(item.amount) ? item.amount : 0), 0);
+
+      const totalSuccessAmount = sumAmount(successTrx);
+      const totalPendingAmount = sumAmount(pendingTrx);
+
+      // Header Laporan
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(113, 113, 122);
+      doc.text("DINOYOCRAFT", marginX, 14);
+
+      doc.setFontSize(16);
+      doc.setTextColor(24, 24, 27);
+      doc.text("Laporan Transaksi Lintas Toko", marginX, 21);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(82, 82, 91);
+      const filterInfo = `Filter: ${statusLabelMap[filterStatus] || "Semua Status"}${
+        search.trim() ? `  |  Kata kunci: "${search.trim()}"` : ""
+      }`;
+      doc.text(`Dicetak: ${printedAt} WIB`, pageWidth - marginX, 14, { align: "right" });
+      doc.text(filterInfo, pageWidth - marginX, 20, { align: "right" });
+
+      doc.setDrawColor(228, 228, 231);
+      doc.setLineWidth(0.3);
+      doc.line(marginX, 25, pageWidth - marginX, 25);
+
+      // Kartu Ringkasan Data Penting (4 kolom)
+      const summaryItems = [
+        {
+          label: "TOTAL TRANSAKSI",
+          value: `${filtered.length} transaksi`,
+        },
+        {
+          label: "BERHASIL (NOMINAL)",
+          value: `${successTrx.length}  |  Rp ${totalSuccessAmount.toLocaleString("id-ID")}`,
+        },
+        {
+          label: "TERTUNDA",
+          value: `${pendingTrx.length}  |  Rp ${totalPendingAmount.toLocaleString("id-ID")}`,
+        },
+        {
+          label: "GAGAL",
+          value: `${failedTrx.length} transaksi`,
+        },
+      ];
+
+      const cardGap = 4;
+      const usableWidth = pageWidth - marginX * 2;
+      const cardWidth = (usableWidth - cardGap * 3) / 4;
+      const cardY = 29;
+      const cardH = 14;
+
+      summaryItems.forEach((item, idx) => {
+        const x = marginX + idx * (cardWidth + cardGap);
+        doc.setFillColor(250, 250, 250);
+        doc.setDrawColor(228, 228, 231);
+        doc.roundedRect(x, cardY, cardWidth, cardH, 1.5, 1.5, "FD");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(113, 113, 122);
+        doc.text(item.label, x + 3, cardY + 5);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9.5);
+        doc.setTextColor(24, 24, 27);
+        doc.text(item.value, x + 3, cardY + 10.8);
+      });
+
+      // Tabel Transaksi (Hanya kolom data penting)
+      const tableBody = filtered.map((t, index) => [
+        String(index + 1),
+        t.id,
+        t.store,
+        t.customer,
+        formatMethodLabel(t.payment_method, t.bank),
+        t.date,
+        `Rp ${t.amount.toLocaleString("id-ID")}`,
+        t.status === "success" ? "Berhasil" : t.status === "failed" ? "Gagal" : "Tertunda",
+      ]);
+
+      autoTable(doc, {
+        startY: cardY + cardH + 6,
+        margin: { left: marginX, right: marginX, bottom: 16 },
+        head: [["No", "Invoice", "Mitra Pengrajin", "Pelanggan", "Metode", "Tanggal", "Nominal", "Status"]],
+        body: tableBody,
+        theme: "grid",
+        showHead: "everyPage",
+        styles: {
+          font: "helvetica",
+          fontSize: 8.5,
+          cellPadding: { top: 2.8, right: 3, bottom: 2.8, left: 3 },
+          textColor: [39, 39, 42],
+          lineColor: [228, 228, 231],
+          lineWidth: 0.2,
+          valign: "middle",
+        },
+        headStyles: {
+          fillColor: [24, 24, 27],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          fontSize: 8.5,
+          halign: "left",
+        },
+        alternateRowStyles: {
+          fillColor: [250, 250, 250],
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: "center" },
+          1: { cellWidth: 52, fontStyle: "bold" },
+          2: { cellWidth: 45 },
+          3: { cellWidth: 42 },
+          4: { cellWidth: 26 },
+          5: { cellWidth: 38 },
+          6: { cellWidth: 33, halign: "right", fontStyle: "bold" },
+          7: { cellWidth: 23, halign: "center", fontStyle: "bold" },
+        },
+        didParseCell: (hookData) => {
+          if (hookData.section === "head") {
+            if (hookData.column.index === 0 || hookData.column.index === 7) {
+              hookData.cell.styles.halign = "center";
+            } else if (hookData.column.index === 6) {
+              hookData.cell.styles.halign = "right";
+            }
+          }
+          if (hookData.section === "body" && hookData.column.index === 7) {
+            const raw = String(hookData.cell.raw || "");
+            if (raw === "Berhasil") {
+              hookData.cell.styles.textColor = [22, 101, 52];
+              hookData.cell.styles.fillColor = [240, 253, 244];
+            } else if (raw === "Gagal") {
+              hookData.cell.styles.textColor = [153, 27, 27];
+              hookData.cell.styles.fillColor = [254, 242, 242];
+            } else {
+              hookData.cell.styles.textColor = [146, 64, 14];
+              hookData.cell.styles.fillColor = [255, 251, 235];
+            }
+          }
+        },
+      });
+
+      // Footer nomor halaman di tiap halaman
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(113, 113, 122);
+        doc.text(
+          "DinoyoCraft Admin — Laporan Transaksi Lintas Toko",
+          marginX,
+          pageHeight - 8
+        );
+        doc.text(
+          `Halaman ${i} dari ${totalPages}`,
+          pageWidth - marginX,
+          pageHeight - 8,
+          { align: "right" }
+        );
+      }
+
+      const fileDate = new Date().toISOString().slice(0, 10);
+      doc.save(`laporan-transaksi-${fileDate}.pdf`);
+      toast.success("Laporan transaksi berhasil diunduh dalam format PDF.");
+    } catch (err) {
+      console.error("Gagal mengekspor PDF:", err);
+      toast.error("Gagal membuat file PDF.");
+    } finally {
       setIsDownloadingPdf(false);
-      if (typeof window !== "undefined") window.print();
-    }, 300);
+    }
   }
 
 

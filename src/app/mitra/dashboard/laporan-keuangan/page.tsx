@@ -93,22 +93,383 @@ export default function LaporanKeuanganPage() {
     fetchFinance();
   }, [router]);
 
-  const handleDownload = () => {
+  const transactions = (financeData.riwayatTransaksi || []).map((t: any) => {
+    const rawNominal =
+      typeof t.nominal === "number"
+        ? t.nominal
+        : Number(String(t.amount || "0").replace(/[^\d-]/g, "")) || 0;
+    return {
+      id: String(t.id || "-"),
+      date: String(t.tanggal || t.date || "-"),
+      desc: String(t.deskripsi || t.desc || "Penjualan"),
+      rawNominal,
+      amount:
+        typeof t.nominal === "number"
+          ? `+ Rp ${t.nominal.toLocaleString("id-ID")}`
+          : t.amount || "+ Rp 0",
+      type: String(t.type || "in"),
+      status: String(t.status || "Selesai"),
+    };
+  });
+
+  const filteredTrx = transactions.filter((t) => {
+    const matchType = filterTrxType === "semua" || t.type === filterTrxType;
+    const matchStatus = filterTrxStatus === "semua" || t.status === filterTrxStatus;
+    return matchType && matchStatus;
+  });
+
+  const handleDownload = async () => {
     setIsDownloading(true);
-    toast.info("Menyiapkan file PDF...");
-    setTimeout(() => {
-      setIsDownloading(false);
+    toast.info("Menyiapkan laporan PDF...");
+
+    try {
+      const [{ jsPDF }, { default: autoTable }] = await Promise.all([
+        import("jspdf"),
+        import("jspdf-autotable"),
+      ]);
+
+      const doc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const marginX = 14;
+      const usableWidth = pageWidth - marginX * 2;
+
+      const printedAt = new Date().toLocaleString("id-ID", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      const typeLabelMap: Record<string, string> = {
+        semua: "Semua Tipe",
+        in: "Pemasukan",
+        out: "Pengeluaran",
+      };
+      const filterDesc = `${typeLabelMap[filterTrxType] || "Semua Tipe"}  |  ${
+        filterTrxStatus === "semua" ? "Semua Status" : filterTrxStatus
+      }`;
+
+      // Header Laporan
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(113, 113, 122);
+      doc.text("DINOYOCRAFT MITRA", marginX, 14);
+
+      doc.setFontSize(15);
+      doc.setTextColor(24, 24, 27);
+      doc.text("Laporan Keuangan Toko", marginX, 20.5);
+
+      const mitraLabel = user?.store_name || user?.name;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(82, 82, 91);
+      if (mitraLabel) {
+        doc.text(`Mitra: ${mitraLabel}`, marginX, 25.5);
+      }
+      doc.text(`Dicetak: ${printedAt} WIB`, pageWidth - marginX, 14, { align: "right" });
+      doc.text(`Filter: ${filterDesc}`, pageWidth - marginX, 19.5, { align: "right" });
+
+      const headerLineY = mitraLabel ? 29 : 25;
+      doc.setDrawColor(228, 228, 231);
+      doc.setLineWidth(0.3);
+      doc.line(marginX, headerLineY, pageWidth - marginX, headerLineY);
+
+      // Ringkasan Saldo (3 Kartu)
+      const summaryCards = [
+        {
+          label: "SALDO AKTIF",
+          value: `Rp ${(financeData.saldoAktif || 0).toLocaleString("id-ID")}`,
+        },
+        {
+          label: "PENDAPATAN TERTUNDA",
+          value: `Rp ${(financeData.pendapatanTertunda || 0).toLocaleString("id-ID")}`,
+        },
+        {
+          label: "TOTAL DITARIK",
+          value: `Rp ${(financeData.totalDitarik || 0).toLocaleString("id-ID")}`,
+        },
+      ];
+
+      const cardGap = 4;
+      const cardWidth = (usableWidth - cardGap * 2) / 3;
+      const cardY = headerLineY + 4;
+      const cardH = 15;
+
+      summaryCards.forEach((card, idx) => {
+        const x = marginX + idx * (cardWidth + cardGap);
+        doc.setFillColor(250, 250, 250);
+        doc.setDrawColor(228, 228, 231);
+        doc.roundedRect(x, cardY, cardWidth, cardH, 1.5, 1.5, "FD");
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(7);
+        doc.setTextColor(113, 113, 122);
+        doc.text(card.label, x + 3.5, cardY + 5.2);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10.5);
+        doc.setTextColor(24, 24, 27);
+        doc.text(card.value, x + 3.5, cardY + 11.5);
+      });
+
+      // Judul Bagian 1: Riwayat Transaksi
+      let nextY = cardY + cardH + 8;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10.5);
+      doc.setTextColor(24, 24, 27);
+      doc.text(`Riwayat Transaksi (${filteredTrx.length})`, marginX, nextY);
+
+      const trxRows =
+        filteredTrx.length > 0
+          ? filteredTrx.map((trx, idx) => [
+              String(idx + 1),
+              trx.id,
+              trx.date,
+              trx.desc,
+              trx.status,
+              trx.amount,
+            ])
+          : [["-", "-", "-", "Belum ada riwayat transaksi sesuai filter", "-", "-"]];
+
+      autoTable(doc, {
+        startY: nextY + 3,
+        margin: { left: marginX, right: marginX, bottom: 16 },
+        head: [["No", "ID Transaksi", "Tanggal", "Deskripsi", "Status", "Nominal"]],
+        body: trxRows,
+        theme: "grid",
+        showHead: "everyPage",
+        styles: {
+          font: "helvetica",
+          fontSize: 8,
+          cellPadding: { top: 2.5, right: 2.8, bottom: 2.5, left: 2.8 },
+          textColor: [39, 39, 42],
+          lineColor: [228, 228, 231],
+          lineWidth: 0.2,
+          valign: "middle",
+        },
+        headStyles: {
+          fillColor: [24, 24, 27],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          fontSize: 8,
+        },
+        alternateRowStyles: {
+          fillColor: [250, 250, 250],
+        },
+        columnStyles: {
+          0: { cellWidth: 10, halign: "center" },
+          1: { cellWidth: 24, fontStyle: "bold" },
+          2: { cellWidth: 26 },
+          3: { cellWidth: 68 },
+          4: { cellWidth: 24, halign: "center", fontStyle: "bold" },
+          5: { cellWidth: 30, halign: "right", fontStyle: "bold" },
+        },
+        didParseCell: (hookData) => {
+          if (hookData.section === "head") {
+            if (hookData.column.index === 0 || hookData.column.index === 4) {
+              hookData.cell.styles.halign = "center";
+            } else if (hookData.column.index === 5) {
+              hookData.cell.styles.halign = "right";
+            }
+          }
+          if (hookData.section === "body" && hookData.column.index === 4) {
+            const val = String(hookData.cell.raw || "");
+            if (val === "Selesai") {
+              hookData.cell.styles.textColor = [22, 101, 52];
+              hookData.cell.styles.fillColor = [240, 253, 244];
+            } else if (val === "Dibatalkan") {
+              hookData.cell.styles.textColor = [153, 27, 27];
+              hookData.cell.styles.fillColor = [254, 242, 242];
+            } else if (val === "Tertunda") {
+              hookData.cell.styles.textColor = [146, 64, 14];
+              hookData.cell.styles.fillColor = [255, 251, 235];
+            }
+          }
+        },
+      });
+
+      // Bagian 2: Riwayat Penarikan (jika ada)
+      if (riwayatPenarikan.length > 0) {
+        const prevFinalY = (doc as any).lastAutoTable?.finalY ?? nextY + 20;
+        let withdrawTitleY = prevFinalY + 10;
+        if (withdrawTitleY > pageHeight - 35) {
+          doc.addPage();
+          withdrawTitleY = 18;
+        }
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10.5);
+        doc.setTextColor(24, 24, 27);
+        doc.text(`Riwayat Penarikan Dana (${riwayatPenarikan.length})`, marginX, withdrawTitleY);
+
+        const withdrawRows = riwayatPenarikan.map((w, idx) => [
+          String(idx + 1),
+          new Date(w.created_at).toLocaleDateString("id-ID", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          }),
+          `${w.bank_name} - ${w.account_number}`,
+          w.account_name,
+          w.status === "approved" ? "Disetujui" : w.status === "rejected" ? "Ditolak" : "Menunggu",
+          `Rp ${(w.amount || 0).toLocaleString("id-ID")}`,
+        ]);
+
+        autoTable(doc, {
+          startY: withdrawTitleY + 3,
+          margin: { left: marginX, right: marginX, bottom: 16 },
+          head: [["No", "Tanggal", "Bank & Rekening", "Pemilik Rekening", "Status", "Nominal"]],
+          body: withdrawRows,
+          theme: "grid",
+          showHead: "everyPage",
+          styles: {
+            font: "helvetica",
+            fontSize: 8,
+            cellPadding: { top: 2.5, right: 2.8, bottom: 2.5, left: 2.8 },
+            textColor: [39, 39, 42],
+            lineColor: [228, 228, 231],
+            lineWidth: 0.2,
+            valign: "middle",
+          },
+          headStyles: {
+            fillColor: [24, 24, 27],
+            textColor: [255, 255, 255],
+            fontStyle: "bold",
+            fontSize: 8,
+          },
+          alternateRowStyles: {
+            fillColor: [250, 250, 250],
+          },
+          columnStyles: {
+            0: { cellWidth: 10, halign: "center" },
+            1: { cellWidth: 26 },
+            2: { cellWidth: 46 },
+            3: { cellWidth: 46 },
+            4: { cellWidth: 24, halign: "center", fontStyle: "bold" },
+            5: { cellWidth: 30, halign: "right", fontStyle: "bold" },
+          },
+          didParseCell: (hookData) => {
+            if (hookData.section === "head") {
+              if (hookData.column.index === 0 || hookData.column.index === 4) {
+                hookData.cell.styles.halign = "center";
+              } else if (hookData.column.index === 5) {
+                hookData.cell.styles.halign = "right";
+              }
+            }
+            if (hookData.section === "body" && hookData.column.index === 4) {
+              const val = String(hookData.cell.raw || "");
+              if (val === "Disetujui") {
+                hookData.cell.styles.textColor = [22, 101, 52];
+                hookData.cell.styles.fillColor = [240, 253, 244];
+              } else if (val === "Ditolak") {
+                hookData.cell.styles.textColor = [153, 27, 27];
+                hookData.cell.styles.fillColor = [254, 242, 242];
+              } else {
+                hookData.cell.styles.textColor = [146, 64, 14];
+                hookData.cell.styles.fillColor = [255, 251, 235];
+              }
+            }
+          },
+        });
+      }
+
+      // Footer nomor halaman
+      const totalPages = doc.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        doc.setPage(i);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(113, 113, 122);
+        doc.text("DinoyoCraft Mitra — Laporan Keuangan Toko", marginX, pageHeight - 8);
+        doc.text(`Halaman ${i} dari ${totalPages}`, pageWidth - marginX, pageHeight - 8, {
+          align: "right",
+        });
+      }
+
+      const fileDate = new Date().toISOString().slice(0, 10);
+      doc.save(`laporan-keuangan-mitra-${fileDate}.pdf`);
       toast.success("Laporan keuangan berhasil diunduh dalam format PDF.");
-    }, 1500);
+    } catch (err) {
+      console.error("Gagal mengekspor PDF mitra:", err);
+      toast.error("Gagal membuat file PDF.");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleDownloadCsv = () => {
     setIsDownloadingCsv(true);
     toast.info("Menyiapkan file CSV...");
-    setTimeout(() => {
-      setIsDownloadingCsv(false);
+
+    try {
+      const escapeCsv = (cell: unknown) => `"${String(cell ?? "").replace(/"/g, '""')}"`;
+      const mitraLabel = user?.store_name || user?.name;
+      const lines: string[][] = [
+        ["RINGKASAN KEUANGAN MITRA", mitraLabel ? mitraLabel : ""],
+        ["Saldo Aktif", `Rp ${(financeData.saldoAktif || 0).toLocaleString("id-ID")}`],
+        ["Pendapatan Tertunda", `Rp ${(financeData.pendapatanTertunda || 0).toLocaleString("id-ID")}`],
+        ["Total Ditarik", `Rp ${(financeData.totalDitarik || 0).toLocaleString("id-ID")}`],
+        [],
+        ["RIWAYAT TRANSAKSI"],
+        ["ID Transaksi", "Tanggal", "Deskripsi", "Status", "Nominal"],
+        ...(filteredTrx.length > 0
+          ? filteredTrx.map((trx) => [
+              trx.id,
+              trx.date,
+              trx.desc,
+              trx.status,
+              `Rp ${trx.rawNominal.toLocaleString("id-ID")}`,
+            ])
+          : [["-", "-", "Belum ada riwayat transaksi", "-", "Rp 0"]]),
+      ];
+
+      if (riwayatPenarikan.length > 0) {
+        lines.push(
+          [],
+          ["RIWAYAT PENARIKAN DANA"],
+          ["Tanggal", "Bank", "No. Rekening", "Pemilik Rekening", "Status", "Nominal", "Catatan"],
+          ...riwayatPenarikan.map((w) => [
+            new Date(w.created_at).toLocaleDateString("id-ID", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            }),
+            w.bank_name,
+            w.account_number,
+            w.account_name,
+            w.status === "approved" ? "Disetujui" : w.status === "rejected" ? "Ditolak" : "Menunggu",
+            `Rp ${(w.amount || 0).toLocaleString("id-ID")}`,
+            w.admin_note || "-",
+          ])
+        );
+      }
+
+      const csvContent = "\uFEFF" + lines.map((row) => row.map(escapeCsv).join(",")).join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const fileDate = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `laporan-keuangan-mitra-${fileDate}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
       toast.success("Laporan keuangan berhasil diunduh dalam format CSV.");
-    }, 1500);
+    } catch (err) {
+      console.error("Gagal mengekspor CSV mitra:", err);
+      toast.error("Gagal membuat file CSV.");
+    } finally {
+      setIsDownloadingCsv(false);
+    }
   };
 
   const handleWithdraw = async (e: React.FormEvent) => {
@@ -201,21 +562,6 @@ export default function LaporanKeuanganPage() {
       desc: "Sejak bergabung" 
     },
   ];
-
-  const transactions = (financeData.riwayatTransaksi || []).map((t: any) => ({
-    id: t.id,
-    date: t.tanggal || t.date || "-",
-    desc: t.deskripsi || t.desc || "Penjualan",
-    amount: typeof t.nominal === "number" ? `+ Rp ${t.nominal.toLocaleString('id-ID')}` : (t.amount || "+ Rp 0"),
-    type: t.type || "in",
-    status: t.status || "Selesai",
-  }));
-
-  const filteredTrx = transactions.filter(t => {
-    const matchType = filterTrxType === "semua" || t.type === filterTrxType;
-    const matchStatus = filterTrxStatus === "semua" || t.status === filterTrxStatus;
-    return matchType && matchStatus;
-  });
 
   const dayLabels = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
   const serverChart = Array.isArray((financeData as any).chartMingguan) && (financeData as any).chartMingguan.length > 0

@@ -53,4 +53,80 @@ export const adminService = {
         );
         return response.data;
     },
+
+    getModerationReports: async (params?: {
+        status?: string;
+        type?: string;
+        search?: string;
+        page?: number;
+        limit?: number;
+    }) => {
+        const token = getToken();
+        const response = await axios.get(`${API_BASE_URL}/admin/moderation/reports`, {
+            params,
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true,
+        });
+        return response.data;
+    },
+
+    handleModerationReportAction: async (
+        id: string | number,
+        payload: {
+            action: 'abaikan' | 'suspend' | 'hapus' | 'delete' | 'ignore' | 'takedown';
+            targetId?: number | null;
+            type?: string | null;
+        }
+    ) => {
+        const token = getToken();
+        const response = await axios.put(
+            `${API_BASE_URL}/admin/moderation/reports/${id}/action`,
+            payload,
+            {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                withCredentials: true,
+            }
+        );
+        return response.data;
+    },
+
+    getAccountDeletions: async (params?: {
+        status?: string;
+        search?: string;
+        page?: number;
+        limit?: number;
+    }) => {
+        const token = getToken();
+        const response = await axios.get(`${API_BASE_URL}/admin/moderation/account-deletions`, {
+            params,
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true,
+        });
+        return response.data;
+    },
+
+    handleAccountDeletionAction: async (
+        id: string | number,
+        action: 'approved' | 'rejected'
+    ) => {
+        const token = getToken();
+        const response = await axios.put(
+            `${API_BASE_URL}/admin/moderation/account-deletions/${id}/action`,
+            { action },
+            {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                withCredentials: true,
+            }
+        );
+        return response.data;
+    },
+
+    getUnreadChatCount: async () => {
+        const token = getToken();
+        const response = await axios.get(`${API_BASE_URL}/chat/unread-count`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true,
+        });
+        return response.data;
+    },
 };

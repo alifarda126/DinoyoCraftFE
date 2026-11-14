@@ -69,6 +69,7 @@ export interface LogFilterParams {
   range?: "live" | "24h" | "7d" | "30d" | "custom";
   category?: string;
   severity?: string;
+  outcome?: string;
   statusCode?: string;
   source?: string;
   role?: string;

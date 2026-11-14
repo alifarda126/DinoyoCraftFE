@@ -130,6 +130,8 @@ export default function AdminLiveChatPage() {
     // 1. Paksa konversi ke Number agar format channel backend & frontend 100% sama
     const id1 = Number(myUserId);
     const id2 = Number(activeChat);
+    let isFirstFetchForActive = true;
+    let lastCount = -1;
 
     const fetchMessages = () => {
       api.get(`/chat/messages/${id2}`)
@@ -157,18 +159,21 @@ export default function AdminLiveChatPage() {
             });
 
             const lastApiMsg = apiMessages.length > 0 ? apiMessages[apiMessages.length - 1] : null;
-            if (lastApiMsg) {
-              setChats((prev) =>
-                prev.map((c) =>
-                  c.id == id2
-                    ? {
-                        ...c,
-                        lastMsg: lastApiMsg.text,
-                        time: lastApiMsg.time || c.time,
-                      }
-                    : c
-                )
-              );
+            setChats((prev) =>
+              prev.map((c) => {
+                if (c.id != id2) return c;
+                return {
+                  ...c,
+                  unread: 0,
+                  lastMsg: lastApiMsg ? lastApiMsg.text : c.lastMsg,
+                  time: lastApiMsg?.time || c.time,
+                };
+              })
+            );
+            if (typeof window !== "undefined" && (isFirstFetchForActive || apiMessages.length !== lastCount)) {
+              isFirstFetchForActive = false;
+              lastCount = apiMessages.length;
+              window.dispatchEvent(new Event("chat_unread_updated"));
             }
           }
         })

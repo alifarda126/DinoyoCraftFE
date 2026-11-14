@@ -2,7 +2,8 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import Pusher from "pusher-js";
 import { 
   ChartLineUp, 
   Storefront, 
@@ -53,63 +54,139 @@ export default function AdminSidebar() {
   // Badge dinamis mengikuti jumlah data riil yang membutuhkan tindakan
   const [badges, setBadges] = useState<Record<string, number>>({
     "/admin/verifikasi": 0,
-    "/admin/moderasi": 4, // 4 laporan menunggu tindakan
-    "/admin/chat": 2,     // 2 kontak dengan pesan belum dibaca
-    "/admin/logs": 0,     // jumlah critical + error belum diakui 15 menit terakhir (§8.1)
+    "/admin/moderasi": 0,
+    "/admin/chat": 0,
+    "/admin/logs": 0,
   });
 
+  const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
 
   useEffect(() => {
-    async function updateBadges() {
+    useAuthStore.getState().initAuth();
+  }, []);
+
+  const updateBadges = useCallback(async () => {
+    const [verifRes, reportsRes, deletionsRes, chatRes, logSummaryRes] = await Promise.allSettled([
+      adminService.getVerifikasiList(),
+      adminService.getModerationReports({ status: "pending", limit: 1 }),
+      adminService.getAccountDeletions({ status: "pending", limit: 1 }),
+      adminService.getUnreadChatCount(),
+      logsService.getSummary({ range: "24h" }),
+    ]);
+
+    const nextUpdates: Record<string, number> = {};
+
+    // 1. Verifikasi Toko (sinkron persis dengan status "pending" di /admin/verifikasi)
+    if (verifRes.status === "fulfilled") {
+      const list = verifRes.value?.data || verifRes.value;
+      if (Array.isArray(list)) {
+        nextUpdates["/admin/verifikasi"] = list.filter(
+          (item: any) =>
+            item.is_verified !== 1 &&
+            !(
+              item.is_verified === 2 ||
+              item.rejection_reason ||
+              (item.is_verified === 0 && item.is_active === 0)
+            )
+        ).length;
+      }
+    } else {
       try {
         const stats = await adminService.getDashboardStats();
         if (stats?.success && typeof stats?.data?.pengajuanTokoBaru !== "undefined") {
-          const verifCount = Number(stats.data.pengajuanTokoBaru);
-          setBadges(prev => ({
-            ...prev,
-            "/admin/verifikasi": verifCount,
-          }));
-        } else {
-          const res = await adminService.getVerifikasiList();
-          const list = res?.data || res;
-          if (Array.isArray(list)) {
-            const pending = list.filter((item: any) => item.is_verified === 0 && !item.rejection_reason).length;
-            setBadges(prev => ({
-              ...prev,
-              "/admin/verifikasi": pending,
-            }));
-          }
-        }
-      } catch (err) {
-        console.warn("Gagal memuat badge count di sidebar:", err);
-      }
-
-      try {
-        const logSummary = await logsService.getSummary({ range: "24h" });
-        if (logSummary?.success && logSummary?.data) {
-          const unack = Number(logSummary.data.unacknowledgedErrors15m ?? 0);
-          setBadges(prev => ({
-            ...prev,
-            "/admin/logs": unack,
-          }));
+          nextUpdates["/admin/verifikasi"] = Number(stats.data.pengajuanTokoBaru);
         }
       } catch {}
     }
 
+    // 2. Moderasi & Keamanan (laporan pelanggaran pending + pengajuan hapus akun pending)
+    if (reportsRes.status === "fulfilled" || deletionsRes.status === "fulfilled") {
+      const pendingReports =
+        reportsRes.status === "fulfilled" && reportsRes.value?.success
+          ? Number(reportsRes.value.total ?? (Array.isArray(reportsRes.value.data) ? reportsRes.value.data.length : 0))
+          : 0;
+      const pendingDeletions =
+        deletionsRes.status === "fulfilled" && deletionsRes.value?.success
+          ? Number(deletionsRes.value.total ?? (Array.isArray(deletionsRes.value.data) ? deletionsRes.value.data.length : 0))
+          : 0;
+      nextUpdates["/admin/moderasi"] = pendingReports + pendingDeletions;
+    }
+
+    // 3. Live Chat (jumlah pesan belum dibaca di DB)
+    if (chatRes.status === "fulfilled" && chatRes.value?.success) {
+      nextUpdates["/admin/chat"] = Number(chatRes.value?.data?.unread_count ?? 0);
+    }
+
+    // 4. System Logs (critical + error belum diperiksa 15m)
+    if (logSummaryRes.status === "fulfilled" && logSummaryRes.value?.success && logSummaryRes.value?.data) {
+      nextUpdates["/admin/logs"] = Number(logSummaryRes.value.data.unacknowledgedErrors15m ?? 0);
+    }
+
+    if (Object.keys(nextUpdates).length > 0) {
+      setBadges((prev) => ({ ...prev, ...nextUpdates }));
+    }
+  }, []);
+
+  useEffect(() => {
     updateBadges();
 
-    const handleVerifikasiUpdate = () => {
+    const handleUpdate = () => {
       updateBadges();
     };
 
-    window.addEventListener("admin_verifikasi_updated", handleVerifikasiUpdate);
-    window.addEventListener("admin_logs_updated", handleVerifikasiUpdate);
+    const pollInterval = setInterval(updateBadges, 15000);
+
+    window.addEventListener("focus", handleUpdate);
+    window.addEventListener("admin_verifikasi_updated", handleUpdate);
+    window.addEventListener("admin_moderasi_updated", handleUpdate);
+    window.addEventListener("admin_logs_updated", handleUpdate);
+    window.addEventListener("chat_unread_updated", handleUpdate);
     return () => {
-      window.removeEventListener("admin_verifikasi_updated", handleVerifikasiUpdate);
-      window.removeEventListener("admin_logs_updated", handleVerifikasiUpdate);
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", handleUpdate);
+      window.removeEventListener("admin_verifikasi_updated", handleUpdate);
+      window.removeEventListener("admin_moderasi_updated", handleUpdate);
+      window.removeEventListener("admin_logs_updated", handleUpdate);
+      window.removeEventListener("chat_unread_updated", handleUpdate);
     };
-  }, [pathname]);
+  }, [pathname, updateBadges]);
+
+  // Real-time update via Pusher untuk chat & log baru
+  useEffect(() => {
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
+    let adminId = user?.id;
+    if (!adminId && typeof window !== "undefined") {
+      try {
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          adminId = Number(parsed?.id || parsed?.userId) || undefined;
+        }
+      } catch {}
+    }
+
+    let pusher: Pusher | null = null;
+    try {
+      pusher = new Pusher(pusherKey, { cluster: pusherCluster });
+      const logsChannel = pusher.subscribe("admin-system-logs");
+      logsChannel.bind("new-log", updateBadges);
+
+      if (adminId) {
+        const userChannel = pusher.subscribe(`user-${adminId}`);
+        userChannel.bind("new-message", updateBadges);
+      }
+    } catch {}
+
+    return () => {
+      if (pusher) {
+        try {
+          pusher.disconnect();
+        } catch {}
+      }
+    };
+  }, [user?.id, updateBadges]);
 
   // Otomatis menutup saat zoom > 100%, otomatis membuka saat zoom <= 100%
   useEffect(() => {

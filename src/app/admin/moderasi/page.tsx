@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import {
@@ -10,13 +10,14 @@ import {
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { EarthySelect } from "@/components/ui/EarthySelect";
+import { adminService } from "@/services/admin.service";
 
 type ReportType = "toko" | "ulasan" | "produk";
 type ReportStatus = "pending" | "resolved";
 type DeleteStatus = "pending" | "approved" | "rejected";
 
 type Report = {
-  id: string; type: ReportType; target: string;
+  id: string; type: ReportType; target: string; target_id?: number | null;
   reporter: string; reason: string; status: ReportStatus; date: string;
 };
 
@@ -24,22 +25,6 @@ type DeleteRequest = {
   id: string; name: string; email: string;
   reason: string; date: string; status: DeleteStatus;
 };
-
-const INITIAL_REPORTS: Report[] = [
-  { id: "rep-1", type: "toko", target: "Tanah Liat Art", reporter: "Budi Santoso", reason: "Melanggar ketentuan harga (price dumping)", status: "pending", date: "24 Okt 2023" },
-  { id: "rep-2", type: "ulasan", target: "Review oleh User123 di Mug Daun", reporter: "Siti Rahayu", reason: "Ulasan mengandung kata kasar", status: "pending", date: "23 Okt 2023" },
-  { id: "rep-3", type: "produk", target: "Asbak Bentuk Tangan (Studio Bumi)", reporter: "Joko Santoso", reason: "Gambar tidak sesuai produk asli", status: "pending", date: "22 Okt 2023" },
-  { id: "rep-4", type: "toko", target: "Keramik Murah Meriah", reporter: "Dewi Kartika", reason: "Foto produk menggunakan gambar curian", status: "pending", date: "20 Okt 2023" },
-  { id: "rep-5", type: "ulasan", target: "Review di Piring Hias (Keramik Rina)", reporter: "Ahmad Fauzi", reason: "Ulasan palsu & tidak relevan", status: "resolved", date: "18 Okt 2023" },
-];
-
-const INITIAL_DELETES: DeleteRequest[] = [
-  { id: "del-1", name: "Rina Kusuma", email: "rina.k@gmail.com", reason: "Tidak ingin menggunakan platform lagi", date: "25 Okt 2023", status: "pending" },
-  { id: "del-2", name: "Denny Prasetyo", email: "denny.p@yahoo.com", reason: "Pindah ke platform lain", date: "24 Okt 2023", status: "pending" },
-  { id: "del-3", name: "Mega Wulandari", email: "mega.w@gmail.com", reason: "Privasi data — ingin semua data dihapus", date: "22 Okt 2023", status: "approved" },
-  { id: "del-4", name: "Farhan Aziz", email: "farhan.a@email.com", reason: "Akun duplikat, sudah punya akun lain", date: "20 Okt 2023", status: "rejected" },
-  { id: "del-5", name: "Laila Novita", email: "laila.n@gmail.com", reason: "Sudah tidak aktif bertransaksi", date: "19 Okt 2023", status: "pending" },
-];
 
 const TYPE_COLORS: Record<ReportType, { bg: string; text: string; label: string }> = {
   toko:    { bg: "#fff7ed", text: "#c2410c", label: "Toko" },
@@ -53,15 +38,61 @@ export default function AdminModerasiPage() {
   const [activeTab, setActiveTab] = useState<"laporan" | "hapus-akun">("laporan");
 
   // Laporan state
-  const [reports, setReports] = useState<Report[]>(INITIAL_REPORTS);
+  const [reports, setReports] = useState<Report[]>([]);
   const [filterType, setFilterType] = useState<"semua" | ReportType>("semua");
   const [filterStatus, setFilterStatus] = useState<"semua" | ReportStatus>("semua");
   const [search, setSearch] = useState("");
 
   // Hapus akun state
-  const [deletes, setDeletes] = useState<DeleteRequest[]>(INITIAL_DELETES);
+  const [deletes, setDeletes] = useState<DeleteRequest[]>([]);
   const [deleteSearch, setDeleteSearch] = useState("");
   const [deleteFilter, setDeleteFilter] = useState<"semua" | DeleteStatus>("semua");
+
+  const fetchModerationData = useCallback(async () => {
+    try {
+      const [reportsRes, deletionsRes] = await Promise.all([
+        adminService.getModerationReports({ limit: 100 }),
+        adminService.getAccountDeletions({ limit: 100 }),
+      ]);
+
+      if (reportsRes?.success && Array.isArray(reportsRes.data)) {
+        setReports(
+          reportsRes.data.map((r: any) => ({
+            id: String(r.id),
+            type: (r.type === "ulasan" || r.type === "produk" ? r.type : "toko") as ReportType,
+            target: r.target || r.target_name || "-",
+            target_id: r.target_id ?? null,
+            reporter: r.reporter || r.reporter_name || "-",
+            reason: r.reason || "-",
+            status: (r.status === "resolved" ? "resolved" : "pending") as ReportStatus,
+            date: r.date || "-",
+          }))
+        );
+      }
+
+      if (deletionsRes?.success && Array.isArray(deletionsRes.data)) {
+        setDeletes(
+          deletionsRes.data.map((d: any) => ({
+            id: String(d.id),
+            name: d.name || "-",
+            email: d.email || "-",
+            reason: d.reason || "-",
+            date: d.date || "-",
+            status: (d.status === "approved" || d.status === "rejected" ? d.status : "pending") as DeleteStatus,
+          }))
+        );
+      }
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("admin_moderasi_updated"));
+      }
+    } catch (err) {
+      console.error("Gagal memuat data moderasi:", err);
+      toast.error("Gagal memuat data moderasi dari server.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const session = getDemoSession();
@@ -69,21 +100,50 @@ export default function AdminModerasiPage() {
       router.push("/auth/login");
       return;
     }
-    setLoading(false);
-  }, [router]);
+    fetchModerationData();
+  }, [router, fetchModerationData]);
 
-  const handleReport = (id: string, action: "suspend" | "delete" | "ignore") => {
-    setReports(prev => prev.map(r => r.id === id ? { ...r, status: "resolved" as ReportStatus } : r));
-    const msg = action === "ignore" ? "Laporan diabaikan" :
-      action === "suspend" ? "Tindakan suspend berhasil dieksekusi" : "Konten berhasil dihapus";
-    toast.success(msg);
+  const handleReport = async (id: string, action: "suspend" | "delete" | "ignore") => {
+    const report = reports.find((r) => r.id === id);
+    try {
+      await adminService.handleModerationReportAction(id, {
+        action,
+        targetId: report?.target_id ?? null,
+        type: report?.type ?? null,
+      });
+      setReports((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: "resolved" as ReportStatus } : r))
+      );
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("admin_moderasi_updated"));
+      }
+      const msg =
+        action === "ignore"
+          ? "Laporan diabaikan"
+          : action === "suspend"
+          ? "Tindakan suspend berhasil dieksekusi"
+          : "Konten berhasil dihapus";
+      toast.success(msg);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Gagal memproses tindakan laporan.");
+    }
   };
 
-  const handleDelete = (id: string, action: "approved" | "rejected") => {
-    setDeletes(prev => prev.map(d => d.id === id ? { ...d, status: action } : d));
-    toast.success(action === "approved"
-      ? "Pengajuan penghapusan akun disetujui. Akun akan dihapus dalam 7 hari."
-      : "Pengajuan penghapusan akun ditolak.");
+  const handleDelete = async (id: string, action: "approved" | "rejected") => {
+    try {
+      await adminService.handleAccountDeletionAction(id, action);
+      setDeletes((prev) => prev.map((d) => (d.id === id ? { ...d, status: action } : d)));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("admin_moderasi_updated"));
+      }
+      toast.success(
+        action === "approved"
+          ? "Pengajuan penghapusan akun disetujui. Akun akan dinonaktifkan."
+          : "Pengajuan penghapusan akun ditolak."
+      );
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Gagal memproses pengajuan hapus akun.");
+    }
   };
 
   const filteredReports = reports.filter(r => {
