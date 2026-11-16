@@ -8,7 +8,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import { PaperPlaneRight, UserCircle, Robot, Storefront, ChatCircle } from "@phosphor-icons/react";
 
-type ChatMessage = { id?: number; role: "user" | "admin"; text: string; time?: string; sender_id?: number };
+type ChatMessage = { id?: number; role: "user" | "admin"; text: string; time?: string; sender_id?: number; image_url?: string };
 type ChatContact = {
   id: number; name: string; lastMsg: string; time: string; unread: number; botHandled: boolean;
   type: "customer" | "mitra";
@@ -147,6 +147,7 @@ export default function AdminLiveChatPage() {
                 id: Number(m.id),
                 role: Number(m.sender_id) == id1 ? ("admin" as const) : ("user" as const),
                 text: m.message,
+                image_url: m.image_url || undefined,
                 time,
                 sender_id: Number(m.sender_id),
               };
@@ -220,6 +221,7 @@ export default function AdminLiveChatPage() {
             id: Number(data.id),
             role: isMe ? "admin" : "user",
             text: data.message,
+            image_url: data.image_url || undefined,
             time,
             sender_id: senderId,
           };
@@ -477,7 +479,21 @@ export default function AdminLiveChatPage() {
                           ? "bg-zinc-100 text-zinc-800 rounded-tl-sm"
                           : "bg-zinc-900 text-white rounded-tr-sm"
                       }`}>
-                        {msg.text}
+                        {msg.image_url && (
+                          <a
+                            href={msg.image_url.startsWith("http") ? msg.image_url : `http://localhost:5000${msg.image_url}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block mb-2 overflow-hidden rounded-xl"
+                          >
+                            <img
+                              src={msg.image_url.startsWith("http") ? msg.image_url : `http://localhost:5000${msg.image_url}`}
+                              alt="Foto chat"
+                              className="max-w-[220px] max-h-[220px] object-cover rounded-xl hover:opacity-95 transition-opacity"
+                            />
+                          </a>
+                        )}
+                        {msg.text && <div>{msg.text}</div>}
                       </div>
                       {msg.time && (
                         <p className="text-[10px] text-zinc-400 mt-1">{msg.time}</p>

@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { PaperPlaneRight, UserCircle, Storefront, ChatCircle, MagnifyingGlass } from "@phosphor-icons/react";
 import { useAuthStore } from "@/store/useAuthStore";
 
-type ChatMsg = { id?: number; from: "me" | "other"; text: string; time: string };
+type ChatMsg = { id?: number; from: "me" | "other"; text: string; time: string; image_url?: string };
 type ChatContact = {
   id: number;
   name: string;
@@ -17,7 +17,41 @@ type ChatContact = {
   time: string;
   unread: number;
   role?: string;
+  is_online?: boolean;
+  last_seen_at?: string;
   messages?: ChatMsg[];
+};
+
+const formatLastSeen = (lastSeen?: string): string => {
+  if (!lastSeen) return "Offline";
+  try {
+    const d = new Date(lastSeen);
+    if (isNaN(d.getTime())) return "Offline";
+    const hours = d.getHours().toString().padStart(2, "0");
+    const minutes = d.getMinutes().toString().padStart(2, "0");
+    return `Terakhir dilihat ${hours}:${minutes}`;
+  } catch {
+    return "Offline";
+  }
+};
+
+const resolveChatImageUrl = (url?: string): string => {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  let normalized = url;
+  if (normalized.startsWith("assets/stickers/")) {
+    normalized = `/uploads/stickers/${normalized.replace("assets/stickers/", "")}`;
+  } else if (!normalized.startsWith("/")) {
+    normalized = `/${normalized}`;
+  }
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const cleanBase = apiBase.replace(/\/+$/, "");
+  return `${cleanBase}${normalized}`;
+};
+
+const isStickerUrl = (url?: string): boolean => {
+  if (!url) return false;
+  return url.includes("sticker") || url.includes("/stickers/");
 };
 
 const getAuthUserId = (): number => {
@@ -56,6 +90,7 @@ export default function SellerChatPage() {
   });
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [message, setMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [search, setSearch] = useState("");
   const { user, initAuth } = useAuthStore();
 
@@ -123,6 +158,8 @@ export default function SellerChatPage() {
                 time: timeStr,
                 unread: Number(c.unread_count) || 0,
                 role: c.role,
+                is_online: Boolean(c.is_online),
+                last_seen_at: c.last_seen_at || undefined,
               };
 
               if (c.role === "admin") {
@@ -156,6 +193,16 @@ export default function SellerChatPage() {
     return () => clearInterval(contactPoll);
   }, [chatTab]);
 
+  // Heartbeat otomatis setiap 30 detik untuk memperbarui status online user
+  useEffect(() => {
+    const sendHeartbeat = () => {
+      api.post("/chat/heartbeat").catch(() => {});
+    };
+    sendHeartbeat();
+    const hbTimer = setInterval(sendHeartbeat, 30000);
+    return () => clearInterval(hbTimer);
+  }, []);
+
   // Connect ke Pusher & subscribe event real-time serta smart auto-polling
   useEffect(() => {
     if (!activeContact || !myUserId) {
@@ -183,15 +230,28 @@ export default function SellerChatPage() {
                 id: Number(m.id),
                 from: Number(m.sender_id) == id1 ? ("me" as const) : ("other" as const),
                 text: m.message,
+                image_url: m.image_url || undefined,
                 time,
               };
             });
 
+            // Filter agar array unik berdasarkan id
+            const uniqueApiMessages = apiMessages.filter(
+              (m, idx, arr) => arr.findIndex((x) => x.id === m.id) === idx
+            );
+
             setMessages((prev) => {
-              if (prev.length !== apiMessages.length) return apiMessages;
-              const hasDiff = apiMessages.some((msg, idx) => prev[idx]?.id !== msg.id || prev[idx]?.text !== msg.text);
-              return hasDiff ? apiMessages : prev;
+              if (prev.length !== uniqueApiMessages.length) return uniqueApiMessages;
+              const hasDiff = uniqueApiMessages.some((msg, idx) => prev[idx]?.id !== msg.id || prev[idx]?.text !== msg.text || prev[idx]?.image_url !== msg.image_url);
+              return hasDiff ? uniqueApiMessages : prev;
             });
+
+            const targetOnline = res.data?.is_online !== undefined
+              ? Boolean(res.data.is_online)
+              : res.data?.target_user?.is_online !== undefined
+              ? Boolean(res.data.target_user.is_online)
+              : undefined;
+            const targetLastSeen = res.data?.last_seen_at || res.data?.target_user?.last_seen_at;
 
             const lastApiMsg = apiMessages.length > 0 ? apiMessages[apiMessages.length - 1] : null;
             setChatContacts((prev) => {
@@ -201,6 +261,8 @@ export default function SellerChatPage() {
                   return {
                     ...c,
                     unread: 0,
+                    is_online: targetOnline !== undefined ? targetOnline : c.is_online,
+                    last_seen_at: targetLastSeen !== undefined ? targetLastSeen : c.last_seen_at,
                     lastMsg: lastApiMsg ? lastApiMsg.text : c.lastMsg,
                     time: lastApiMsg?.time || c.time,
                   };
@@ -245,6 +307,9 @@ export default function SellerChatPage() {
         channel = pusher.subscribe(channelName);
         userChannel = pusher.subscribe(`user-${id1}`);
 
+        // Set untuk menyimpan message.id yang telah diproses agar tidak double dari multi-channel Pusher
+        const processedMsgIds = new Set<number>();
+
         const handleNewMessage = (data: any) => {
           console.log("Pesan realtime masuk dari Pusher:", data);
 
@@ -256,19 +321,48 @@ export default function SellerChatPage() {
           const time = `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
           const isMe = senderId == id1;
 
+          const msgId = Number(data.id);
+          if (msgId && processedMsgIds.has(msgId)) {
+            console.log(`[Pusher FE] Pesan ${msgId} sudah diproses, abaikan duplikat channel.`);
+            return;
+          }
+          if (msgId) {
+            processedMsgIds.add(msgId);
+          }
+
           const incomingMsg: ChatMsg = {
-            id: Number(data.id),
+            id: msgId || undefined,
             from: isMe ? "me" : "other",
             text: data.message,
+            image_url: data.image_url || undefined,
             time,
           };
 
           if (isForThisChat) {
             setMessages((prevMessages) => {
+              // 1. Cek duplikasi berdasarkan ID
+              if (msgId && prevMessages.some((msg) => msg.id === msgId)) {
+                return prevMessages;
+              }
+              // 2. Jika ada pesan optimis tanpa ID yang cocok, update ID-nya
+              const optIndex = prevMessages.findIndex(
+                (msg) =>
+                  !msg.id &&
+                  msg.from === incomingMsg.from &&
+                  msg.text === incomingMsg.text
+              );
+              if (optIndex !== -1) {
+                const updated = [...prevMessages];
+                updated[optIndex] = { ...updated[optIndex], id: msgId, image_url: incomingMsg.image_url };
+                return updated;
+              }
+              // 3. Cek duplikasi konten dan waktu
               const isDuplicate = prevMessages.some(
                 (msg) =>
-                  msg.id == data.id ||
-                  (msg.text === incomingMsg.text && msg.time === incomingMsg.time)
+                  msg.from === incomingMsg.from &&
+                  msg.text === incomingMsg.text &&
+                  msg.time === incomingMsg.time &&
+                  (msg.image_url || null) === (incomingMsg.image_url || null)
               );
               if (isDuplicate) return prevMessages;
               return [...prevMessages, incomingMsg];
@@ -321,9 +415,10 @@ export default function SellerChatPage() {
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!message.trim() || !activeContact || !myUserId) return;
+    if (!message.trim() || !activeContact || !myUserId || isSending) return;
 
     const currentMsgText = message.trim();
+    setIsSending(true);
     setMessage("");
 
     const now = new Date();
@@ -349,9 +444,21 @@ export default function SellerChatPage() {
 
     // Trigger ke Express backend yang akan mengunggah ke Pusher
     try {
-      await api.post(`/chat/send/${activeContact}`, { message: currentMsgText });
+      const res = await api.post(`/chat/send/${activeContact}`, { message: currentMsgText });
+      const newId = res.data?.data?.id;
+      if (newId) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            !m.id && m.text === currentMsgText && m.from === "me"
+              ? { ...m, id: Number(newId) }
+              : m
+          )
+        );
+      }
     } catch (err: any) {
       console.warn("Gagal mengirim pesan via backend API:", err?.message || err);
+    } finally {
+      setIsSending(false);
     }
   }
 
@@ -443,16 +550,24 @@ export default function SellerChatPage() {
               >
                 <div className="flex justify-between items-start mb-1">
                   <div className="flex items-center gap-2.5">
-                    <div style={{
-                      width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
-                      background: chatTab === "cs"
-                        ? "linear-gradient(135deg, var(--clay, #b85c3c), #c0673d)"
-                        : "#e4e4e7",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: "0.7rem", fontWeight: 800,
-                      color: chatTab === "cs" ? "#fff" : "#52525b",
-                    }}>
-                      {contact.avatar}
+                    <div className="relative shrink-0">
+                      <div style={{
+                        width: 36, height: 36, borderRadius: "50%",
+                        background: chatTab === "cs"
+                          ? "linear-gradient(135deg, var(--clay, #b85c3c), #c0673d)"
+                          : "#e4e4e7",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "0.7rem", fontWeight: 800,
+                        color: chatTab === "cs" ? "#fff" : "#52525b",
+                      }}>
+                        {contact.avatar}
+                      </div>
+                      <span
+                        className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
+                          contact.is_online ? "bg-green-500" : "bg-zinc-300"
+                        }`}
+                        title={contact.is_online ? "Online" : formatLastSeen(contact.last_seen_at)}
+                      />
                     </div>
                     <span className="font-semibold text-sm text-zinc-900">{contact.name}</span>
                   </div>
@@ -477,22 +592,37 @@ export default function SellerChatPage() {
             {/* Header chat */}
             <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div style={{
-                  width: 40, height: 40, borderRadius: "50%",
-                  background: chatTab === "cs"
-                    ? "linear-gradient(135deg, var(--clay, #b85c3c), #c0673d)"
-                    : "#e4e4e7",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "0.8rem", fontWeight: 800,
-                  color: chatTab === "cs" ? "#fff" : "#52525b",
-                }}>
-                  {activeChatData.avatar}
+                <div className="relative shrink-0">
+                  <div style={{
+                    width: 40, height: 40, borderRadius: "50%",
+                    background: chatTab === "cs"
+                      ? "linear-gradient(135deg, var(--clay, #b85c3c), #c0673d)"
+                      : "#e4e4e7",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "0.8rem", fontWeight: 800,
+                    color: chatTab === "cs" ? "#fff" : "#52525b",
+                  }}>
+                    {activeChatData.avatar}
+                  </div>
+                  <span
+                    className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                      activeChatData.is_online ? "bg-green-500" : "bg-zinc-400"
+                    }`}
+                  />
                 </div>
                 <div>
                   <h2 className="font-semibold text-zinc-900">{activeChatData.name}</h2>
                   <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                    Online
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        activeChatData.is_online ? "bg-green-500" : "bg-zinc-400"
+                      }`}
+                    ></span>
+                    <span className={activeChatData.is_online ? "text-green-600 font-medium" : "text-zinc-500"}>
+                      {activeChatData.is_online
+                        ? "Online"
+                        : formatLastSeen(activeChatData.last_seen_at)}
+                    </span>
                     {chatTab === "customer" && (
                       <span className="ml-1 text-xs bg-zinc-100 text-zinc-600 font-semibold px-1.5 py-0.5 rounded-full">
                         Customer
@@ -517,23 +647,69 @@ export default function SellerChatPage() {
                   <p className="text-xs text-zinc-400">Ketik pesan di bawah untuk memulai obrolan.</p>
                 </div>
               ) : (
-                messages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}>
-                    <div className={`flex flex-col max-w-[75%] ${msg.from === "me" ? "items-end" : "items-start"}`}>
-                      <div className={`p-3 rounded-2xl text-sm inline-block ${msg.from === "me"
-                        ? "bg-zinc-900 text-white rounded-tr-sm"
-                        : "bg-zinc-100 text-zinc-800 rounded-tl-sm"
-                        }`}>
-                        {msg.text}
+                messages.map((msg, i) => {
+                  const msgIsSticker = isStickerUrl(msg.image_url);
+                  const fullImgUrl = resolveChatImageUrl(msg.image_url);
+
+                  return (
+                    <div key={msg.id ? `msg-${msg.id}` : `idx-${i}`} className={`flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}>
+                      <div className={`flex flex-col max-w-[75%] ${msg.from === "me" ? "items-end" : "items-start"}`}>
+                        <div
+                          className={`text-sm inline-block ${
+                            msgIsSticker
+                              ? "bg-transparent !p-0 shadow-none border-none"
+                              : msg.from === "me"
+                              ? "p-3 rounded-2xl bg-zinc-900 text-white rounded-tr-sm"
+                              : "p-3 rounded-2xl bg-zinc-100 text-zinc-800 rounded-tl-sm"
+                          }`}
+                        >
+                          {msg.image_url && (
+                            msgIsSticker ? (
+                              <div className="p-0 select-none">
+                                <img
+                                  src={fullImgUrl}
+                                  alt="Stiker Si Clay"
+                                  className="w-[120px] h-[120px] object-contain drop-shadow-sm hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    const filename = msg.image_url?.split("/").pop();
+                                    if (filename && !e.currentTarget.src.includes(`/stickers/${filename}`)) {
+                                      e.currentTarget.src = `/stickers/${filename}`;
+                                    }
+                                  }}
+                                />
+                              </div>
+                            ) : (
+                              <a
+                                href={fullImgUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="block mb-2 overflow-hidden rounded-xl border border-zinc-200"
+                              >
+                                <img
+                                  src={fullImgUrl}
+                                  alt="Foto chat"
+                                  className="max-w-[220px] max-h-[220px] object-cover rounded-xl hover:opacity-95 transition-opacity"
+                                  loading="lazy"
+                                />
+                              </a>
+                            )
+                          )}
+                          {msg.text && (
+                            <div className={msgIsSticker ? "mt-1 text-zinc-800 bg-zinc-100 px-3 py-1.5 rounded-xl inline-block" : ""}>
+                              {msg.text}
+                            </div>
+                          )}
+                        </div>
+                        {msg.time && (
+                          <p className="text-[10px] text-zinc-400 mt-1">
+                            {msg.time}
+                          </p>
+                        )}
                       </div>
-                      {msg.time && (
-                        <p className="text-[10px] text-zinc-400 mt-1">
-                          {msg.time}
-                        </p>
-                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
               {/* Penanda scroll paling bawah */}
               <div ref={messagesEndRef} />
@@ -549,7 +725,11 @@ export default function SellerChatPage() {
                   placeholder={chatTab === "cs" ? "Tulis pesan ke CS DinoyoCraft..." : `Balas ${activeChatData.name}...`}
                   className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-sm"
                 />
-                <button type="submit" className="p-2.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors">
+                <button
+                  type="submit"
+                  disabled={isSending || !message.trim()}
+                  className="p-2.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <PaperPlaneRight size={20} weight="fill" />
                 </button>
               </form>
