@@ -5,6 +5,7 @@ import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { Receipt, MagnifyingGlass, DownloadSimple, ClockCounterClockwise } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
+import { PaymentMethodBadge, formatPaymentLabel as formatMethodLabel } from "@/components/ui/PaymentMethodBadge";
 import { adminService } from "@/services/admin.service";
 import { toast } from "sonner";
 
@@ -22,20 +23,6 @@ type Transaction = {
   raw_status?: string;
   date: string;
 };
-
-function formatMethodLabel(method?: string, bank?: string | null): string {
-  const m = (method || "").toLowerCase();
-  if (m === "qris") return "QRIS";
-  if (m === "bca_va") return "BCA VA";
-  if (m === "bni_va") return "BNI VA";
-  if (m === "bri_va") return "BRI VA";
-  if (m === "permata_va") return "Permata VA";
-  if (m === "mandiri_bill") return "Mandiri Bill";
-  if (m === "gopay") return "GoPay";
-  if (m === "shopeepay") return "ShopeePay";
-  if (bank) return `${bank.toUpperCase()} VA`;
-  return m ? m.toUpperCase() : "Midtrans";
-}
 
 function formatTrxDate(raw?: string | null): string {
   if (!raw) return "-";
@@ -484,9 +471,7 @@ export default function AdminTransaksiPage() {
                     <td className="p-4 text-sm text-zinc-600 ">{trx.store}</td>
                     <td className="p-4 text-sm text-zinc-600 ">{trx.customer}</td>
                     <td className="p-4 text-sm">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-zinc-100 text-zinc-700 text-xs font-medium">
-                        {formatMethodLabel(trx.payment_method, trx.bank)}
-                      </span>
+                      <PaymentMethodBadge method={trx.payment_method} bank={trx.bank} />
                     </td>
                     <td className="p-4 text-sm text-zinc-600 ">{trx.date}</td>
                     <td className="p-4 text-right font-medium text-zinc-900 ">

@@ -5,10 +5,18 @@ import Pusher from "pusher-js";
 import api from "@/lib/axios";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
-import { PaperPlaneRight, UserCircle, Storefront, ChatCircle, MagnifyingGlass } from "@phosphor-icons/react";
+import { UserCircle, Storefront, ChatCircle, MagnifyingGlass } from "@phosphor-icons/react";
 import { useAuthStore } from "@/store/useAuthStore";
+import {
+  ChatMediaComposer,
+  ChatMessageMedia,
+  DinoyoSticker,
+  formatLastSeen,
+  formatMessagePreview,
+  isStickerUrl,
+} from "@/components/chat/ChatMediaControls";
 
-type ChatMsg = { id?: number; from: "me" | "other"; text: string; time: string; image_url?: string };
+type ChatMsg = { id?: number; tempId?: string; from: "me" | "other"; text: string; time: string; image_url?: string };
 type ChatContact = {
   id: number;
   name: string;
@@ -20,38 +28,6 @@ type ChatContact = {
   is_online?: boolean;
   last_seen_at?: string;
   messages?: ChatMsg[];
-};
-
-const formatLastSeen = (lastSeen?: string): string => {
-  if (!lastSeen) return "Offline";
-  try {
-    const d = new Date(lastSeen);
-    if (isNaN(d.getTime())) return "Offline";
-    const hours = d.getHours().toString().padStart(2, "0");
-    const minutes = d.getMinutes().toString().padStart(2, "0");
-    return `Terakhir dilihat ${hours}:${minutes}`;
-  } catch {
-    return "Offline";
-  }
-};
-
-const resolveChatImageUrl = (url?: string): string => {
-  if (!url) return "";
-  if (url.startsWith("http://") || url.startsWith("https://")) return url;
-  let normalized = url;
-  if (normalized.startsWith("assets/stickers/")) {
-    normalized = `/uploads/stickers/${normalized.replace("assets/stickers/", "")}`;
-  } else if (!normalized.startsWith("/")) {
-    normalized = `/${normalized}`;
-  }
-  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-  const cleanBase = apiBase.replace(/\/+$/, "");
-  return `${cleanBase}${normalized}`;
-};
-
-const isStickerUrl = (url?: string): boolean => {
-  if (!url) return false;
-  return url.includes("sticker") || url.includes("/stickers/");
 };
 
 const getAuthUserId = (): number => {
@@ -150,11 +126,21 @@ export default function SellerChatPage() {
                 timeStr = isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
               }
 
+              const hasChatHistory = Boolean(
+                c.last_message_time ||
+                (c.last_message && String(c.last_message).trim()) ||
+                (c.last_image_url && String(c.last_image_url).trim())
+              );
+
               const contact: ChatContact = {
                 id: c.id,
                 name: displayName,
                 avatar: initials,
-                lastMsg: c.last_message || "Belum ada percakapan",
+                lastMsg: formatMessagePreview(
+                  c.last_message,
+                  c.last_image_url,
+                  "Belum ada percakapan"
+                ),
                 time: timeStr,
                 unread: Number(c.unread_count) || 0,
                 role: c.role,
@@ -164,7 +150,7 @@ export default function SellerChatPage() {
 
               if (c.role === "admin") {
                 csList.push(contact);
-              } else {
+              } else if (hasChatHistory) {
                 customerList.push(contact);
               }
             });
@@ -263,7 +249,9 @@ export default function SellerChatPage() {
                     unread: 0,
                     is_online: targetOnline !== undefined ? targetOnline : c.is_online,
                     last_seen_at: targetLastSeen !== undefined ? targetLastSeen : c.last_seen_at,
-                    lastMsg: lastApiMsg ? lastApiMsg.text : c.lastMsg,
+                    lastMsg: lastApiMsg
+                      ? formatMessagePreview(lastApiMsg.text, lastApiMsg.image_url, c.lastMsg)
+                      : c.lastMsg,
                     time: lastApiMsg?.time || c.time,
                   };
                 });
@@ -349,11 +337,17 @@ export default function SellerChatPage() {
                 (msg) =>
                   !msg.id &&
                   msg.from === incomingMsg.from &&
-                  msg.text === incomingMsg.text
+                  ((msg.text && msg.text === incomingMsg.text) ||
+                    (msg.image_url &&
+                      incomingMsg.image_url &&
+                      ((isStickerUrl(msg.image_url) &&
+                        msg.image_url === incomingMsg.image_url) ||
+                        (msg.image_url.startsWith("blob:") &&
+                          !isStickerUrl(incomingMsg.image_url)))))
               );
               if (optIndex !== -1) {
                 const updated = [...prevMessages];
-                updated[optIndex] = { ...updated[optIndex], id: msgId, image_url: incomingMsg.image_url };
+                updated[optIndex] = { ...updated[optIndex], id: msgId, tempId: undefined, image_url: incomingMsg.image_url };
                 return updated;
               }
               // 3. Cek duplikasi konten dan waktu
@@ -369,11 +363,12 @@ export default function SellerChatPage() {
             });
           }
 
+          const pusherPreview = formatMessagePreview(data.message, data.image_url);
           setChatContacts((prev) => {
             const updateList = (list: ChatContact[]) =>
               list.map((c) =>
                 c.id == senderId || c.id == receiverId
-                  ? { ...c, lastMsg: data.message, time: incomingMsg.time || c.time }
+                  ? { ...c, lastMsg: pusherPreview || c.lastMsg, time: incomingMsg.time || c.time }
                   : c
               );
             return {
@@ -413,6 +408,42 @@ export default function SellerChatPage() {
     setSearch("");
   }
 
+  function updateContactPreview(previewText: string, time: string) {
+    setChatContacts((prev) => {
+      const updateList = (list: ChatContact[]) =>
+        list.map((c) =>
+          c.id == activeContact
+            ? { ...c, lastMsg: previewText, time }
+            : c
+        );
+      return {
+        cs: updateList(prev.cs),
+        customer: updateList(prev.customer),
+      };
+    });
+  }
+
+  function reconcileOptimisticMsg(tempId: string, serverId: unknown, serverImageUrl?: string) {
+    const numericId = Number(serverId);
+    if (!numericId) return;
+    setMessages((prev) => {
+      const alreadyExists = prev.some((m) => m.id === numericId);
+      if (alreadyExists) {
+        return prev.filter((m) => m.tempId !== tempId);
+      }
+      return prev.map((m) =>
+        m.tempId === tempId
+          ? {
+              ...m,
+              id: numericId,
+              tempId: undefined,
+              image_url: serverImageUrl || m.image_url,
+            }
+          : m
+      );
+    });
+  }
+
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (!message.trim() || !activeContact || !myUserId || isSending) return;
@@ -423,40 +454,67 @@ export default function SellerChatPage() {
 
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-    const newMsg: ChatMsg = { from: "me", text: currentMsgText, time };
+    const tempId = `temp_txt_${Date.now()}`;
+    const newMsg: ChatMsg = { tempId, from: "me", text: currentMsgText, time };
 
-    // Update optimis ke layar chat aktif
     setMessages((prev) => [...prev, newMsg]);
+    updateContactPreview(currentMsgText, time);
 
-    // Update optimis ke sidebar kontak
-    setChatContacts((prev) => {
-      const updateList = (list: ChatContact[]) =>
-        list.map((c) =>
-          c.id == activeContact
-            ? { ...c, lastMsg: currentMsgText, time }
-            : c
-        );
-      return {
-        cs: updateList(prev.cs),
-        customer: updateList(prev.customer),
-      };
-    });
-
-    // Trigger ke Express backend yang akan mengunggah ke Pusher
     try {
       const res = await api.post(`/chat/send/${activeContact}`, { message: currentMsgText });
-      const newId = res.data?.data?.id;
-      if (newId) {
-        setMessages((prev) =>
-          prev.map((m) =>
-            !m.id && m.text === currentMsgText && m.from === "me"
-              ? { ...m, id: Number(newId) }
-              : m
-          )
-        );
-      }
+      reconcileOptimisticMsg(tempId, res.data?.data?.id);
     } catch (err: any) {
       console.warn("Gagal mengirim pesan via backend API:", err?.message || err);
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  async function handleSendImage(file: File) {
+    if (!activeContact || !myUserId || isSending) return;
+
+    setIsSending(true);
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+    const tempId = `temp_img_${Date.now()}`;
+    const objectUrl = URL.createObjectURL(file);
+
+    setMessages((prev) => [...prev, { tempId, from: "me", text: "", image_url: objectUrl, time }]);
+    updateContactPreview("📷 [Foto]", time);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append("message", "");
+      const res = await api.post(`/chat/send/${activeContact}`, formData);
+      reconcileOptimisticMsg(tempId, res.data?.data?.id, res.data?.data?.image_url);
+    } catch (err: any) {
+      console.warn("Gagal mengirim gambar via backend API:", err?.message || err);
+    } finally {
+      setIsSending(false);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+    }
+  }
+
+  async function handleSendSticker(sticker: DinoyoSticker) {
+    if (!activeContact || !myUserId || isSending) return;
+
+    setIsSending(true);
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+    const tempId = `temp_stk_${Date.now()}`;
+
+    setMessages((prev) => [...prev, { tempId, from: "me", text: "", image_url: sticker.serverPath, time }]);
+    updateContactPreview("🏷️ Stiker", time);
+
+    try {
+      const res = await api.post(`/chat/send/${activeContact}`, {
+        message: "",
+        image_url: sticker.serverPath,
+      });
+      reconcileOptimisticMsg(tempId, res.data?.data?.id, res.data?.data?.image_url);
+    } catch (err: any) {
+      console.warn("Gagal mengirim stiker via backend API:", err?.message || err);
     } finally {
       setIsSending(false);
     }
@@ -649,10 +707,9 @@ export default function SellerChatPage() {
               ) : (
                 messages.map((msg, i) => {
                   const msgIsSticker = isStickerUrl(msg.image_url);
-                  const fullImgUrl = resolveChatImageUrl(msg.image_url);
 
                   return (
-                    <div key={msg.id ? `msg-${msg.id}` : `idx-${i}`} className={`flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}>
+                    <div key={msg.id ? `msg-${msg.id}` : msg.tempId || `idx-${i}`} className={`flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}>
                       <div className={`flex flex-col max-w-[75%] ${msg.from === "me" ? "items-end" : "items-start"}`}>
                         <div
                           className={`text-sm inline-block ${
@@ -663,38 +720,7 @@ export default function SellerChatPage() {
                               : "p-3 rounded-2xl bg-zinc-100 text-zinc-800 rounded-tl-sm"
                           }`}
                         >
-                          {msg.image_url && (
-                            msgIsSticker ? (
-                              <div className="p-0 select-none">
-                                <img
-                                  src={fullImgUrl}
-                                  alt="Stiker Si Clay"
-                                  className="w-[120px] h-[120px] object-contain drop-shadow-sm hover:scale-105 transition-transform"
-                                  loading="lazy"
-                                  onError={(e) => {
-                                    const filename = msg.image_url?.split("/").pop();
-                                    if (filename && !e.currentTarget.src.includes(`/stickers/${filename}`)) {
-                                      e.currentTarget.src = `/stickers/${filename}`;
-                                    }
-                                  }}
-                                />
-                              </div>
-                            ) : (
-                              <a
-                                href={fullImgUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="block mb-2 overflow-hidden rounded-xl border border-zinc-200"
-                              >
-                                <img
-                                  src={fullImgUrl}
-                                  alt="Foto chat"
-                                  className="max-w-[220px] max-h-[220px] object-cover rounded-xl hover:opacity-95 transition-opacity"
-                                  loading="lazy"
-                                />
-                              </a>
-                            )
-                          )}
+                          <ChatMessageMedia imageUrl={msg.image_url} text={msg.text} />
                           {msg.text && (
                             <div className={msgIsSticker ? "mt-1 text-zinc-800 bg-zinc-100 px-3 py-1.5 rounded-xl inline-block" : ""}>
                               {msg.text}
@@ -716,24 +742,15 @@ export default function SellerChatPage() {
             </div>
 
             {/* Input */}
-            <div className="p-4 border-t border-zinc-200">
-              <form onSubmit={handleSend} className="flex gap-2">
-                <input
-                  type="text"
-                  value={message}
-                  onChange={e => setMessage(e.target.value)}
-                  placeholder={chatTab === "cs" ? "Tulis pesan ke CS DinoyoCraft..." : `Balas ${activeChatData.name}...`}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-sm"
-                />
-                <button
-                  type="submit"
-                  disabled={isSending || !message.trim()}
-                  className="p-2.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <PaperPlaneRight size={20} weight="fill" />
-                </button>
-              </form>
-            </div>
+            <ChatMediaComposer
+              message={message}
+              onMessageChange={setMessage}
+              onSubmitText={handleSend}
+              onSelectImage={handleSendImage}
+              onSelectSticker={handleSendSticker}
+              placeholder={chatTab === "cs" ? "Tulis pesan ke CS DinoyoCraft..." : `Balas ${activeChatData.name}...`}
+              disabled={isSending}
+            />
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-zinc-400">

@@ -19,6 +19,7 @@ import {
   Storefront,
 } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
+import { PaymentMethodBadge } from "@/components/ui/PaymentMethodBadge";
 import Cookies from "js-cookie";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -42,9 +43,17 @@ type Order = {
   numericId: number;
   rawStatus?: string;
   customerName: string;
+  recipientName?: string;
+  recipientPhone?: string | null;
+  shippingAddress?: string | null;
+  customerNotes?: string | null;
   date: string;
   status: OrderStatus;
   total: number;
+  subtotalProduk: number;
+  shippingCost: number;
+  otherFee: number;
+  netSubtotal: number;
   items: OrderItem[];
   resi?: string;
   kurir?: string;
@@ -60,18 +69,63 @@ type Order = {
   balasanMitra?: string;
 };
 
-function formatPaymentLabel(method?: string, bank?: string | null): string {
-  const m = (method || "").toLowerCase();
-  if (m === "qris") return "QRIS";
-  if (m === "bca_va") return "BCA VA";
-  if (m === "bni_va") return "BNI VA";
-  if (m === "bri_va") return "BRI VA";
-  if (m === "permata_va") return "Permata VA";
-  if (m === "mandiri_bill") return "Mandiri Bill";
-  if (m === "gopay") return "GoPay";
-  if (m === "shopeepay") return "ShopeePay";
-  if (bank) return `${bank.toUpperCase()} VA`;
-  return m ? m.toUpperCase() : "Midtrans";
+const formatRp = (val: number) => `Rp ${Math.round(val).toLocaleString("id-ID")}`;
+
+function OrderPriceBreakdown({
+  order,
+  compact = false,
+}: {
+  order: Order;
+  compact?: boolean;
+}) {
+  const totalQty = order.items.reduce((s, it) => s + it.qty, 0);
+  const totalPembeli = order.netSubtotal + order.otherFee;
+
+  return (
+    <div
+      className={
+        compact
+          ? "mt-4 bg-zinc-50/90 border border-zinc-200/80 rounded-xl p-3.5 text-xs space-y-2"
+          : "bg-zinc-50 border border-zinc-200 rounded-xl p-4 text-sm space-y-2.5"
+      }
+    >
+      <div className="flex items-center justify-between text-zinc-600">
+        <span>Subtotal Produk ({totalQty} barang)</span>
+        <span className="font-medium text-zinc-900">{formatRp(order.subtotalProduk)}</span>
+      </div>
+      <div className="flex items-center justify-between text-zinc-600">
+        <span>
+          Ongkos Kirim{order.kurir ? ` (${order.kurir})` : ""}
+        </span>
+        <span className="font-medium text-zinc-900">
+          {order.shippingCost > 0 ? formatRp(order.shippingCost) : "Gratis (Rp 0)"}
+        </span>
+      </div>
+      <div className="flex items-center justify-between text-zinc-600">
+        <span>
+          Biaya Lain / Layanan
+          {order.otherFee > 0 && (
+            <span className="ml-1 text-[11px] text-zinc-400">(Ditanggung pembeli)</span>
+          )}
+        </span>
+        <span className="font-medium text-zinc-700">
+          {order.otherFee > 0 ? formatRp(order.otherFee) : "Rp 0"}
+        </span>
+      </div>
+      {order.otherFee > 0 && (
+        <div className="flex items-center justify-between text-zinc-500">
+          <span>Total Dibayar Pembeli</span>
+          <span className="font-medium text-zinc-700">{formatRp(totalPembeli)}</span>
+        </div>
+      )}
+      <div className="border-t border-zinc-200 pt-2 flex items-center justify-between">
+        <span className="font-semibold text-zinc-900">Subtotal Bersih Didapat</span>
+        <span className={`font-bold text-emerald-700 ${compact ? "text-sm" : "text-base"}`}>
+          {formatRp(order.netSubtotal)}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 const COURIER_OPTIONS = ["JNE", "J&T", "SiCepat", "Anteraja", "Pos Indonesia", "Tiki"] as const;
@@ -83,7 +137,6 @@ export default function PesananSellerPage() {
   const [activeTab, setActiveTab] = useState<"all" | OrderStatus>("all");
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [searchPesanan, setSearchPesanan] = useState("");
   const [sortOrder, setSortOrder] = useState("terbaru");
 
@@ -170,15 +223,41 @@ export default function PesananSellerPage() {
               Number(String(item.orderId || "").replace(/\D/g, "")) ||
               0;
             const rawStatus = String(item.status || "").toLowerCase();
+            const totalOrder = Number(item.totalBelanja || item.total || 0);
+            const itemsSubtotal = orderItems.reduce(
+              (sum, it) => sum + it.price * it.qty,
+              0
+            );
+            const subtotalProduk =
+              item.subtotalProduk !== undefined
+                ? Number(item.subtotalProduk)
+                : itemsSubtotal;
+            const shippingCost =
+              item.shippingCost !== undefined
+                ? Number(item.shippingCost)
+                : Math.max(0, totalOrder - subtotalProduk);
+            const otherFee = Number(item.gatewayFee ?? item.gateway_fee ?? 0);
+            const netSubtotal =
+              item.subtotalBersih !== undefined
+                ? Number(item.subtotalBersih)
+                : totalOrder;
 
             return {
               id: item.orderId || item.id || `ORD-${idx + 1}`,
               numericId,
               rawStatus,
               customerName: item.customerName || item.customer || "Customer",
+              recipientName: item.recipientName || item.customerName || "Customer",
+              recipientPhone: item.recipientPhone || null,
+              shippingAddress: item.shippingAddress || null,
+              customerNotes: item.customerNotes || null,
               date: d,
               status: mapStatus(item.status),
-              total: Number(item.totalBelanja || item.total || 0),
+              total: totalOrder,
+              subtotalProduk,
+              shippingCost,
+              otherFee,
+              netSubtotal,
               items: orderItems,
               resi: item.resi,
               kurir: item.kurir,
@@ -441,7 +520,7 @@ export default function PesananSellerPage() {
                   <div className="flex flex-col md:flex-row gap-6">
                     {/* Left: Customer & Items */}
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-4">
+                      <div className="flex items-center flex-wrap gap-3 mb-4">
                         <div className="flex items-center gap-1.5 text-zinc-900 font-semibold">
                           <User size={16} className="text-zinc-500" />
                           {order.customerName}
@@ -450,6 +529,7 @@ export default function PesananSellerPage() {
                         <span className="text-sm text-zinc-500">{order.date}</span>
                         <span className="text-zinc-300">•</span>
                         <span className="text-sm font-mono text-zinc-500">{order.id}</span>
+                        {getStatusBadge(order.status)}
                       </div>
 
                       <div className="space-y-4">
@@ -470,6 +550,16 @@ export default function PesananSellerPage() {
                         ))}
                       </div>
 
+                      {/* Rincian spesifik harga, ongkir, biaya lain, dan subtotal bersih */}
+                      <OrderPriceBreakdown order={order} compact />
+
+                      {order.customerNotes && (
+                        <p className="mt-2.5 text-xs text-zinc-500">
+                          <span className="font-semibold text-zinc-700">Catatan pembeli:</span>{" "}
+                          {order.customerNotes}
+                        </p>
+                      )}
+
                       {/* Resi info jika sudah dikirim */}
                       {order.resi && (
                         <div className="mt-3 inline-flex items-center gap-2 bg-purple-50 text-purple-700 text-xs font-semibold px-3 py-1.5 rounded-lg">
@@ -485,18 +575,21 @@ export default function PesananSellerPage() {
                         <p className="text-sm text-zinc-500">Total Belanja</p>
                         <p className="text-lg font-bold text-zinc-900">Rp {order.total.toLocaleString("id-ID")}</p>
                         {order.paymentMethod && (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded bg-zinc-100 text-zinc-600 text-[11px] font-medium">
-                            {formatPaymentLabel(order.paymentMethod, order.bank)}
-                            {order.paymentStatus === "paid" ? " · Lunas" : order.paymentStatus === "pending" ? " · Menunggu" : ""}
-                          </span>
+                          <PaymentMethodBadge
+                            method={order.paymentMethod}
+                            bank={order.bank}
+                            statusSuffix={
+                              order.paymentStatus === "paid"
+                                ? "· Lunas"
+                                : order.paymentStatus === "pending"
+                                ? "· Menunggu"
+                                : undefined
+                            }
+                          />
                         )}
                       </div>
 
                       <div className="w-full flex flex-col gap-2">
-                        <div className="flex justify-end mb-2">
-                          {getStatusBadge(order.status)}
-                        </div>
-
                         {/* Action Buttons */}
                         {order.status === "packed" && (
                           <div className="flex flex-col gap-2">
@@ -519,24 +612,21 @@ export default function PesananSellerPage() {
                         )}
 
                         {order.status === "shipped" && (
-                          <button
-                            disabled
-                            className="w-full px-4 py-2 bg-purple-50 text-purple-500 rounded-lg text-sm font-semibold cursor-default border border-purple-200"
-                          >
+                          <div className="w-full px-4 py-2 bg-purple-50 text-purple-500 rounded-lg text-sm font-semibold text-center cursor-default select-none border border-purple-200">
                             Menunggu Pembeli Konfirmasi
-                          </button>
+                          </div>
                         )}
 
                         {order.status === "unpaid" && (
-                          <button className="w-full px-4 py-2 bg-zinc-100 text-zinc-400 rounded-lg text-sm font-semibold cursor-not-allowed">
+                          <div className="w-full px-4 py-2 bg-zinc-100 text-zinc-400 rounded-lg text-sm font-semibold text-center cursor-default select-none">
                             Menunggu Pembayaran
-                          </button>
+                          </div>
                         )}
 
                         {order.status === "cancelled" && (
-                          <button className="w-full px-4 py-2 bg-red-50 text-red-400 rounded-lg text-sm font-semibold cursor-not-allowed">
+                          <div className="w-full px-4 py-2 bg-red-50 text-red-400 rounded-lg text-sm font-semibold text-center cursor-default select-none">
                             Pesanan Dibatalkan / Kedaluwarsa
-                          </button>
+                          </div>
                         )}
 
                         {/* Chat dengan customer */}
@@ -551,13 +641,6 @@ export default function PesananSellerPage() {
                               {customerChats[order.id].length}
                             </span>
                           )}
-                        </button>
-
-                        <button
-                          onClick={() => setSelectedOrder(order)}
-                          className="w-full px-4 py-2 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-sm font-semibold hover:bg-zinc-50 transition-colors"
-                        >
-                          Lihat Rincian
                         </button>
                       </div>
                     </div>
@@ -650,44 +733,6 @@ export default function PesananSellerPage() {
           )}
         </div>
       </div>
-
-      {/* ── Modal Rincian Pesanan ── */}
-      {selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl p-6 max-w-lg w-full shadow-xl">
-            <h2 className="text-xl font-bold mb-4">Rincian Pesanan: {selectedOrder.id}</h2>
-            <div className="space-y-4 mb-6">
-              <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 text-sm">
-                <p><span className="text-zinc-500">Pelanggan:</span> <span className="font-semibold">{selectedOrder.customerName}</span></p>
-                <p><span className="text-zinc-500">Tanggal:</span> <span className="font-semibold">{selectedOrder.date}</span></p>
-                <p><span className="text-zinc-500">Alamat:</span> Jl. Bunga Mawar No. 12, Malang</p>
-                {selectedOrder.resi && (
-                  <p><span className="text-zinc-500">No. Resi:</span> <span className="font-semibold">{selectedOrder.kurir} — {selectedOrder.resi}</span></p>
-                )}
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">Item:</h3>
-                {selectedOrder.items.map(item => (
-                  <div key={item.id} className="flex justify-between text-sm mb-2">
-                    <span>{item.qty}x {item.name}</span>
-                    <span>Rp {(item.price * item.qty).toLocaleString("id-ID")}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="border-t border-zinc-200 pt-4 flex justify-between font-bold">
-                <span>Total</span>
-                <span>Rp {selectedOrder.total.toLocaleString("id-ID")}</span>
-              </div>
-            </div>
-            <button
-              onClick={() => setSelectedOrder(null)}
-              className="w-full py-3 bg-zinc-900 text-white rounded-xl font-bold"
-            >
-              Tutup
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ── Modal Atur Pengiriman ── */}
       {shippingOrder && (

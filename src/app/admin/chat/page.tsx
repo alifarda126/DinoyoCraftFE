@@ -6,12 +6,22 @@ import api from "@/lib/axios";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
-import { PaperPlaneRight, UserCircle, Robot, Storefront, ChatCircle } from "@phosphor-icons/react";
+import { UserCircle, Robot, Storefront, ChatCircle } from "@phosphor-icons/react";
+import {
+  ChatMediaComposer,
+  ChatMessageMedia,
+  DinoyoSticker,
+  formatLastSeen,
+  formatMessagePreview,
+  isStickerUrl,
+} from "@/components/chat/ChatMediaControls";
 
-type ChatMessage = { id?: number; role: "user" | "admin"; text: string; time?: string; sender_id?: number; image_url?: string };
+type ChatMessage = { id?: number; tempId?: string; role: "user" | "admin"; text: string; time?: string; sender_id?: number; image_url?: string };
 type ChatContact = {
   id: number; name: string; lastMsg: string; time: string; unread: number; botHandled: boolean;
   type: "customer" | "mitra";
+  is_online?: boolean;
+  last_seen_at?: string;
   messages: ChatMessage[];
 };
 
@@ -47,6 +57,7 @@ export default function AdminLiveChatPage() {
   const [activeChat, setActiveChat] = useState<number | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [message, setMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const [chats, setChats] = useState<ChatContact[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const { user, initAuth } = useAuthStore();
@@ -86,18 +97,33 @@ export default function AdminLiveChatPage() {
             if (res.data.current_user_id) {
               setMyUserId(Number(res.data.current_user_id));
             }
-            const apiContacts: ChatContact[] = res.data.data.map((c: any) => ({
-              id: c.id,
-              name: c.store_name || c.name,
-              lastMsg: c.last_message || "Belum ada percakapan",
-              time: c.last_message_time
-                ? new Date(c.last_message_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                : "",
-              unread: c.unread_count || 0,
-              botHandled: false,
-              type: c.role === "mitra" ? ("mitra" as const) : ("customer" as const),
-              messages: [],
-            }));
+            const apiContacts: ChatContact[] = res.data.data
+              .filter((c: any) => {
+                if (c.role === "mitra") return true;
+                return Boolean(
+                  c.last_message_time ||
+                    (c.last_message && String(c.last_message).trim()) ||
+                    (c.last_image_url && String(c.last_image_url).trim())
+                );
+              })
+              .map((c: any) => ({
+                id: c.id,
+                name: c.store_name || c.name,
+                lastMsg: formatMessagePreview(
+                  c.last_message,
+                  c.last_image_url,
+                  "Belum ada percakapan"
+                ),
+                time: c.last_message_time
+                  ? new Date(c.last_message_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                  : "",
+                unread: c.unread_count || 0,
+                botHandled: false,
+                type: c.role === "mitra" ? ("mitra" as const) : ("customer" as const),
+                is_online: Boolean(c.is_online),
+                last_seen_at: c.last_seen_at || undefined,
+                messages: [],
+              }));
 
             setChats(apiContacts);
 
@@ -153,11 +179,27 @@ export default function AdminLiveChatPage() {
               };
             });
 
+            const uniqueApiMessages = apiMessages.filter(
+              (m, idx, arr) => arr.findIndex((x) => x.id === m.id) === idx
+            );
+
             setMessages((prev) => {
-              if (prev.length !== apiMessages.length) return apiMessages;
-              const hasDiff = apiMessages.some((msg, idx) => prev[idx]?.id !== msg.id || prev[idx]?.text !== msg.text);
-              return hasDiff ? apiMessages : prev;
+              if (prev.length !== uniqueApiMessages.length) return uniqueApiMessages;
+              const hasDiff = uniqueApiMessages.some(
+                (msg, idx) =>
+                  prev[idx]?.id !== msg.id ||
+                  prev[idx]?.text !== msg.text ||
+                  prev[idx]?.image_url !== msg.image_url
+              );
+              return hasDiff ? uniqueApiMessages : prev;
             });
+
+            const targetOnline = res.data?.is_online !== undefined
+              ? Boolean(res.data.is_online)
+              : res.data?.target_user?.is_online !== undefined
+              ? Boolean(res.data.target_user.is_online)
+              : undefined;
+            const targetLastSeen = res.data?.last_seen_at || res.data?.target_user?.last_seen_at;
 
             const lastApiMsg = apiMessages.length > 0 ? apiMessages[apiMessages.length - 1] : null;
             setChats((prev) =>
@@ -166,7 +208,11 @@ export default function AdminLiveChatPage() {
                 return {
                   ...c,
                   unread: 0,
-                  lastMsg: lastApiMsg ? lastApiMsg.text : c.lastMsg,
+                  is_online: targetOnline !== undefined ? targetOnline : c.is_online,
+                  last_seen_at: targetLastSeen !== undefined ? targetLastSeen : c.last_seen_at,
+                  lastMsg: lastApiMsg
+                    ? formatMessagePreview(lastApiMsg.text, lastApiMsg.image_url, c.lastMsg)
+                    : c.lastMsg,
                   time: lastApiMsg?.time || c.time,
                 };
               })
@@ -206,6 +252,8 @@ export default function AdminLiveChatPage() {
         channel = pusher.subscribe(channelName);
         userChannel = pusher.subscribe(`user-${id1}`);
 
+        const processedMsgIds = new Set<number>();
+
         const handleNewMessage = (data: any) => {
           console.log("Pesan realtime masuk dari Pusher:", data);
 
@@ -217,8 +265,16 @@ export default function AdminLiveChatPage() {
           const time = `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
           const isMe = senderId == id1;
 
+          const msgId = Number(data.id);
+          if (msgId && processedMsgIds.has(msgId)) {
+            return;
+          }
+          if (msgId) {
+            processedMsgIds.add(msgId);
+          }
+
           const incomingMsg: ChatMessage = {
-            id: Number(data.id),
+            id: msgId || undefined,
             role: isMe ? "admin" : "user",
             text: data.message,
             image_url: data.image_url || undefined,
@@ -228,20 +284,49 @@ export default function AdminLiveChatPage() {
 
           if (isForThisChat) {
             setMessages((prevMessages) => {
+              if (msgId && prevMessages.some((msg) => msg.id === msgId)) {
+                return prevMessages;
+              }
+              const optIndex = prevMessages.findIndex(
+                (msg) =>
+                  !msg.id &&
+                  msg.role === incomingMsg.role &&
+                  ((msg.text && msg.text === incomingMsg.text) ||
+                    (msg.image_url &&
+                      incomingMsg.image_url &&
+                      ((isStickerUrl(msg.image_url) &&
+                        msg.image_url === incomingMsg.image_url) ||
+                        (msg.image_url.startsWith("blob:") &&
+                          !isStickerUrl(incomingMsg.image_url)))))
+              );
+              if (optIndex !== -1) {
+                const updated = [...prevMessages];
+                updated[optIndex] = {
+                  ...updated[optIndex],
+                  id: msgId,
+                  tempId: undefined,
+                  image_url: incomingMsg.image_url,
+                };
+                return updated;
+              }
               const isDuplicate = prevMessages.some(
                 (msg) =>
-                  msg.id == data.id ||
-                  (msg.text === incomingMsg.text && msg.time === incomingMsg.time)
+                  msg.role === incomingMsg.role &&
+                  msg.text === incomingMsg.text &&
+                  msg.time === incomingMsg.time &&
+                  (msg.image_url || null) === (incomingMsg.image_url || null)
               );
               if (isDuplicate) return prevMessages;
               return [...prevMessages, incomingMsg];
             });
           }
 
+          const previewLabel = formatMessagePreview(data.message, data.image_url);
+
           setChats((prevChats) =>
             prevChats.map((contact) =>
               contact.id == senderId || contact.id == receiverId
-                ? { ...contact, lastMsg: data.message, time: incomingMsg.time || contact.time }
+                ? { ...contact, lastMsg: previewLabel || contact.lastMsg, time: incomingMsg.time || contact.time }
                 : contact
             )
           );
@@ -270,40 +355,137 @@ export default function AdminLiveChatPage() {
     };
   }, [myUserId, activeChat]);
 
+  const updateContactPreview = (previewText: string, time: string) => {
+    setChats((prev) =>
+      prev.map((chat) =>
+        chat.id == activeChat ? { ...chat, lastMsg: previewText, time } : chat
+      )
+    );
+  };
+
+  const reconcileOptimisticMsg = (
+    tempId: string,
+    serverId: unknown,
+    serverImageUrl?: string
+  ) => {
+    const numericId = Number(serverId);
+    if (!numericId) return;
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === numericId)) {
+        return prev.filter((m) => m.tempId !== tempId);
+      }
+      return prev.map((m) =>
+        m.tempId === tempId
+          ? {
+              ...m,
+              id: numericId,
+              tempId: undefined,
+              image_url: serverImageUrl || m.image_url,
+            }
+          : m
+      );
+    });
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!message.trim() || !activeChat || !myUserId) return;
+    if (!message.trim() || !activeChat || !myUserId || isSending) return;
 
     const currentMsgText = message.trim();
+    setIsSending(true);
     setMessage("");
 
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+    const tempId = `temp_txt_${Date.now()}`;
     const newMsg: ChatMessage = {
+      tempId,
       role: "admin",
       text: currentMsgText,
       time,
       sender_id: Number(myUserId),
     };
 
-    // Update optimis ke layar chat aktif
     setMessages((prev) => [...prev, newMsg]);
+    updateContactPreview(currentMsgText, time);
 
-    // Update optimis ke preview sidebar kontak
-    setChats(prev => prev.map(chat => {
-      if (chat.id != activeChat) return chat;
-      return {
-        ...chat,
-        lastMsg: currentMsgText,
-        time,
-      };
-    }));
-
-    // Trigger ke Express backend yang akan meneruskannya ke Pusher
     try {
-      await api.post(`/chat/send/${activeChat}`, { message: currentMsgText });
+      const res = await api.post(`/chat/send/${activeChat}`, { message: currentMsgText });
+      reconcileOptimisticMsg(tempId, res.data?.data?.id);
     } catch (err: any) {
       console.warn("Gagal mengirim pesan via API backend:", err?.message || err);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleSendImage = async (file: File) => {
+    if (!activeChat || !myUserId || isSending) return;
+
+    setIsSending(true);
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+    const tempId = `temp_img_${Date.now()}`;
+    const objectUrl = URL.createObjectURL(file);
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        tempId,
+        role: "admin",
+        text: "",
+        image_url: objectUrl,
+        time,
+        sender_id: Number(myUserId),
+      },
+    ]);
+    updateContactPreview("📷 [Foto]", time);
+
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      formData.append("message", "");
+      const res = await api.post(`/chat/send/${activeChat}`, formData);
+      reconcileOptimisticMsg(tempId, res.data?.data?.id, res.data?.data?.image_url);
+    } catch (err: any) {
+      console.warn("Gagal mengirim gambar via API backend:", err?.message || err);
+    } finally {
+      setIsSending(false);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+    }
+  };
+
+  const handleSendSticker = async (sticker: DinoyoSticker) => {
+    if (!activeChat || !myUserId || isSending) return;
+
+    setIsSending(true);
+    const now = new Date();
+    const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
+    const tempId = `temp_stk_${Date.now()}`;
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        tempId,
+        role: "admin",
+        text: "",
+        image_url: sticker.serverPath,
+        time,
+        sender_id: Number(myUserId),
+      },
+    ]);
+    updateContactPreview("🏷️ Stiker", time);
+
+    try {
+      const res = await api.post(`/chat/send/${activeChat}`, {
+        message: "",
+        image_url: sticker.serverPath,
+      });
+      reconcileOptimisticMsg(tempId, res.data?.data?.id, res.data?.data?.image_url);
+    } catch (err: any) {
+      console.warn("Gagal mengirim stiker via API backend:", err?.message || err);
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -446,8 +628,16 @@ export default function AdminLiveChatPage() {
                 <div>
                   <h2 className="font-semibold text-zinc-900">{activeChatData.name}</h2>
                   <div className="flex items-center gap-1.5 text-xs text-zinc-500">
-                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                    Online
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        activeChatData.is_online ? "bg-green-500" : "bg-zinc-400"
+                      }`}
+                    ></span>
+                    <span className={activeChatData.is_online ? "text-green-600 font-medium" : "text-zinc-500"}>
+                      {activeChatData.is_online
+                        ? "Online"
+                        : formatLastSeen(activeChatData.last_seen_at)}
+                    </span>
                     {activeChatData.type === "mitra" && (
                       <span className="ml-1 text-xs bg-orange-100 text-orange-700 font-semibold px-1.5 py-0.5 rounded-full">Mitra</span>
                     )}
@@ -471,56 +661,47 @@ export default function AdminLiveChatPage() {
                   <p className="text-xs text-zinc-400">Ketik pesan di bawah untuk memulai obrolan.</p>
                 </div>
               ) : (
-                messages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === "user" ? "justify-start" : "justify-end"}`}>
-                    <div className={`flex flex-col max-w-[75%] ${msg.role === "user" ? "items-start" : "items-end"}`}>
-                      <div className={`p-3 rounded-2xl text-sm inline-block ${
-                        msg.role === "user"
-                          ? "bg-zinc-100 text-zinc-800 rounded-tl-sm"
-                          : "bg-zinc-900 text-white rounded-tr-sm"
-                      }`}>
-                        {msg.image_url && (
-                          <a
-                            href={msg.image_url.startsWith("http") ? msg.image_url : `http://localhost:5000${msg.image_url}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block mb-2 overflow-hidden rounded-xl"
-                          >
-                            <img
-                              src={msg.image_url.startsWith("http") ? msg.image_url : `http://localhost:5000${msg.image_url}`}
-                              alt="Foto chat"
-                              className="max-w-[220px] max-h-[220px] object-cover rounded-xl hover:opacity-95 transition-opacity"
-                            />
-                          </a>
+                messages.map((msg, i) => {
+                  const msgIsSticker = isStickerUrl(msg.image_url);
+                  return (
+                    <div key={msg.id ? `msg-${msg.id}` : msg.tempId || `idx-${i}`} className={`flex ${msg.role === "user" ? "justify-start" : "justify-end"}`}>
+                      <div className={`flex flex-col max-w-[75%] ${msg.role === "user" ? "items-start" : "items-end"}`}>
+                        <div className={`text-sm inline-block ${
+                          msgIsSticker
+                            ? "bg-transparent !p-0 shadow-none border-none"
+                            : msg.role === "user"
+                            ? "p-3 rounded-2xl bg-zinc-100 text-zinc-800 rounded-tl-sm"
+                            : "p-3 rounded-2xl bg-zinc-900 text-white rounded-tr-sm"
+                        }`}>
+                          <ChatMessageMedia imageUrl={msg.image_url} text={msg.text} />
+                          {msg.text && (
+                            <div className={msgIsSticker ? "mt-1 text-zinc-800 bg-zinc-100 px-3 py-1.5 rounded-xl inline-block" : ""}>
+                              {msg.text}
+                            </div>
+                          )}
+                        </div>
+                        {msg.time && (
+                          <p className="text-[10px] text-zinc-400 mt-1">{msg.time}</p>
                         )}
-                        {msg.text && <div>{msg.text}</div>}
                       </div>
-                      {msg.time && (
-                        <p className="text-[10px] text-zinc-400 mt-1">{msg.time}</p>
-                      )}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
               {/* Penanda scroll paling bawah */}
               <div ref={messagesEndRef} />
             </div>
 
             {/* Chat Input */}
-            <div className="p-4 border-t border-zinc-200">
-              <form onSubmit={handleSendMessage} className="flex gap-2">
-                <input
-                  type="text"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder={`Ketik balasan ke ${activeChatData.type === "mitra" ? "Mitra" : "Customer"}...`}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-zinc-200 focus:outline-none focus:ring-2 focus:ring-zinc-900 text-sm"
-                />
-                <button type="submit" className="p-2.5 bg-zinc-900 text-white rounded-xl hover:bg-zinc-800 transition-colors">
-                  <PaperPlaneRight size={20} weight="fill" />
-                </button>
-              </form>
-            </div>
+            <ChatMediaComposer
+              message={message}
+              onMessageChange={setMessage}
+              onSubmitText={handleSendMessage}
+              onSelectImage={handleSendImage}
+              onSelectSticker={handleSendSticker}
+              placeholder={`Ketik balasan ke ${activeChatData.type === "mitra" ? "Mitra" : "Customer"}...`}
+              disabled={isSending}
+            />
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center text-zinc-400">

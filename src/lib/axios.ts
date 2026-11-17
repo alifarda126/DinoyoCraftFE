@@ -12,6 +12,9 @@ const api = axios.create({
 // Interceptor untuk menyisipkan token pada setiap request
 api.interceptors.request.use(
   (config) => {
+    if (config.data instanceof FormData && config.headers) {
+      delete config.headers["Content-Type"];
+    }
     if (typeof window !== "undefined") {
       const token = localStorage.getItem("token"); // Atau bisa ambil dari Zustand
       if (token) {
