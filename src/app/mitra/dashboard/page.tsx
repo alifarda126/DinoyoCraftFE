@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Package, Receipt, Users, CurrencyCircleDollar, TrendUp, ArrowRight, X, Bank, CaretDown } from "@phosphor-icons/react";
 import Image from "next/image";
 import axios from "axios";
 import Cookies from "js-cookie";
+import Pusher from "pusher-js";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -61,7 +62,32 @@ export default function SellerDashboardHome() {
     useAuthStore.getState().initAuth();
   }, []);
 
-  // 2. Fetch data dari endpoint backend & cek session
+  const fetchDashboardData = useCallback(async (isInitial = false) => {
+    const storedToken =
+      (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
+    if (!storedToken) return;
+    if (isInitial) setLoading(true);
+    try {
+      const response = await axios.get(`${API_BASE_URL}/mitra/dashboard`, {
+        withCredentials: true,
+        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+      });
+
+      if (response.data.success && response.data.data) {
+        const resData = response.data.data;
+        setDashboardData(resData);
+        if (resData.mitraName) {
+          setSellerName(resData.mitraName);
+        }
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data dashboard:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // 2. Fetch data dari endpoint backend, auto-refresh & Pusher realtime
   useEffect(() => {
     const storedToken =
       (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
@@ -72,7 +98,6 @@ export default function SellerDashboardHome() {
       return;
     }
 
-    // Ekstrak data user default (dari state atau localStorage)
     let activeUser = user;
     if (!activeUser && storedUserStr) {
       try {
@@ -83,31 +108,52 @@ export default function SellerDashboardHome() {
     }
 
     const defaultName = (activeUser as any)?.store_name || (activeUser as any)?.name || "Mitra DinoyoCraft";
-    setSellerName(defaultName);
+    setSellerName((prev) => prev || defaultName);
 
-    const fetchDashboardData = async () => {
-      try {
-        const response = await axios.get(`${API_BASE_URL}/mitra/dashboard`, {
-          withCredentials: true,
-          headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
-        });
+    fetchDashboardData(true);
 
-        if (response.data.success && response.data.data) {
-          const resData = response.data.data;
-          setDashboardData(resData);
-          if (resData.mitraName) {
-            setSellerName(resData.mitraName);
-          }
-        }
-      } catch (error) {
-        console.error("Gagal mengambil data dashboard:", error);
-      } finally {
-        setLoading(false);
+    const onRefresh = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        fetchDashboardData(false);
       }
     };
 
-    fetchDashboardData();
-  }, [user, router]);
+    const pollInterval = setInterval(onRefresh, 45_000);
+    window.addEventListener("focus", onRefresh);
+    document.addEventListener("visibilitychange", onRefresh);
+    window.addEventListener("mitra_orders_updated", onRefresh);
+    window.addEventListener("mitra_products_updated", onRefresh);
+    window.addEventListener("mitra_finance_updated", onRefresh);
+
+    const userId = (activeUser as any)?.id || (activeUser as any)?.userId;
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
+    let pusher: Pusher | null = null;
+    if (userId) {
+      try {
+        pusher = new Pusher(pusherKey, { cluster: pusherCluster });
+        const ch = pusher.subscribe(`user-${userId}`);
+        ch.bind("new-paid-order", onRefresh);
+        ch.bind("order-status-changed", onRefresh);
+        ch.bind("order-completed", onRefresh);
+      } catch {}
+    }
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", onRefresh);
+      document.removeEventListener("visibilitychange", onRefresh);
+      window.removeEventListener("mitra_orders_updated", onRefresh);
+      window.removeEventListener("mitra_products_updated", onRefresh);
+      window.removeEventListener("mitra_finance_updated", onRefresh);
+      if (pusher && userId) {
+        try {
+          pusher.unsubscribe(`user-${userId}`);
+          pusher.disconnect();
+        } catch {}
+      }
+    };
+  }, [user, router, fetchDashboardData]);
 
   const currentBalance = dashboardData?.stats?.saldoAktif ?? 0;
 

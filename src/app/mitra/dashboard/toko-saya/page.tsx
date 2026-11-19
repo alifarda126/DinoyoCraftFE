@@ -46,11 +46,12 @@ export default function TokoSaya() {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    const fetchStore = async () => {
+    const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+    const fetchStore = async (isInitial = false) => {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-
+      if (isInitial) setIsLoading(true);
       try {
-        const response = await axios.get('http://localhost:5000/api/mitra/store-profile', {
+        const response = await axios.get(`${apiBase}/mitra/store-profile`, {
           withCredentials: true,
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
@@ -63,7 +64,23 @@ export default function TokoSaya() {
         setIsLoading(false);
       }
     };
-    fetchStore();
+
+    fetchStore(true);
+    const onRefresh = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        fetchStore(false);
+      }
+    };
+    window.addEventListener('focus', onRefresh);
+    document.addEventListener('visibilitychange', onRefresh);
+    window.addEventListener('mitra_products_updated', onRefresh);
+    window.addEventListener('mitra-verification-updated', onRefresh);
+    return () => {
+      window.removeEventListener('focus', onRefresh);
+      document.removeEventListener('visibilitychange', onRefresh);
+      window.removeEventListener('mitra_products_updated', onRefresh);
+      window.removeEventListener('mitra-verification-updated', onRefresh);
+    };
   }, []);
 
   const handleShare = () => {

@@ -313,7 +313,11 @@ function AdminSystemLogsContent() {
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [accessDenied, setAccessDenied] = useState<boolean>(false);
-  const [lastUpdated, setLastUpdated] = useState<string>(new Date().toISOString());
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLastUpdated((prev) => prev ?? new Date().toISOString());
+  }, []);
 
   // State Real-Time Stream & Pause (§8.4)
   const [connectionState, setConnectionState] = useState<
@@ -330,6 +334,7 @@ function AdminSystemLogsContent() {
   const [activeLogLoading, setActiveLogLoading] = useState<boolean>(false);
   const [relatedLogs, setRelatedLogs] = useState<SystemLogItem[]>([]);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
 
   // Modal Hapus / Purge
@@ -735,8 +740,15 @@ function AdminSystemLogsContent() {
     navigator.clipboard.writeText(text);
     setCopiedId(text);
     toast.success(`${label} disalin ke clipboard`);
-    setTimeout(() => setCopiedId(null), 2000);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopiedId(null), 2000);
   };
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
 
   // Acknowledge Error/Critical (§11)
   const handleAcknowledge = async (eventId: string) => {

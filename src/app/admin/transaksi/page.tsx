@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import Pusher from "pusher-js";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { Receipt, MagnifyingGlass, DownloadSimple, ClockCounterClockwise } from "@phosphor-icons/react";
@@ -46,46 +47,82 @@ export default function AdminTransaksiPage() {
   const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
+  const fetchTransactions = useCallback(async (isInitial = false) => {
+    try {
+      if (isInitial) setLoading(true);
+      const res = await adminService.getTransactions({ limit: 100 });
+      const list = Array.isArray(res?.data) ? res.data : [];
+      const mapped: Transaction[] = list.map((t: any) => ({
+        id: String(t.id || t.reference_code || t.gateway_order_id || "-"),
+        reference_code: t.reference_code || t.id,
+        gateway: t.gateway || "midtrans",
+        gateway_order_id: t.gateway_order_id || null,
+        store: t.store || "-",
+        customer: t.customer || "-",
+        payment_method: t.payment_method || "qris",
+        bank: t.bank || null,
+        amount: Number(t.amount || 0),
+        status:
+          t.status === "success" || t.status === "failed"
+            ? t.status
+            : "pending",
+        raw_status: t.raw_status,
+        date: formatTrxDate(t.paid_at || t.date),
+      }));
+      setTransactions(mapped);
+    } catch (err) {
+      console.error("Gagal mengambil daftar transaksi:", err);
+      if (isInitial) toast.error("Gagal memuat daftar transaksi dari server.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const session = getDemoSession();
-    if (!session || session.role !== "admin") {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if ((!session || session.role !== "admin") && !storedToken) {
       router.push("/auth/login");
       return;
     }
 
-    const fetchTransactions = async () => {
-      try {
-        setLoading(true);
-        const res = await adminService.getTransactions({ limit: 100 });
-        const list = Array.isArray(res?.data) ? res.data : [];
-        const mapped: Transaction[] = list.map((t: any) => ({
-          id: String(t.id || t.reference_code || t.gateway_order_id || "-"),
-          reference_code: t.reference_code || t.id,
-          gateway: t.gateway || "midtrans",
-          gateway_order_id: t.gateway_order_id || null,
-          store: t.store || "-",
-          customer: t.customer || "-",
-          payment_method: t.payment_method || "qris",
-          bank: t.bank || null,
-          amount: Number(t.amount || 0),
-          status:
-            t.status === "success" || t.status === "failed"
-              ? t.status
-              : "pending",
-          raw_status: t.raw_status,
-          date: formatTrxDate(t.paid_at || t.date),
-        }));
-        setTransactions(mapped);
-      } catch (err) {
-        console.error("Gagal mengambil daftar transaksi:", err);
-        toast.error("Gagal memuat daftar transaksi dari server.");
-      } finally {
-        setLoading(false);
+    fetchTransactions(true);
+
+    const onFocusOrVisible = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        fetchTransactions(false);
       }
     };
 
-    fetchTransactions();
-  }, [router]);
+    const pollInterval = setInterval(onFocusOrVisible, 45_000);
+    window.addEventListener("focus", onFocusOrVisible);
+    document.addEventListener("visibilitychange", onFocusOrVisible);
+
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
+    let pusher: Pusher | null = null;
+    try {
+      pusher = new Pusher(pusherKey, { cluster: pusherCluster });
+      const ch = pusher.subscribe("admin-system-logs");
+      ch.bind("system-log.created", (evt: any) => {
+        if (evt?.category === "transaction" || evt?.category === "order") {
+          fetchTransactions(false);
+        }
+      });
+    } catch {}
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", onFocusOrVisible);
+      document.removeEventListener("visibilitychange", onFocusOrVisible);
+      if (pusher) {
+        try {
+          pusher.unsubscribe("admin-system-logs");
+          pusher.disconnect();
+        } catch {}
+      }
+    };
+  }, [router, fetchTransactions]);
 
   const filtered = transactions.filter(t => {
     const q = search.toLowerCase();

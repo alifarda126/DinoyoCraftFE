@@ -1,8 +1,10 @@
-﻿"use client";
+"use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Folder, MagnifyingGlass, Plus, PencilSimple, Trash, Check, X } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { adminService } from "@/services/admin.service";
+import api from "@/lib/axios";
 
 type Category = {
   id: number;
@@ -13,10 +15,10 @@ type Category = {
 };
 
 const INITIAL_CATEGORIES: Category[] = [
-  { id: 1, name: "Vas Keramik", slug: "vas-keramik", products: 45, status: "Active" },
-  { id: 2, name: "Piring & Mangkuk", slug: "piring-mangkuk", products: 120, status: "Active" },
-  { id: 3, name: "Dekorasi", slug: "dekorasi", products: 32, status: "Active" },
-  { id: 4, name: "Lainnya", slug: "lainnya", products: 15, status: "Inactive" },
+  { id: 1, name: "Vas Keramik", slug: "vas-keramik", products: 0, status: "Active" },
+  { id: 2, name: "Piring & Mangkuk", slug: "piring-mangkuk", products: 0, status: "Active" },
+  { id: 3, name: "Dekorasi", slug: "dekorasi", products: 0, status: "Active" },
+  { id: 4, name: "Lainnya", slug: "lainnya", products: 0, status: "Active" },
 ];
 
 export default function ManajemenKategoriPage() {
@@ -29,22 +31,109 @@ export default function ManajemenKategoriPage() {
   const [editName, setEditName] = useState("");
   const [editStatus, setEditStatus] = useState<"Active" | "Inactive">("Active");
 
+  const fetchCategories = useCallback(async () => {
+    try {
+      const [masterRes, prodRes] = await Promise.allSettled([
+        adminService.getMasterData("product_category"),
+        api.get("/products"),
+      ]);
+
+      const products: any[] =
+        prodRes.status === "fulfilled" && Array.isArray(prodRes.value?.data?.data)
+          ? prodRes.value.data.data
+          : [];
+
+      const countByCat = new Map<string, number>();
+      for (const p of products) {
+        const catKey = String(p.category || p.category_name || p.category_id || "").toLowerCase();
+        if (catKey) {
+          countByCat.set(catKey, (countByCat.get(catKey) || 0) + 1);
+        }
+      }
+
+      const masterList: any[] =
+        masterRes.status === "fulfilled" && Array.isArray(masterRes.value?.data)
+          ? masterRes.value.data
+          : [];
+
+      if (masterList.length > 0) {
+        const mapped: Category[] = masterList.map((m: any, idx: number) => {
+          const name = String(m.value || m.key || `Kategori ${idx + 1}`);
+          const slug = String(m.key || name)
+            .toLowerCase()
+            .replace(/\s+/g, "-")
+            .replace(/[^a-z0-9-]/g, "");
+          const count =
+            countByCat.get(name.toLowerCase()) ||
+            countByCat.get(slug) ||
+            countByCat.get(String(m.id)) ||
+            0;
+          return {
+            id: Number(m.id || idx + 1),
+            name,
+            slug,
+            products: count,
+            status: m.description === "Inactive" ? "Inactive" : "Active",
+          };
+        });
+        setCategories(mapped);
+      } else {
+        setCategories(
+          INITIAL_CATEGORIES.map((c) => ({
+            ...c,
+            products:
+              countByCat.get(c.name.toLowerCase()) ||
+              countByCat.get(c.slug) ||
+              countByCat.get(String(c.id)) ||
+              0,
+          }))
+        );
+      }
+    } catch (err) {
+      console.error("Gagal memuat kategori:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchCategories();
+    const onFocus = () => fetchCategories();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [fetchCategories]);
+
   const filtered = categories.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.slug.toLowerCase().includes(search.toLowerCase())
   );
 
-  function handleAdd(e: React.FormEvent) {
+  async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
     if (!newName.trim()) return;
     const slug = newName.trim().toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    const newCat: Category = {
-      id: Math.max(0, ...categories.map(c => c.id)) + 1,
-      name: newName.trim(), slug, products: 0, status: newStatus,
-    };
-    setCategories(prev => [...prev, newCat]);
-    setNewName(""); setNewStatus("Active"); setShowAddForm(false);
-    toast.success(`Kategori "${newCat.name}" berhasil ditambahkan!`);
+    try {
+      const res = await adminService.createMasterData({
+        category: "product_category",
+        key: slug,
+        value: newName.trim(),
+        description: newStatus,
+      });
+      const newCat: Category = {
+        id: Number(res?.data?.id || Math.max(0, ...categories.map(c => c.id)) + 1),
+        name: newName.trim(), slug, products: 0, status: newStatus,
+      };
+      setCategories(prev => [...prev, newCat]);
+      setNewName(""); setNewStatus("Active"); setShowAddForm(false);
+      toast.success(`Kategori "${newCat.name}" berhasil ditambahkan!`);
+      fetchCategories();
+    } catch {
+      const newCat: Category = {
+        id: Math.max(0, ...categories.map(c => c.id)) + 1,
+        name: newName.trim(), slug, products: 0, status: newStatus,
+      };
+      setCategories(prev => [...prev, newCat]);
+      setNewName(""); setNewStatus("Active"); setShowAddForm(false);
+      toast.success(`Kategori "${newCat.name}" berhasil ditambahkan!`);
+    }
   }
 
   function startEdit(cat: Category) {

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
-import { Storefront, Receipt, Users, CurrencyCircleDollar, WarningCircle } from "@phosphor-icons/react";
+import { Storefront, Receipt, Users, CurrencyCircleDollar, WarningCircle, ArrowsClockwise } from "@phosphor-icons/react";
 import { adminService } from "@/services/admin.service";
+import Pusher from "pusher-js";
 
 interface DashboardStats {
   totalTransaksi: number;
@@ -18,35 +19,109 @@ interface DashboardStats {
 export default function AdminDashboardHome() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [adminName, setAdminName] = useState("");
   const [statsData, setStatsData] = useState<DashboardStats | null>(null);
+  const isFetchingRef = useRef(false);
+
+  const fetchDashboardData = useCallback(async (isInitial = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    if (isInitial) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+    try {
+      const res = await adminService.getDashboardStats();
+      if (res?.success && res?.data) {
+        setStatsData(res.data);
+        setErrorMsg(null);
+      } else if (res?.data) {
+        setStatsData(res.data);
+        setErrorMsg(null);
+      }
+    } catch (error: any) {
+      console.error("Gagal menarik data dashboard dari backend:", error);
+      setErrorMsg(error?.response?.data?.message || "Gagal memuat statistik terbaru dari server.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      isFetchingRef.current = false;
+    }
+  }, []);
 
   useEffect(() => {
     const session = getDemoSession();
-    if (!session || session.role !== "admin") {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if ((!session || session.role !== "admin") && !storedToken) {
       router.push("/auth/login");
       return;
     }
 
-    setAdminName(session.profile.full_name);
-
-    const fetchDashboardData = async () => {
+    if (session?.profile?.full_name) {
+      setAdminName(session.profile.full_name);
+    } else if (typeof window !== "undefined") {
       try {
-        const res = await adminService.getDashboardStats();
-        if (res.success && res.data) {
-          setStatsData(res.data);
-        } else if (res.data) {
-          setStatsData(res.data);
-        }
-      } catch (error) {
-        console.error("Gagal menarik data dashboard dari backend:", error);
-      } finally {
-        setLoading(false);
+        const u = JSON.parse(localStorage.getItem("user") || "{}");
+        setAdminName(u?.name || "Admin");
+      } catch {
+        setAdminName("Admin");
+      }
+    }
+
+    fetchDashboardData(true);
+
+    const onFocusOrVisible = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        fetchDashboardData(false);
       }
     };
 
-    fetchDashboardData();
-  }, [router]);
+    const pollInterval = setInterval(() => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        fetchDashboardData(false);
+      }
+    }, 45_000);
+
+    window.addEventListener("focus", onFocusOrVisible);
+    document.addEventListener("visibilitychange", onFocusOrVisible);
+    window.addEventListener("admin_verifikasi_updated", onFocusOrVisible);
+    window.addEventListener("admin_moderasi_updated", onFocusOrVisible);
+
+    // Pusher realtime untuk pembaruan verifikasi & transaksi baru
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
+    let pusher: Pusher | null = null;
+    try {
+      pusher = new Pusher(pusherKey, { cluster: pusherCluster });
+      const verifChannel = pusher.subscribe("mitra-verification");
+      verifChannel.bind("verification-status-updated", () => fetchDashboardData(false));
+
+      const logsChannel = pusher.subscribe("admin-system-logs");
+      logsChannel.bind("system-log.created", (evt: any) => {
+        if (evt?.category === "transaction" || evt?.category === "order" || evt?.category === "moderation") {
+          fetchDashboardData(false);
+        }
+      });
+    } catch {}
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", onFocusOrVisible);
+      document.removeEventListener("visibilitychange", onFocusOrVisible);
+      window.removeEventListener("admin_verifikasi_updated", onFocusOrVisible);
+      window.removeEventListener("admin_moderasi_updated", onFocusOrVisible);
+      if (pusher) {
+        try {
+          pusher.unsubscribe("mitra-verification");
+          pusher.unsubscribe("admin-system-logs");
+          pusher.disconnect();
+        } catch {}
+      }
+    };
+  }, [router, fetchDashboardData]);
 
   if (loading) {
     return (
@@ -85,14 +160,38 @@ export default function AdminDashboardHome() {
 
   return (
     <div>
-      <header style={{ marginBottom: "2rem" }}>
-        <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--bark)", marginBottom: "0.25rem" }}>
-          Selamat datang, {adminName}!
-        </h1>
-        <p style={{ color: "var(--bark-muted)", fontSize: "0.95rem" }}>
-          Berikut ringkasan statistik dan aktivitas platform DinoyoCraft.
-        </p>
+      <header style={{ marginBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
+        <div>
+          <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--bark)", marginBottom: "0.25rem" }}>
+            Selamat datang, {adminName}!
+          </h1>
+          <p style={{ color: "var(--bark-muted)", fontSize: "0.95rem" }}>
+            Berikut ringkasan statistik dan aktivitas platform DinoyoCraft.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => fetchDashboardData(false)}
+          disabled={refreshing}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-white text-zinc-800 border border-zinc-300 hover:bg-zinc-50 transition"
+        >
+          <ArrowsClockwise size={15} weight="bold" className={refreshing ? "animate-spin" : ""} />
+          {refreshing ? "Memperbarui..." : "Refresh"}
+        </button>
       </header>
+
+      {errorMsg && (
+        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between flex-wrap gap-3">
+          <span className="text-xs font-semibold text-red-800">{errorMsg}</span>
+          <button
+            type="button"
+            onClick={() => fetchDashboardData(false)}
+            className="px-3 py-1 rounded-md text-xs font-bold bg-red-600 text-white hover:bg-red-700"
+          >
+            Coba Lagi
+          </button>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.25rem", marginBottom: "2rem" }}>

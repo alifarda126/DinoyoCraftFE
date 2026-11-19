@@ -1,30 +1,60 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Robot, Key, ShieldCheck, ToggleRight, ToggleLeft } from "@phosphor-icons/react";
+import { adminService } from "@/services/admin.service";
+
+const DEFAULT_PROMPT =
+  "Anda adalah Asisten Virtual resmi dari Kampung Keramik Dinoyo. Tugas Anda adalah melayani pelanggan, memberikan info seputar harga dan jadwal bengkel, serta membantu proses pemesanan dengan ramah dan sopan.";
 
 export default function AdminPengaturanAIPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [aiEnabled, setAiEnabled] = useState(true);
-  const [apiKey, setApiKey] = useState("sk-************************************");
+  const [apiKey, setApiKey] = useState("");
   const [model, setModel] = useState("gemini-1.5-pro");
+  const [systemPrompt, setSystemPrompt] = useState(DEFAULT_PROMPT);
+
+  const fetchSettings = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
+    try {
+      const res = await adminService.getAiSettings();
+      const d = res?.data;
+      if (d) {
+        setAiEnabled(Boolean(d.is_auto_reply_active));
+        setModel(d.model_name || "gemini-1.5-pro");
+        setApiKey(d.api_key || "");
+        setSystemPrompt(d.system_prompt || DEFAULT_PROMPT);
+      }
+    } catch (err) {
+      console.error("Gagal memuat pengaturan AI:", err);
+      if (isInitial) toast.error("Gagal memuat pengaturan AI dari server");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     const session = getDemoSession();
-    if (!session || session.role !== "admin") {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if ((!session || session.role !== "admin") && !storedToken) {
       router.push("/auth/login");
       return;
     }
-    setLoading(false);
-  }, [router]);
+    fetchSettings(true);
+
+    const onFocus = () => fetchSettings(false);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [router, fetchSettings]);
 
   useEffect(() => {
     if (apiKey === "sk-************************************" || apiKey === "") return;
-    
+
     if (apiKey.startsWith("AIza")) {
       setModel((prev) => (prev.startsWith("gemini") ? prev : "gemini-1.5-pro"));
     } else if (apiKey.startsWith("sk-ant-")) {
@@ -34,14 +64,40 @@ export default function AdminPengaturanAIPage() {
     }
   }, [apiKey]);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success("Konfigurasi AI berhasil disimpan (Mock)");
+    setSaving(true);
+    try {
+      await adminService.updateAiSettings({
+        is_auto_reply_active: aiEnabled,
+        model_name: model,
+        api_key: apiKey,
+        system_prompt: systemPrompt,
+      });
+      toast.success("Konfigurasi AI berhasil disimpan ke server");
+      await fetchSettings(false);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Gagal menyimpan konfigurasi AI");
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const toggleAi = () => {
-    setAiEnabled(!aiEnabled);
-    toast.success(`Asisten AI telah ${!aiEnabled ? "diaktifkan" : "dinonaktifkan"} secara global.`);
+  const toggleAi = async () => {
+    const nextVal = !aiEnabled;
+    setAiEnabled(nextVal);
+    try {
+      await adminService.updateAiSettings({
+        is_auto_reply_active: nextVal,
+        model_name: model,
+        api_key: apiKey,
+        system_prompt: systemPrompt,
+      });
+      toast.success(`Asisten AI telah ${nextVal ? "diaktifkan" : "dinonaktifkan"} secara global.`);
+    } catch {
+      setAiEnabled(!nextVal);
+      toast.error("Gagal memperbarui status global AI");
+    }
   };
 
   if (loading) return <div>Memuat...</div>;
@@ -97,8 +153,9 @@ export default function AdminPengaturanAIPage() {
                 <label className="block text-sm font-semibold text-zinc-800 mb-2">Prompt Sistem / Instruksi Default</label>
                 <textarea 
                   rows={4}
+                  value={systemPrompt}
+                  onChange={(e) => setSystemPrompt(e.target.value)}
                   className="w-full px-4 py-2.5 rounded-lg border border-zinc-200 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900 text-sm"
-                  defaultValue="Anda adalah Asisten Virtual resmi dari Kampung Keramik Dinoyo. Tugas Anda adalah melayani pelanggan, memberikan info seputar harga dan jadwal bengkel, serta membantu proses pemesanan dengan ramah dan sopan."
                 ></textarea>
               </div>
             </div>
@@ -106,9 +163,10 @@ export default function AdminPengaturanAIPage() {
             <div className="mt-8 pt-6 border-t border-zinc-100 flex justify-end">
               <button 
                 type="submit"
-                className="px-6 py-2.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 transition-colors font-medium text-sm"
+                disabled={saving}
+                className="px-6 py-2.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-50 transition-colors font-medium text-sm"
               >
-                Simpan Perubahan
+                {saving ? "Menyimpan..." : "Simpan Perubahan"}
               </button>
             </div>
           </form>

@@ -363,16 +363,17 @@ export default function SellerCatalogPage() {
 
   const [fetchingArtworks, setFetchingArtworks] = useState(true);
 
-  const loadArtworks = useCallback(async () => {
+  const loadArtworks = useCallback(async (isInitial = true) => {
     try {
-      setFetchingArtworks(true);
+      if (isInitial) setFetchingArtworks(true);
       const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
       if (!storedToken) {
         setFetchingArtworks(false);
         return;
       }
 
-      const response = await axios.get("http://localhost:5000/api/products", {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+      const response = await axios.get(`${apiBase}/products`, {
         headers: {
           Authorization: `Bearer ${storedToken}`,
         },
@@ -397,7 +398,19 @@ export default function SellerCatalogPage() {
       router.push("/login");
       return;
     }
-    loadArtworks();
+    loadArtworks(true);
+
+    const onRefresh = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        loadArtworks(false);
+      }
+    };
+    window.addEventListener("focus", onRefresh);
+    document.addEventListener("visibilitychange", onRefresh);
+    return () => {
+      window.removeEventListener("focus", onRefresh);
+      document.removeEventListener("visibilitychange", onRefresh);
+    };
   }, [router, loadArtworks]);
 
   // Otomatis sinkron total stok saat varian ditambah/diubah
@@ -468,7 +481,10 @@ export default function SellerCatalogPage() {
         toast.success("Produk berhasil ditambahkan!");
         resetForm();
         setShowForm(false);
-        await loadArtworks();
+        await loadArtworks(false);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("mitra_products_updated"));
+        }
       }
     } catch (error: any) {
       console.error("Gagal tambah produk:", error);
@@ -497,6 +513,10 @@ export default function SellerCatalogPage() {
       }
       setArtworks(prev => prev.filter(a => a.id !== id));
       toast.success("Produk berhasil dihapus!");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("mitra_products_updated"));
+      }
+      await loadArtworks(false);
     } catch (error) {
       console.error("Gagal menghapus produk:", error);
       toast.error("Gagal menghapus produk");
@@ -544,9 +564,10 @@ export default function SellerCatalogPage() {
     };
 
     try {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
       const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
       if (editingId) {
-        await axios.put(`http://localhost:5000/api/mitra/products/${editingId}`, dataBaru, {
+        await axios.put(`${apiBase}/mitra/products/${editingId}`, dataBaru, {
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           withCredentials: true,
         });
@@ -563,6 +584,10 @@ export default function SellerCatalogPage() {
       setEditCustomHex("#b85c3c");
       setEditCustomStock(5);
       toast.success("Produk berhasil diperbarui!");
+      await loadArtworks(false);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("mitra_products_updated"));
+      }
       await loadArtworks();
     } catch (error: any) {
       console.error("Gagal memperbarui produk:", error);

@@ -343,6 +343,7 @@ export default function SellerProfilPage() {
             };
             localStorage.setItem("user", JSON.stringify(savedUser));
             useAuthStore.getState().updateUser(savedUser);
+            window.dispatchEvent(new Event("mitra_profile_updated"));
           }
         }
 

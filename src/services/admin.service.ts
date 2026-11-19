@@ -129,4 +129,87 @@ export const adminService = {
         });
         return response.data;
     },
+
+    getUsers: async (params?: { page?: number; limit?: number }) => {
+        const token = getToken();
+        const response = await axios.get(`${API_BASE_URL}/admin/users`, {
+            params: { limit: 100, ...params },
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true,
+        });
+        return response.data;
+    },
+
+    updateUserStatus: async (id: number, is_active: boolean) => {
+        const token = getToken();
+        const response = await axios.patch(
+            `${API_BASE_URL}/admin/users/${id}/status`,
+            { is_active },
+            {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                withCredentials: true,
+            }
+        );
+        return response.data;
+    },
+
+    forceLogoutUser: async (id: number) => {
+        const token = getToken();
+        const response = await axios.patch(
+            `${API_BASE_URL}/admin/users/${id}/force-logout`,
+            {},
+            {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                withCredentials: true,
+            }
+        );
+        return response.data;
+    },
+
+    getAiSettings: async () => {
+        const token = getToken();
+        const response = await axios.get(`${API_BASE_URL}/admin/ai-settings`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true,
+        });
+        return response.data;
+    },
+
+    updateAiSettings: async (payload: {
+        is_auto_reply_active: boolean;
+        model_name: string;
+        api_key: string;
+        system_prompt: string;
+    }) => {
+        const token = getToken();
+        const response = await axios.put(`${API_BASE_URL}/admin/ai-settings`, payload, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true,
+        });
+        return response.data;
+    },
+
+    getMasterData: async (category?: string) => {
+        const token = getToken();
+        const response = await axios.get(`${API_BASE_URL}/admin/master-data`, {
+            params: category ? { category } : undefined,
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true,
+        });
+        return response.data;
+    },
+
+    createMasterData: async (payload: {
+        category: string;
+        key: string;
+        value: string;
+        description?: string;
+    }) => {
+        const token = getToken();
+        const response = await axios.post(`${API_BASE_URL}/admin/master-data`, payload, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            withCredentials: true,
+        });
+        return response.data;
+    },
 };

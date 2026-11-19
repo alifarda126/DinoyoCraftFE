@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Pusher from "pusher-js";
 import { toast } from "sonner";
 import {
   Check, X, Storefront, MagnifyingGlass, Eye,
@@ -58,8 +59,8 @@ export default function AdminVerifikasiPage() {
   const [rejecting, setRejecting] = useState<boolean>(false);
 
   // 1. Ambil data pengajuan toko dari backend
-  const fetchVerifikasi = async () => {
-    setLoading(true);
+  const fetchVerifikasi = useCallback(async (isInitial = false) => {
+    if (isInitial) setLoading(true);
     try {
       const res = await adminService.getVerifikasiList();
       const rawData = res.data || res;
@@ -122,11 +123,42 @@ export default function AdminVerifikasiPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchVerifikasi();
-  }, []);
+    fetchVerifikasi(true);
+
+    const onFocusOrVisible = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        fetchVerifikasi(false);
+      }
+    };
+
+    const pollInterval = setInterval(onFocusOrVisible, 45_000);
+    window.addEventListener("focus", onFocusOrVisible);
+    document.addEventListener("visibilitychange", onFocusOrVisible);
+
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
+    let pusher: Pusher | null = null;
+    try {
+      pusher = new Pusher(pusherKey, { cluster: pusherCluster });
+      const ch = pusher.subscribe("mitra-verification");
+      ch.bind("verification-status-updated", () => fetchVerifikasi(false));
+    } catch {}
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", onFocusOrVisible);
+      document.removeEventListener("visibilitychange", onFocusOrVisible);
+      if (pusher) {
+        try {
+          pusher.unsubscribe("mitra-verification");
+          pusher.disconnect();
+        } catch {}
+      }
+    };
+  }, [fetchVerifikasi]);
 
   // 2. Handler untuk Setujui atau Tolak Pengajuan
   const handleUpdateStatus = async (

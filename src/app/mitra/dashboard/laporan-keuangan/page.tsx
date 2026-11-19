@@ -62,7 +62,7 @@ export default function LaporanKeuanganPage() {
   useEffect(() => {
     useAuthStore.getState().initAuth();
 
-    const fetchFinance = async () => {
+    const fetchFinance = async (isInitial = false) => {
       const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
 
       if (!storedToken) {
@@ -71,7 +71,7 @@ export default function LaporanKeuanganPage() {
       }
 
       try {
-        setLoading(true);
+        if (isInitial) setLoading(true);
         const res = await axios.get(`${API_BASE_URL}/mitra/finance`, {
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           withCredentials: true,
@@ -84,13 +84,31 @@ export default function LaporanKeuanganPage() {
         }
       } catch (error) {
         console.error("Gagal memuat laporan keuangan:", error);
-        toast.error("Gagal memuat data laporan keuangan");
+        if (isInitial) toast.error("Gagal memuat data laporan keuangan");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchFinance();
+    fetchFinance(true);
+
+    const onRefresh = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        fetchFinance(false);
+      }
+    };
+
+    const pollInterval = setInterval(onRefresh, 45_000);
+    window.addEventListener("focus", onRefresh);
+    document.addEventListener("visibilitychange", onRefresh);
+    window.addEventListener("mitra_orders_updated", onRefresh);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", onRefresh);
+      document.removeEventListener("visibilitychange", onRefresh);
+      window.removeEventListener("mitra_orders_updated", onRefresh);
+    };
   }, [router]);
 
   const transactions = (financeData.riwayatTransaksi || []).map((t: any) => {

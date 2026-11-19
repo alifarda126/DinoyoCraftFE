@@ -96,11 +96,28 @@ export default function AdminModerasiPage() {
 
   useEffect(() => {
     const session = getDemoSession();
-    if (!session || session.role !== "admin") {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if ((!session || session.role !== "admin") && !storedToken) {
       router.push("/auth/login");
       return;
     }
     fetchModerationData();
+
+    const onFocusOrVisible = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        fetchModerationData();
+      }
+    };
+
+    const pollInterval = setInterval(onFocusOrVisible, 45_000);
+    window.addEventListener("focus", onFocusOrVisible);
+    document.addEventListener("visibilitychange", onFocusOrVisible);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", onFocusOrVisible);
+      document.removeEventListener("visibilitychange", onFocusOrVisible);
+    };
   }, [router, fetchModerationData]);
 
   const handleReport = async (id: string, action: "suspend" | "delete" | "ignore") => {

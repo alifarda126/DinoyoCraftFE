@@ -48,7 +48,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (typeof window !== "undefined") {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
+      localStorage.removeItem("dinoyo_demo_session");
       Cookies.remove("token");
+      window.dispatchEvent(new Event("auth_state_changed"));
     }
     set({ user: null, token: null, isAuthenticated: false });
   },

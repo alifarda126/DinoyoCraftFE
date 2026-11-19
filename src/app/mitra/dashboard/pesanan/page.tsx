@@ -161,7 +161,7 @@ export default function PesananSellerPage() {
   useEffect(() => {
     useAuthStore.getState().initAuth();
 
-    const fetchOrders = async () => {
+    const fetchOrders = async (isInitial = false) => {
       const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
 
       if (!storedToken) {
@@ -170,7 +170,7 @@ export default function PesananSellerPage() {
       }
 
       try {
-        setLoading(true);
+        if (isInitial) setLoading(true);
         const res = await axios.get(`${API_BASE_URL}/mitra/orders`, {
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           withCredentials: true,
@@ -281,13 +281,63 @@ export default function PesananSellerPage() {
         }
       } catch (error) {
         console.error("Gagal memuat pesanan:", error);
-        toast.error("Gagal memuat data pesanan");
+        if (isInitial) toast.error("Gagal memuat data pesanan");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchOrders();
+    fetchOrders(true);
+
+    const onRefresh = () => {
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        fetchOrders(false);
+      }
+    };
+
+    const pollInterval = setInterval(onRefresh, 30_000);
+    window.addEventListener("focus", onRefresh);
+    document.addEventListener("visibilitychange", onRefresh);
+
+    let userId: number | undefined;
+    try {
+      const uStr = typeof window !== "undefined" ? localStorage.getItem("user") : null;
+      if (uStr) {
+        const parsed = JSON.parse(uStr);
+        userId = Number(parsed?.id || parsed?.userId) || undefined;
+      }
+    } catch {}
+
+    let cleanupPusher: (() => void) | null = null;
+    if (userId) {
+      import("pusher-js")
+        .then(({ default: PusherClient }) => {
+          const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+          const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
+          const p = new PusherClient(pusherKey, { cluster: pusherCluster });
+          const ch = p.subscribe(`user-${userId}`);
+          ch.bind("new-paid-order", () => {
+            toast.info("Pesanan baru telah dibayar!");
+            fetchOrders(false);
+          });
+          ch.bind("order-status-changed", () => fetchOrders(false));
+          ch.bind("order-completed", () => fetchOrders(false));
+          cleanupPusher = () => {
+            try {
+              p.unsubscribe(`user-${userId}`);
+              p.disconnect();
+            } catch {}
+          };
+        })
+        .catch(() => {});
+    }
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener("focus", onRefresh);
+      document.removeEventListener("visibilitychange", onRefresh);
+      if (cleanupPusher) cleanupPusher();
+    };
   }, [router]);
 
   const tabs = [

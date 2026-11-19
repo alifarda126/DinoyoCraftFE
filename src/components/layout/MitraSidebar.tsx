@@ -59,10 +59,14 @@ export default function MitraSidebar() {
     window.addEventListener("focus", handleSync);
     window.addEventListener("storage", handleSync);
     window.addEventListener("mitra-verification-updated", handleSync);
+    window.addEventListener("mitra_profile_updated", handleSync);
+    window.addEventListener("auth_state_changed", handleSync);
     return () => {
       window.removeEventListener("focus", handleSync);
       window.removeEventListener("storage", handleSync);
       window.removeEventListener("mitra-verification-updated", handleSync);
+      window.removeEventListener("mitra_profile_updated", handleSync);
+      window.removeEventListener("auth_state_changed", handleSync);
     };
   }, []);
 

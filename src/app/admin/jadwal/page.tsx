@@ -38,13 +38,27 @@ export default function AdminSchedulesPage() {
   const router = useRouter();
   const checkAdmin = async () => {
     const demo = getDemoSession();
-    if (!demo || demo.role !== "admin") {
-      router.push("/auth/login");
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if ((!demo || demo.role !== "admin") && !storedToken) {
+      router.push("/login");
       return;
     }
   };
 
   const loadSchedules = async () => {
+    try {
+      if (typeof window !== "undefined") {
+        const local = localStorage.getItem("admin_workshop_schedules");
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setSchedules(parsed);
+            return;
+          }
+        }
+      }
+    } catch {}
+
     setSchedules([
       { id: "s1", date: format(new Date(), "yyyy-MM-dd"), start_time: "09:00", end_time: "11:00", max_capacity: 20, current_bookings: 5, is_locked: false }
     ]);
@@ -55,11 +69,20 @@ export default function AdminSchedulesPage() {
     loadSchedules();
   }, []);
 
+  const saveSchedules = (newItems: Schedule[]) => {
+    setSchedules(newItems);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("admin_workshop_schedules", JSON.stringify(newItems));
+      } catch {}
+    }
+  };
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
       const newSchedule: Schedule = {
         id: `s${Date.now()}`,
         date: newDate,
@@ -69,7 +92,7 @@ export default function AdminSchedulesPage() {
         current_bookings: 0,
         is_locked: false,
       };
-      setSchedules(prev => [...prev, newSchedule]);
+      saveSchedules([...schedules, newSchedule]);
       toast.success("Jadwal berhasil ditambahkan!");
       setShowForm(false);
       setNewDate("");
@@ -81,13 +104,15 @@ export default function AdminSchedulesPage() {
   }
 
   async function toggleLock(scheduleId: string, currentLock: boolean) {
-    setSchedules(prev => prev.map(s => s.id === scheduleId ? { ...s, is_locked: !currentLock } : s));
+    const updated = schedules.map(s => s.id === scheduleId ? { ...s, is_locked: !currentLock } : s);
+    saveSchedules(updated);
     toast.success(!currentLock ? "Jadwal dikunci" : "Jadwal dibuka");
   }
 
   async function deleteSchedule(scheduleId: string) {
     if (!confirm("Hapus jadwal ini?")) return;
-    setSchedules(prev => prev.filter(s => s.id !== scheduleId));
+    const updated = schedules.filter(s => s.id !== scheduleId);
+    saveSchedules(updated);
     toast.success("Jadwal berhasil dihapus!");
   }
 

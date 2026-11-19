@@ -171,11 +171,17 @@ export default function AdminSidebar() {
     try {
       pusher = new Pusher(pusherKey, { cluster: pusherCluster });
       const logsChannel = pusher.subscribe("admin-system-logs");
+      logsChannel.bind("system-log.created", updateBadges);
       logsChannel.bind("new-log", updateBadges);
+
+      const verifChannel = pusher.subscribe("mitra-verification");
+      verifChannel.bind("verification-status-updated", updateBadges);
 
       if (adminId) {
         const userChannel = pusher.subscribe(`user-${adminId}`);
         userChannel.bind("new-message", updateBadges);
+        userChannel.bind("order-status-changed", updateBadges);
+        userChannel.bind("new-paid-order", updateBadges);
       }
     } catch {}
 
