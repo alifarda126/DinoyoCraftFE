@@ -5,6 +5,7 @@ import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Plus, Trash, PencilSimple, X, Check } from "@phosphor-icons/react";
+import { EarthySelect } from "@/components/ui/EarthySelect";
 
 type Artwork = {
   id: string;
@@ -196,13 +197,19 @@ export default function SellerCatalogPage() {
 
           <div>
             <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.5rem" }}>Kategori</label>
-            <select value={category} onChange={(e) => setCategory(e.target.value)} required style={{ width: "100%", padding: "0.75rem", borderRadius: "0.5rem", border: "1px solid var(--line)", background: "#fff" }}>
-              <option value="">Pilih Kategori</option>
-              <option value="Dekorasi">Dekorasi</option>
-              <option value="Peralatan Makan">Peralatan Makan</option>
-              <option value="Souvenir">Souvenir</option>
-              <option value="Pot">Pot Tanaman</option>
-            </select>
+            <EarthySelect
+              value={category}
+              onChange={setCategory}
+              placeholder="Pilih Kategori"
+              style={{ width: "100%", padding: "0.625rem 0.75rem" }}
+              options={[
+                { value: "", label: "Pilih Kategori" },
+                { value: "Dekorasi", label: "Dekorasi" },
+                { value: "Peralatan Makan", label: "Peralatan Makan" },
+                { value: "Souvenir", label: "Souvenir" },
+                { value: "Pot", label: "Pot Tanaman" },
+              ]}
+            />
           </div>
 
           <div>
@@ -306,13 +313,17 @@ export default function SellerCatalogPage() {
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.4rem" }}>Kategori</label>
-                  <select value={editCategory} onChange={e => setEditCategory(e.target.value)}
-                    style={{ width: "100%", padding: "0.6rem 0.75rem", borderRadius: "0.5rem", border: "1px solid var(--line)", background: "#fff" }}>
-                    <option value="Dekorasi">Dekorasi</option>
-                    <option value="Peralatan Makan">Peralatan Makan</option>
-                    <option value="Souvenir">Souvenir</option>
-                    <option value="Pot">Pot Tanaman</option>
-                  </select>
+                  <EarthySelect
+                    value={editCategory}
+                    onChange={setEditCategory}
+                    style={{ width: "100%", padding: "0.55rem 0.75rem" }}
+                    options={[
+                      { value: "Dekorasi", label: "Dekorasi" },
+                      { value: "Peralatan Makan", label: "Peralatan Makan" },
+                      { value: "Souvenir", label: "Souvenir" },
+                      { value: "Pot", label: "Pot Tanaman" },
+                    ]}
+                  />
                 </div>
                 <div style={{ display: "flex", alignItems: "flex-end", gap: "0.75rem" }}>
                   <button type="submit" style={{

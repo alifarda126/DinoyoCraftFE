@@ -17,7 +17,7 @@ export const productService = {
   },
 
   getById: async (id: string): Promise<Product> => {
-    const response = await api.get(`/products/${id}`);
+    const response = await api.get(`/products/${id}/public`);
     return response.data.data;
   },
 

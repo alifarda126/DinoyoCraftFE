@@ -14,6 +14,8 @@ import axios from 'axios';
 import Cookies from "js-cookie";
 import { useAuthStore } from "@/store/useAuthStore";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
 /* ── Types ───────────────────────────────────────────────────────────────── */
 
 type ColorVariant = {
@@ -50,6 +52,13 @@ const PRESET_COLORS: ColorVariant[] = [
   { name: "Charcoal Ash", hex: "#3d3d3d", label: "Tekstur Abu", stock: 5 },
   { name: "Sage Green", hex: "#8aad8a", label: "Natural Moss", stock: 5 },
   { name: "Cobalt Blue", hex: "#3b5fa0", label: "Deep Ocean", stock: 5 },
+];
+
+const DEFAULT_CATEGORY_OPTIONS = [
+  { value: "Dekorasi", label: "Dekorasi" },
+  { value: "Peralatan Makan", label: "Peralatan Makan" },
+  { value: "Souvenir", label: "Souvenir" },
+  { value: "Pot Tanaman", label: "Pot Tanaman" },
 ];
 
 /* ── Styles ─────────────────────────────────────────────────────────────── */
@@ -318,6 +327,7 @@ function ColorVariantSection({
 export default function SellerCatalogPage() {
   const router = useRouter();
   const [artworks, setArtworks] = useState<Artwork[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string }[]>(DEFAULT_CATEGORY_OPTIONS);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -368,12 +378,11 @@ export default function SellerCatalogPage() {
       if (isInitial) setFetchingArtworks(true);
       const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
       if (!storedToken) {
-        setFetchingArtworks(false);
+        if (isInitial) setFetchingArtworks(false);
         return;
       }
 
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
-      const response = await axios.get(`${apiBase}/products`, {
+      const response = await axios.get(`${API_BASE_URL}/products`, {
         headers: {
           Authorization: `Bearer ${storedToken}`,
         },
@@ -384,9 +393,28 @@ export default function SellerCatalogPage() {
         setArtworks(response.data.data);
       }
     } catch (error) {
-      console.error("Gagal memuat produk dari server:", error);
+      if (isInitial) {
+        console.error("Gagal memuat produk dari server:", error);
+      }
     } finally {
-      setFetchingArtworks(false);
+      if (isInitial) setFetchingArtworks(false);
+    }
+  }, []);
+
+  const loadCategories = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API_BASE_URL}/products/categories?all=1`);
+      if (res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+        const opts = res.data.data
+          .map((c: any) => String(c?.name || "").trim())
+          .filter(Boolean)
+          .map((name: string) => ({ value: name, label: name }));
+        if (opts.length > 0) {
+          setCategoryOptions(opts);
+        }
+      }
+    } catch {
+      // Gunakan DEFAULT_CATEGORY_OPTIONS bila endpoint kategori belum terjangkau
     }
   }, []);
 
@@ -398,20 +426,24 @@ export default function SellerCatalogPage() {
       router.push("/login");
       return;
     }
+    loadCategories();
     loadArtworks(true);
 
     const onRefresh = () => {
       if (typeof document === "undefined" || document.visibilityState === "visible") {
         loadArtworks(false);
+        loadCategories();
       }
     };
+    const pollInterval = setInterval(onRefresh, 5000);
     window.addEventListener("focus", onRefresh);
     document.addEventListener("visibilitychange", onRefresh);
     return () => {
+      clearInterval(pollInterval);
       window.removeEventListener("focus", onRefresh);
       document.removeEventListener("visibilitychange", onRefresh);
     };
-  }, [router, loadArtworks]);
+  }, [router, loadCategories, loadArtworks]);
 
   // Otomatis sinkron total stok saat varian ditambah/diubah
   useEffect(() => {
@@ -434,6 +466,10 @@ export default function SellerCatalogPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!category.trim()) {
+      toast.error("Pilih kategori produk terlebih dahulu");
+      return;
+    }
     setLoading(true);
 
     const variantsToSave = mergePendingCustomVariant(
@@ -454,7 +490,7 @@ export default function SellerCatalogPage() {
     formData.append("description", description);
     formData.append("price", price);
     formData.append("stock", String(finalStock));
-    formData.append("category_id", category || "1"); // Pastikan ini mengambil ID / nama kategori
+    formData.append("category_id", category.trim());
     formData.append("variants", JSON.stringify(variantsToSave));
 
     // Jika ada file gambar produk atau URL eksternal
@@ -469,7 +505,7 @@ export default function SellerCatalogPage() {
     try {
       const storedToken =
         (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
-      const response = await axios.post("http://localhost:5000/api/products", formData, {
+      const response = await axios.post(`${API_BASE_URL}/products`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
           ...(storedToken ? { Authorization: `Bearer ${storedToken}` } : {}),
@@ -506,7 +542,7 @@ export default function SellerCatalogPage() {
     try {
       const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
       if (storedToken && !id.startsWith("prod-")) {
-        await axios.delete(`http://localhost:5000/api/products/${id}`, {
+        await axios.delete(`${API_BASE_URL}/products/${id}`, {
           headers: { Authorization: `Bearer ${storedToken}` },
           withCredentials: true,
         });
@@ -564,10 +600,9 @@ export default function SellerCatalogPage() {
     };
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
       const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
       if (editingId) {
-        await axios.put(`${apiBase}/mitra/products/${editingId}`, dataBaru, {
+        await axios.put(`${API_BASE_URL}/mitra/products/${editingId}`, dataBaru, {
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           withCredentials: true,
         });
@@ -682,12 +717,7 @@ export default function SellerCatalogPage() {
               value={category}
               onChange={setCategory}
               placeholder="Pilih Kategori"
-              options={[
-                { value: "Dekorasi", label: "Dekorasi" },
-                { value: "Peralatan Makan", label: "Peralatan Makan" },
-                { value: "Souvenir", label: "Souvenir" },
-                { value: "Pot Tanaman", label: "Pot Tanaman" },
-              ]}
+              options={categoryOptions}
               style={{ width: "100%" }}
             />
           </div>
@@ -976,12 +1006,7 @@ export default function SellerCatalogPage() {
                     value={editCategory}
                     onChange={setEditCategory}
                     placeholder="Pilih Kategori"
-                    options={[
-                      { value: "Dekorasi", label: "Dekorasi" },
-                      { value: "Peralatan Makan", label: "Peralatan Makan" },
-                      { value: "Souvenir", label: "Souvenir" },
-                      { value: "Pot Tanaman", label: "Pot Tanaman" },
-                    ]}
+                    options={categoryOptions}
                     style={{ width: "100%" }}
                   />
                 </div>
