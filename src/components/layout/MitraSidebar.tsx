@@ -161,18 +161,22 @@ export default function MitraSidebar() {
     updateBadges();
 
     const handleBadgeUpdate = () => {
-      updateBadges();
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        updateBadges();
+      }
     };
 
-    const pollInterval = setInterval(updateBadges, 15000);
+    const pollInterval = setInterval(handleBadgeUpdate, 5000);
 
     window.addEventListener("focus", handleBadgeUpdate);
+    document.addEventListener("visibilitychange", handleBadgeUpdate);
     window.addEventListener("mitra_orders_updated", handleBadgeUpdate);
     window.addEventListener("chat_unread_updated", handleBadgeUpdate);
     window.addEventListener("mitra-verification-updated", handleBadgeUpdate);
     return () => {
       clearInterval(pollInterval);
       window.removeEventListener("focus", handleBadgeUpdate);
+      document.removeEventListener("visibilitychange", handleBadgeUpdate);
       window.removeEventListener("mitra_orders_updated", handleBadgeUpdate);
       window.removeEventListener("chat_unread_updated", handleBadgeUpdate);
       window.removeEventListener("mitra-verification-updated", handleBadgeUpdate);

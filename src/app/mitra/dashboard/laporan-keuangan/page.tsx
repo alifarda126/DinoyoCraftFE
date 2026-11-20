@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -86,7 +86,9 @@ export default function LaporanKeuanganPage() {
         console.error("Gagal memuat laporan keuangan:", error);
         if (isInitial) toast.error("Gagal memuat data laporan keuangan");
       } finally {
-        setLoading(false);
+        if (isInitial) {
+          setLoading(false);
+        }
       }
     };
 
@@ -405,7 +407,7 @@ export default function LaporanKeuanganPage() {
         doc.setFont("helvetica", "normal");
         doc.setFontSize(8);
         doc.setTextColor(113, 113, 122);
-        doc.text("DinoyoCraft Mitra — Laporan Keuangan Toko", marginX, pageHeight - 8);
+        doc.text("DinoyoCraft Mitra â€” Laporan Keuangan Toko", marginX, pageHeight - 8);
         doc.text(`Halaman ${i} dari ${totalPages}`, pageWidth - marginX, pageHeight - 8, {
           align: "right",
         });
@@ -922,7 +924,7 @@ export default function LaporanKeuanganPage() {
                       Rp {w.amount.toLocaleString('id-ID')}
                     </p>
                     <p style={{ fontSize: "0.8rem", color: "var(--bark-muted)" }}>
-                      {w.bank_name} • {w.account_number} • {w.account_name}
+                      {w.bank_name} â€¢ {w.account_number} â€¢ {w.account_name}
                     </p>
                     {w.admin_note ? (
                       <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", marginTop: "0.2rem" }}>Catatan: {w.admin_note}</p>

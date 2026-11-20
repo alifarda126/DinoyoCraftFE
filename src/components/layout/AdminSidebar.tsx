@@ -132,12 +132,15 @@ export default function AdminSidebar() {
     updateBadges();
 
     const handleUpdate = () => {
-      updateBadges();
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        updateBadges();
+      }
     };
 
-    const pollInterval = setInterval(updateBadges, 15000);
+    const pollInterval = setInterval(handleUpdate, 5000);
 
     window.addEventListener("focus", handleUpdate);
+    document.addEventListener("visibilitychange", handleUpdate);
     window.addEventListener("admin_verifikasi_updated", handleUpdate);
     window.addEventListener("admin_moderasi_updated", handleUpdate);
     window.addEventListener("admin_logs_updated", handleUpdate);
@@ -145,6 +148,7 @@ export default function AdminSidebar() {
     return () => {
       clearInterval(pollInterval);
       window.removeEventListener("focus", handleUpdate);
+      document.removeEventListener("visibilitychange", handleUpdate);
       window.removeEventListener("admin_verifikasi_updated", handleUpdate);
       window.removeEventListener("admin_moderasi_updated", handleUpdate);
       window.removeEventListener("admin_logs_updated", handleUpdate);

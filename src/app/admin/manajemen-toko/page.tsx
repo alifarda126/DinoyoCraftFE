@@ -6,6 +6,7 @@ import Link from "next/link";
 import Pusher from "pusher-js";
 import { toast } from "sonner";
 import { adminService } from "@/services/admin.service";
+import { EarthySelect } from "@/components/ui/EarthySelect";
 
 type ShopItem = {
   id: number;
@@ -178,16 +179,17 @@ export default function ManajemenTokoPage() {
           </div>
           
           <div className="flex gap-2">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm focus:outline-none"
-            >
-              <option value="">Semua Status</option>
-              <option value="Active">Aktif</option>
-              <option value="Pending">Menunggu Verifikasi</option>
-              <option value="Suspended">Ditangguhkan</option>
-            </select>
+            <EarthySelect
+              value={statusFilter || "all"}
+              onChange={(val) => setStatusFilter(val === "all" ? "" : val)}
+              minWidth={170}
+              options={[
+                { value: "all", label: "Semua Status" },
+                { value: "Active", label: "Aktif" },
+                { value: "Pending", label: "Menunggu Verifikasi" },
+                { value: "Suspended", label: "Ditangguhkan" },
+              ]}
+            />
           </div>
         </div>
 

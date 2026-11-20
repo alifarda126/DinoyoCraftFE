@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import { toast } from "sonner";
@@ -14,9 +14,10 @@ import {
   MagnifyingGlass,
   X,
   ChatCircle,
-  PaperPlaneTilt,
   Star,
   Storefront,
+  CaretLeft,
+  CaretRight,
 } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
 import { PaymentMethodBadge } from "@/components/ui/PaymentMethodBadge";
@@ -30,6 +31,7 @@ type OrderStatus = "unpaid" | "packed" | "shipped" | "completed" | "cancelled";
 
 type OrderItem = {
   id: string;
+  productId?: number;
   name: string;
   price: number;
   qty: number;
@@ -41,6 +43,8 @@ type OrderItem = {
 type Order = {
   id: string;
   numericId: number;
+  referenceCode?: string;
+  customerId?: number;
   rawStatus?: string;
   customerName: string;
   recipientName?: string;
@@ -62,6 +66,7 @@ type Order = {
   bank?: string | null;
   gateway?: string;
   paidAt?: string | null;
+  reviewId?: number;
   rating?: number;
   ulasan?: string;
   ulasanAvatar?: string;
@@ -130,21 +135,17 @@ function OrderPriceBreakdown({
 
 const COURIER_OPTIONS = ["JNE", "J&T", "SiCepat", "Anteraja", "Pos Indonesia", "Tiki"] as const;
 
-type ChatMsg = { from: "mitra" | "customer"; text: string; time: string };
-
 export default function PesananSellerPage() {
   const router = useRouter();
+  const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<"all" | OrderStatus>("all");
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchPesanan, setSearchPesanan] = useState("");
+  const [highlightOrderId, setHighlightOrderId] = useState<number | null>(null);
   const [sortOrder, setSortOrder] = useState("terbaru");
-
-  // Chat state
-  const [chatOrder, setChatOrder] = useState<Order | null>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
-  const [customerChats, setCustomerChats] = useState<Record<string, ChatMsg[]>>({});
-  const [chatInput, setChatInput] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   // Kemas & Atur Pengiriman state
   const [packingOrderId, setPackingOrderId] = useState<string | null>(null);
@@ -209,6 +210,7 @@ export default function PesananSellerPage() {
               }
               return {
                 id: it.id ? String(it.id) : `item-${idx}-${itIdx}`,
+                productId: it.productId ? Number(it.productId) : undefined,
                 name: it.productName || it.name || "Produk Keramik",
                 price: Number(it.price || 0),
                 qty: Number(it.quantity || it.qty || 1),
@@ -242,9 +244,20 @@ export default function PesananSellerPage() {
                 ? Number(item.subtotalBersih)
                 : totalOrder;
 
+            let revPhoto = item.ulasanFoto;
+            if (revPhoto && !String(revPhoto).startsWith("http")) {
+              revPhoto = `${API_HOST}${String(revPhoto).startsWith("/") ? "" : "/"}${revPhoto}`;
+            }
+            let revAvatar = item.ulasanAvatar;
+            if (revAvatar && !String(revAvatar).startsWith("http")) {
+              revAvatar = `${API_HOST}${String(revAvatar).startsWith("/") ? "" : "/"}${revAvatar}`;
+            }
+
             return {
               id: item.orderId || item.id || `ORD-${idx + 1}`,
               numericId,
+              referenceCode: item.referenceCode || `#DNC-${numericId || idx + 1}`,
+              customerId: item.customerId ? Number(item.customerId) : undefined,
               rawStatus,
               customerName: item.customerName || item.customer || "Customer",
               recipientName: item.recipientName || item.customerName || "Customer",
@@ -266,16 +279,17 @@ export default function PesananSellerPage() {
               bank: item.bank,
               gateway: item.gateway,
               paidAt: item.paid_at,
+              reviewId: item.reviewId ? Number(item.reviewId) : undefined,
               rating: item.rating,
               ulasan: item.ulasan,
-              ulasanAvatar: item.ulasanAvatar,
-              ulasanFoto: item.ulasanFoto,
+              ulasanAvatar: revAvatar,
+              ulasanFoto: revPhoto,
               balasanMitra: item.balasanMitra,
             };
           });
 
           setOrders(mappedOrders);
-          if (typeof window !== "undefined") {
+          if (isInitial && typeof window !== "undefined") {
             window.dispatchEvent(new Event("mitra_orders_updated"));
           }
         }
@@ -283,10 +297,25 @@ export default function PesananSellerPage() {
         console.error("Gagal memuat pesanan:", error);
         if (isInitial) toast.error("Gagal memuat data pesanan");
       } finally {
-        setLoading(false);
+        if (isInitial) {
+          setLoading(false);
+        }
       }
     };
 
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const qParam = sp.get("search");
+      const oidParam = sp.get("orderId");
+      if (qParam) {
+        setSearchPesanan(qParam);
+        setActiveTab("all");
+      }
+      if (oidParam && !isNaN(Number(oidParam)) && Number(oidParam) > 0) {
+        setHighlightOrderId(Number(oidParam));
+        setActiveTab("all");
+      }
+    }
     fetchOrders(true);
 
     const onRefresh = () => {
@@ -352,16 +381,83 @@ export default function PesananSellerPage() {
   const filteredOrders = (() => {
     let list = activeTab === "all" ? orders : orders.filter(o => o.status === activeTab);
     if (searchPesanan.trim()) {
-      const q = searchPesanan.toLowerCase();
-      list = list.filter(o =>
-        o.id.toLowerCase().includes(q) ||
-        o.customerName.toLowerCase().includes(q)
-      );
+      const q = searchPesanan.trim().toLowerCase();
+      const qDigits = q.startsWith("#dnc-")
+        ? q.replace(/^#dnc-0*/, "")
+        : q.startsWith("dnc-")
+        ? q.replace(/^dnc-0*/, "")
+        : null;
+      list = list.filter((o) => {
+        const dncShort = `#dnc-${o.numericId}`;
+        const dncPadded = `#dnc-${String(o.numericId).padStart(4, "0")}`;
+        return (
+          o.id.toLowerCase().includes(q) ||
+          (o.referenceCode || "").toLowerCase().includes(q) ||
+          (o.numericId > 0 &&
+            (dncShort.includes(q) ||
+              dncPadded.includes(q) ||
+              q === String(o.numericId) ||
+              q === `#${o.numericId}` ||
+              (qDigits !== null && qDigits === String(o.numericId)))) ||
+          o.customerName.toLowerCase().includes(q) ||
+          (o.recipientName || "").toLowerCase().includes(q) ||
+          (o.resi || "").toLowerCase().includes(q) ||
+          o.items.some((it) => it.name.toLowerCase().includes(q))
+        );
+      });
     }
     if (sortOrder === "tertinggi") list = [...list].sort((a, b) => b.total - a.total);
     if (sortOrder === "terendah") list = [...list].sort((a, b) => a.total - b.total);
     return list;
   })();
+
+  const totalItems = filteredOrders.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalItems);
+  const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
+
+  const lastJumpedHighlightRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchPesanan, sortOrder, itemsPerPage]);
+
+  useEffect(() => {
+    if (highlightOrderId === null) {
+      lastJumpedHighlightRef.current = null;
+      return;
+    }
+    if (lastJumpedHighlightRef.current === highlightOrderId) return;
+    const idx = filteredOrders.findIndex((o) => o.numericId === highlightOrderId);
+    if (idx >= 0) {
+      lastJumpedHighlightRef.current = highlightOrderId;
+      setCurrentPage(Math.floor(idx / itemsPerPage) + 1);
+    }
+  }, [highlightOrderId, orders, activeTab, itemsPerPage]);
+
+  const handlePageChange = (page: number) => {
+    const clamped = Math.max(1, Math.min(page, totalPages));
+    setCurrentPage(clamped);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const getVisiblePages = (): (number | "...")[] => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages: (number | "...")[] = [1];
+    if (safeCurrentPage > 3) pages.push("...");
+    const start = Math.max(2, safeCurrentPage - 1);
+    const end = Math.min(totalPages - 1, safeCurrentPage + 1);
+    for (let p = start; p <= end; p++) pages.push(p);
+    if (safeCurrentPage < totalPages - 2) pages.push("...");
+    pages.push(totalPages);
+    return pages;
+  };
 
   const getStoredToken = () =>
     (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
@@ -400,25 +496,66 @@ export default function PesananSellerPage() {
   }
 
   function openChat(order: Order) {
-    setChatOrder(order);
-    setChatMessages(customerChats[order.id] ?? []);
-    setChatInput("");
-  }
+    const firstItem = order.items[0];
+    const totalQty = order.items.reduce((s, it) => s + it.qty, 0);
+    const otherItemsCount = Math.max(0, order.items.length - 1);
 
-  function sendChat() {
-    if (!chatInput.trim() || !chatOrder) return;
-    const now = new Date();
-    const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-    const newMsg: ChatMsg = { from: "mitra", text: chatInput.trim(), time };
-    const updated = [...(customerChats[chatOrder.id] || []), newMsg];
-    setCustomerChats(prev => ({ ...prev, [chatOrder.id]: updated }));
-    setChatMessages(updated);
-    setChatInput("");
-    setTimeout(() => {
-      const replyMsg: ChatMsg = { from: "customer", text: "Baik kak, terima kasih infonya! 🙏", time };
-      setCustomerChats(prev => ({ ...prev, [chatOrder.id]: [...(prev[chatOrder.id] || []), replyMsg] }));
-      setChatMessages(prev => [...prev, replyMsg]);
-    }, 1400);
+    const sectionLabelByStatus: Record<OrderStatus, string> = {
+      unpaid: "Konfirmasi Pembayaran",
+      packed: order.rawStatus === "paid" ? "Pesanan Baru â€¢ Perlu Dikemas" : "Produk Sedang Dikemas",
+      shipped: "Pesanan Sedang Dikirim",
+      completed: "Pesanan Selesai",
+      cancelled: "Pesanan Dibatalkan",
+    };
+
+    const statusLabelByStatus: Record<OrderStatus, string> = {
+      unpaid: "Belum Dibayar",
+      packed: "Perlu Dikemas",
+      shipped: "Sedang Dikirim",
+      completed: "Selesai",
+      cancelled: "Dibatalkan",
+    };
+
+    const orderChatContext = {
+      context_type: "order" as const,
+      initiated_by: "mitra" as const,
+      order_id: order.numericId,
+      order_code: `#DNC-${order.numericId || order.id}`,
+      mitra_order_code: order.id,
+      reference_code: order.referenceCode,
+      status: order.rawStatus || order.status,
+      status_label: statusLabelByStatus[order.status],
+      section_label: sectionLabelByStatus[order.status],
+      customer_id: order.customerId,
+      customer_name: order.customerName,
+      store_name: user?.store_name || user?.name || "Toko Keramik",
+      product_id: firstItem?.productId,
+      product_name: firstItem?.name || "Pesanan Keramik",
+      variant: firstItem?.variantName,
+      quantity: firstItem?.qty || 1,
+      total_items: totalQty,
+      other_items_count: otherItemsCount,
+      unit_price: firstItem?.price || 0,
+      total_amount: order.total,
+      image_url: firstItem?.image,
+      tracking_number: order.resi,
+      shipping_method: order.kurir,
+    };
+
+    if (typeof window !== "undefined") {
+      try {
+        sessionStorage.setItem(
+          "mitra_chat_order_context",
+          JSON.stringify(orderChatContext)
+        );
+      } catch {}
+    }
+
+    const params = new URLSearchParams();
+    if (order.customerId) params.set("customerId", String(order.customerId));
+    if (order.customerName) params.set("customerName", order.customerName);
+    params.set("orderId", String(order.numericId || order.id));
+    router.push(`/mitra/dashboard/chat?${params.toString()}`);
   }
 
   function openShipping(order: Order) {
@@ -478,16 +615,31 @@ export default function PesananSellerPage() {
     if (e) e.preventDefault();
     if (!replyOrder || !replyInput.trim()) return;
     setIsSubmittingReply(true);
-    await new Promise(r => setTimeout(r, 600));
-    setOrders(prev => prev.map(o =>
-      o.id === replyOrder.id
-        ? { ...o, balasanMitra: replyInput.trim() }
-        : o
-    ));
-    toast.success("Balasan ulasan berhasil dikirim.");
-    setReplyOrder(null);
-    setIsSubmittingReply(false);
-    setReplyInput("");
+    try {
+      if (replyOrder.reviewId) {
+        const storedToken = getStoredToken();
+        await axios.post(
+          `${API_BASE_URL}/reviews/${replyOrder.reviewId}/reply`,
+          { seller_reply: replyInput.trim() },
+          {
+            headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
+            withCredentials: true,
+          }
+        );
+      }
+      setOrders(prev => prev.map(o =>
+        o.id === replyOrder.id
+          ? { ...o, balasanMitra: replyInput.trim() }
+          : o
+      ));
+      toast.success("Balasan ulasan berhasil dikirim.");
+      setReplyOrder(null);
+      setReplyInput("");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || "Gagal mengirim balasan ulasan.");
+    } finally {
+      setIsSubmittingReply(false);
+    }
   }
 
   const getStatusBadge = (status: OrderStatus) => {
@@ -522,11 +674,28 @@ export default function PesananSellerPage() {
             <input
               type="text"
               value={searchPesanan}
-              onChange={e => setSearchPesanan(e.target.value)}
-              placeholder="Cari ID atau nama customer..."
-              className="pl-9 pr-4 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none"
-              style={{ width: 220 }}
+              onChange={(e) => {
+                setSearchPesanan(e.target.value);
+                if (!e.target.value.trim()) setHighlightOrderId(null);
+              }}
+              placeholder="Cari ID, #DNC, resi, customer..."
+              className="pl-9 pr-8 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none"
+              style={{ width: 250 }}
             />
+            {searchPesanan && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchPesanan("");
+                  setHighlightOrderId(null);
+                  router.replace("/mitra/dashboard/pesanan");
+                }}
+                title="Reset pencarian"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 cursor-pointer"
+              >
+                <X size={14} weight="bold" />
+              </button>
+            )}
           </div>
           <EarthySelect
             value={sortOrder}
@@ -564,9 +733,20 @@ export default function PesananSellerPage() {
         {/* Order List */}
         <div className="p-0">
           {filteredOrders.length > 0 ? (
+            <>
             <div className="divide-y divide-zinc-200">
-              {filteredOrders.map((order) => (
-                <div key={order.id} className="p-6 hover:bg-zinc-50/50 transition-colors">
+              {paginatedOrders.map((order) => {
+                const isHighlighted =
+                  highlightOrderId !== null && order.numericId === highlightOrderId;
+                return (
+                <div
+                  key={order.id}
+                  className={`p-6 transition-colors ${
+                    isHighlighted
+                      ? "bg-amber-50/40 ring-1 ring-inset ring-amber-300"
+                      : "hover:bg-zinc-50/50"
+                  }`}
+                >
                   <div className="flex flex-col md:flex-row gap-6">
                     {/* Left: Customer & Items */}
                     <div className="flex-1">
@@ -575,10 +755,15 @@ export default function PesananSellerPage() {
                           <User size={16} className="text-zinc-500" />
                           {order.customerName}
                         </div>
-                        <span className="text-zinc-300">•</span>
+                        <span className="text-zinc-300">â€¢</span>
                         <span className="text-sm text-zinc-500">{order.date}</span>
-                        <span className="text-zinc-300">•</span>
+                        <span className="text-zinc-300">â€¢</span>
                         <span className="text-sm font-mono text-zinc-500">{order.id}</span>
+                        {order.numericId > 0 && (
+                          <span className="text-xs font-mono font-semibold text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded">
+                            #DNC-{order.numericId}
+                          </span>
+                        )}
                         {getStatusBadge(order.status)}
                       </div>
 
@@ -614,28 +799,40 @@ export default function PesananSellerPage() {
                       {order.resi && (
                         <div className="mt-3 inline-flex items-center gap-2 bg-purple-50 text-purple-700 text-xs font-semibold px-3 py-1.5 rounded-lg">
                           <Truck size={13} />
-                          {order.kurir} · No. Resi: {order.resi}
+                          {order.kurir} Â· No. Resi: {order.resi}
                         </div>
                       )}
                     </div>
 
                     {/* Right: Status & Actions */}
-                    <div className="w-full md:w-64 flex flex-col items-end border-t md:border-t-0 md:border-l border-zinc-100 pt-4 md:pt-0 md:pl-6 justify-between">
-                      <div className="w-full flex justify-between md:flex-col md:items-end gap-2 mb-4">
-                        <p className="text-sm text-zinc-500">Total Belanja</p>
-                        <p className="text-lg font-bold text-zinc-900">Rp {order.total.toLocaleString("id-ID")}</p>
+                    <div className="w-full md:w-64 flex flex-col border-t md:border-t-0 md:border-l border-zinc-100 pt-4 md:pt-0 md:pl-6 justify-between gap-3">
+                      <div className="w-full flex-1 flex flex-col justify-center items-center text-center rounded-xl bg-zinc-50 border border-zinc-200 p-4 gap-3">
+                        <div className="w-full flex flex-col items-center gap-0.5">
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
+                            Total Belanja
+                          </p>
+                          <p className="text-2xl font-extrabold tracking-tight text-zinc-900 leading-tight">
+                            Rp {order.total.toLocaleString("id-ID")}
+                          </p>
+                        </div>
                         {order.paymentMethod && (
-                          <PaymentMethodBadge
-                            method={order.paymentMethod}
-                            bank={order.bank}
-                            statusSuffix={
-                              order.paymentStatus === "paid"
-                                ? "· Lunas"
-                                : order.paymentStatus === "pending"
-                                ? "· Menunggu"
-                                : undefined
-                            }
-                          />
+                          <div className="w-full border-t border-zinc-200 pt-3 flex flex-col items-center gap-1.5">
+                            <span className="text-[11px] font-medium text-zinc-400">
+                              Metode Pembayaran
+                            </span>
+                            <PaymentMethodBadge
+                              method={order.paymentMethod}
+                              bank={order.bank}
+                              size="lg"
+                              statusSuffix={
+                                order.paymentStatus === "paid"
+                                  ? "Â· Lunas"
+                                  : order.paymentStatus === "pending"
+                                  ? "Â· Menunggu"
+                                  : undefined
+                              }
+                            />
+                          </div>
                         )}
                       </div>
 
@@ -682,15 +879,10 @@ export default function PesananSellerPage() {
                         {/* Chat dengan customer */}
                         <button
                           onClick={() => openChat(order)}
-                          className="w-full px-4 py-2 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-sm font-semibold hover:bg-zinc-50 transition-colors flex items-center justify-center gap-2"
+                          className="w-full px-4 py-2 bg-white border border-zinc-200 text-zinc-700 rounded-lg text-sm font-semibold hover:bg-zinc-50 transition-colors flex items-center justify-center gap-2 cursor-pointer"
                         >
                           <ChatCircle size={15} />
                           Chat Customer
-                          {(customerChats[order.id]?.length ?? 0) > 0 && (
-                            <span className="ml-auto bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center font-bold">
-                              {customerChats[order.id].length}
-                            </span>
-                          )}
                         </button>
                       </div>
                     </div>
@@ -721,7 +913,7 @@ export default function PesananSellerPage() {
                           </div>
 
                           <p style={{ fontSize: "0.72rem", color: "var(--bark-muted)", margin: "0 0 0.6rem" }}>
-                            Varian: <strong style={{ color: "var(--bark)" }}>{order.items[0]?.variantName} — {order.items[0]?.variantName === "Sand White" ? "Glossy Finish" : "Standard"}</strong>
+                            Varian: <strong style={{ color: "var(--bark)" }}>{order.items[0]?.variantName} â€” {order.items[0]?.variantName === "Sand White" ? "Glossy Finish" : "Standard"}</strong>
                           </p>
 
                           <p style={{ fontSize: "0.88rem", color: "var(--bark)", lineHeight: 1.55, margin: "0 0 0.75rem" }}>
@@ -737,7 +929,7 @@ export default function PesananSellerPage() {
                           {order.balasanMitra ? (
                             <div style={{ marginTop: "1rem", background: "var(--surface)", padding: "1rem", borderRadius: "0.75rem", position: "relative" }}>
                               <p style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--bark)", margin: "0 0 0.25rem", display: "flex", alignItems: "center", gap: "0.25rem" }}>
-                                <Storefront size={14} /> Dinoyo Ceramic Studio
+                                <Storefront size={14} /> {user?.store_name || "Balasan Toko"}
                               </p>
                               <p style={{ fontSize: "0.8rem", color: "var(--bark-muted)", fontStyle: "italic", margin: 0, lineHeight: 1.5 }}>
                                 "{order.balasanMitra}"
@@ -772,8 +964,89 @@ export default function PesananSellerPage() {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
+
+            {/* Pagination Footer */}
+            <div className="px-6 py-4 border-t border-zinc-200 bg-zinc-50/70 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center flex-wrap gap-3 text-xs text-zinc-600">
+                <span>
+                  Menampilkan <strong className="text-zinc-900">{startIndex + 1}â€“{endIndex}</strong> dari{" "}
+                  <strong className="text-zinc-900">{totalItems}</strong> pesanan
+                </span>
+                <div className="inline-flex items-center gap-1.5">
+                  <span className="text-zinc-500">Per halaman:</span>
+                  <EarthySelect
+                    value={String(itemsPerPage)}
+                    onChange={(val) => setItemsPerPage(Number(val))}
+                    options={[
+                      { value: "5", label: "5" },
+                      { value: "10", label: "10" },
+                      { value: "20", label: "20" },
+                      { value: "50", label: "50" },
+                    ]}
+                    minWidth={80}
+                    style={{
+                      height: 32,
+                      padding: "0.25rem 0.6rem",
+                      fontSize: "0.78rem",
+                      fontWeight: 600,
+                      borderRadius: "0.5rem",
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(safeCurrentPage - 1)}
+                  disabled={safeCurrentPage <= 1}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs font-semibold text-zinc-700 hover:bg-zinc-100 disabled:opacity-45 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  <CaretLeft size={13} weight="bold" />
+                  Sebelumnya
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {getVisiblePages().map((page, idx) =>
+                    page === "..." ? (
+                      <span
+                        key={`ellipsis-${idx}`}
+                        className="px-2 py-1 text-xs text-zinc-400 select-none"
+                      >
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={page}
+                        type="button"
+                        onClick={() => handlePageChange(page)}
+                        className={`min-w-[32px] h-8 px-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                          safeCurrentPage === page
+                            ? "bg-zinc-900 text-white"
+                            : "bg-white border border-zinc-200 text-zinc-700 hover:bg-zinc-100"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(safeCurrentPage + 1)}
+                  disabled={safeCurrentPage >= totalPages}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-xs font-semibold text-zinc-700 hover:bg-zinc-100 disabled:opacity-45 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                >
+                  Berikutnya
+                  <CaretRight size={13} weight="bold" />
+                </button>
+              </div>
+            </div>
+            </>
           ) : (
             <div className="text-center py-20">
               <Receipt size={48} className="text-zinc-300 mx-auto mb-4" />
@@ -784,7 +1057,7 @@ export default function PesananSellerPage() {
         </div>
       </div>
 
-      {/* ── Modal Atur Pengiriman ── */}
+      {/* â”€â”€ Modal Atur Pengiriman â”€â”€ */}
       {shippingOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
@@ -802,7 +1075,7 @@ export default function PesananSellerPage() {
               {/* Info pesanan */}
               <div style={{ background: "var(--surface)", borderRadius: "0.75rem", padding: "1rem", border: "1px solid var(--line)" }}>
                 <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", marginBottom: "0.25rem" }}>Pesanan</p>
-                <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--bark)", margin: 0 }}>{shippingOrder.id} · {shippingOrder.customerName}</p>
+                <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--bark)", margin: 0 }}>{shippingOrder.id} Â· {shippingOrder.customerName}</p>
               </div>
 
               {/* Pilih kurir */}
@@ -874,87 +1147,6 @@ export default function PesananSellerPage() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-
-
-
-      {/* ── Modal Chat Customer ── */}
-      {chatOrder && (
-        <div className="fixed inset-0 z-50 flex items-end justify-end p-4 bg-black/50 backdrop-blur-sm">
-          <div style={{
-            background: "#fff", borderRadius: "1.25rem", width: "100%", maxWidth: 380,
-            boxShadow: "0 20px 40px rgba(0,0,0,0.18)",
-            display: "flex", flexDirection: "column", height: "500px", overflow: "hidden",
-          }}>
-            {/* Header */}
-            <div style={{ background: "linear-gradient(135deg, #3b3025, #5a3d28)", padding: "1rem 1.25rem", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div>
-                <p style={{ fontWeight: 700, color: "#fff", fontSize: "0.9rem", margin: 0 }}>
-                  {chatOrder.customerName}
-                </p>
-                <p style={{ fontSize: "0.72rem", color: "rgba(255,255,255,0.65)", margin: "0.1rem 0 0" }}>
-                  {chatOrder.id}
-                </p>
-              </div>
-              <button onClick={() => setChatOrder(null)} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: "50%", width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#fff" }}>
-                <X size={15} weight="bold" />
-              </button>
-            </div>
-
-            {/* Pesan */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem", background: "#fafaf9" }}>
-              {chatMessages.length === 0 && (
-                <div style={{ textAlign: "center", marginTop: "2rem", color: "var(--bark-muted)", fontSize: "0.85rem" }}>
-                  Belum ada pesan. Mulai percakapan dengan customer.
-                </div>
-              )}
-              {chatMessages.map((msg, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: msg.from === "mitra" ? "flex-end" : "flex-start" }}>
-                  <div style={{
-                    maxWidth: "78%",
-                    background: msg.from === "mitra" ? "var(--clay)" : "#fff",
-                    color: msg.from === "mitra" ? "#fff" : "var(--bark)",
-                    padding: "0.6rem 0.9rem",
-                    borderRadius: msg.from === "mitra" ? "1rem 1rem 0.2rem 1rem" : "1rem 1rem 1rem 0.2rem",
-                    fontSize: "0.85rem", lineHeight: 1.5,
-                    border: msg.from === "customer" ? "1px solid var(--line)" : "none",
-                    boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-                  }}>
-                    <p style={{ margin: 0 }}>{msg.text}</p>
-                    <p style={{ margin: "0.25rem 0 0", fontSize: "0.65rem", opacity: 0.6, textAlign: "right" }}>{msg.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Input */}
-            <div style={{ padding: "0.75rem 1rem", borderTop: "1px solid var(--line)", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-              <input
-                value={chatInput}
-                onChange={e => setChatInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && sendChat()}
-                placeholder="Ketik balasan..."
-                style={{
-                  flex: 1, padding: "0.6rem 0.9rem", borderRadius: "9999px",
-                  border: "1px solid var(--line)", fontSize: "0.875rem",
-                  outline: "none", fontFamily: "var(--font-outfit), sans-serif",
-                  background: "var(--surface)",
-                }}
-              />
-              <button
-                onClick={sendChat}
-                style={{
-                  width: 36, height: 36, borderRadius: "50%",
-                  background: "var(--clay)", border: "none",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  cursor: "pointer", flexShrink: 0,
-                }}
-              >
-                <PaperPlaneTilt size={16} color="#fff" weight="fill" />
-              </button>
-            </div>
           </div>
         </div>
       )}

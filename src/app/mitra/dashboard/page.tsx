@@ -1,14 +1,15 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Package, Receipt, Users, CurrencyCircleDollar, TrendUp, ArrowRight, X, Bank, CaretDown } from "@phosphor-icons/react";
+import { Package, Receipt, Users, CurrencyCircleDollar, TrendUp, ArrowRight, X, Bank } from "@phosphor-icons/react";
 import Image from "next/image";
 import axios from "axios";
 import Cookies from "js-cookie";
 import Pusher from "pusher-js";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/useAuthStore";
+import { EarthySelect } from "@/components/ui/EarthySelect";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -29,7 +30,7 @@ interface DashboardData {
   }[];
 }
 
-// Local payment logos from /public/payment/ — served as static files
+// Local payment logos from /public/payment/ â€” served as static files
 const PAYMENT_METHODS = [
   { id: "BCA", name: "BCA", type: "Bank", logo: "/payment/bca.svg" },
   { id: "Mandiri", name: "Mandiri", type: "Bank", logo: "/payment/mandiri.svg" },
@@ -52,7 +53,6 @@ export default function SellerDashboardHome() {
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [selectedPayment, setSelectedPayment] = useState(PAYMENT_METHODS[0]);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [accountNumber, setAccountNumber] = useState("");
   const [accountName, setAccountName] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
@@ -330,7 +330,7 @@ export default function SellerDashboardHome() {
                     </div>
                     <div>
                       <p style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--bark)" }}>{order.id}</p>
-                      <p style={{ fontSize: "0.8rem", color: "var(--bark-muted)" }}>{order.items} • {order.buyer}</p>
+                      <p style={{ fontSize: "0.8rem", color: "var(--bark-muted)" }}>{order.items} â€¢ {order.buyer}</p>
                     </div>
                   </div>
                   <span style={{
@@ -405,55 +405,31 @@ export default function SellerDashboardHome() {
               <div style={{ display: "flex", gap: "1rem" }}>
                 <div style={{ flex: 1.2, position: "relative" }}>
                   <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.4rem" }}>Metode Tujuan</label>
-                  <div
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    style={{
-                      width: "100%", padding: "0.75rem", borderRadius: "0.5rem", border: "1px solid var(--line)",
-                      background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between",
-                      cursor: "pointer", fontSize: "0.9rem", height: "46px"
+                  <EarthySelect
+                    value={selectedPayment.id}
+                    onChange={(val) => {
+                      const found = PAYMENT_METHODS.find((m) => m.id === val);
+                      if (found) setSelectedPayment(found);
                     }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                      <div style={{ width: 40, display: "flex", justifyContent: "center" }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={selectedPayment.logo} alt={selectedPayment.name} style={{ objectFit: "contain", height: "18px", width: "auto", maxWidth: "40px", borderRadius: "4px" }} />
-                      </div>
-                      <span style={{ fontWeight: 600, color: "var(--bark)" }}>{selectedPayment.name}</span>
-                    </div>
-                    <CaretDown size={14} weight="bold" style={{ color: "var(--bark-muted)", transform: isDropdownOpen ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
-                  </div>
-
-                  {isDropdownOpen && (
-                    <div style={{
-                      position: "absolute", top: "100%", left: 0, right: 0, marginTop: "0.25rem",
-                      background: "#fff", border: "1px solid var(--line)", borderRadius: "0.75rem",
-                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
-                      zIndex: 100, maxHeight: "220px", overflowY: "auto"
-                    }}>
-                      {PAYMENT_METHODS.map((method) => (
-                        <div
-                          key={method.id}
-                          onClick={() => { setSelectedPayment(method); setIsDropdownOpen(false); }}
-                          style={{
-                            padding: "0.75rem 1rem", display: "flex", alignItems: "center", gap: "0.75rem",
-                            cursor: "pointer", borderBottom: "1px solid var(--line-light)",
-                            background: selectedPayment.id === method.id ? "var(--surface)" : "#fff"
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface)"}
-                          onMouseLeave={(e) => e.currentTarget.style.background = selectedPayment.id === method.id ? "var(--surface)" : "#fff"}
-                        >
-                          <div style={{ width: 40, display: "flex", justifyContent: "center" }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={method.logo} alt={method.name} style={{ objectFit: "contain", height: "20px", width: "auto", maxWidth: "40px", borderRadius: "4px" }} />
-                          </div>
-                          <div>
-                            <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", margin: 0 }}>{method.name}</p>
-                            <p style={{ fontSize: "0.7rem", color: "var(--bark-muted)", margin: 0 }}>{method.type}</p>
-                          </div>
+                    minWidth={170}
+                    maxHeight={220}
+                    style={{ width: "100%", height: "46px", padding: "0.5rem 0.75rem" }}
+                    options={PAYMENT_METHODS.map((method) => ({
+                      value: method.id,
+                      label: method.name,
+                      sublabel: method.type,
+                      icon: (
+                        <div style={{ width: 32, display: "flex", justifyContent: "center" }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={method.logo}
+                            alt={method.name}
+                            style={{ objectFit: "contain", height: "16px", width: "auto", maxWidth: "32px", borderRadius: "3px" }}
+                          />
                         </div>
-                      ))}
-                    </div>
-                  )}
+                      ),
+                    }))}
+                  />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.4rem" }}>Nomor Rekening / HP</label>

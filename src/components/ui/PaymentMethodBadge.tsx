@@ -37,15 +37,36 @@ interface PaymentMethodBadgeProps {
   method?: string;
   bank?: string | null;
   statusSuffix?: string;
+  size?: "sm" | "lg";
 }
 
 export function PaymentMethodBadge({
   method,
   bank,
   statusSuffix,
+  size = "sm",
 }: PaymentMethodBadgeProps) {
   const label = formatPaymentLabel(method, bank);
   const logoSrc = getPaymentLogo(method, bank);
+
+  if (size === "lg") {
+    return (
+      <div className="w-full inline-flex items-center justify-center gap-2.5 px-3 py-2 rounded-lg bg-white border border-zinc-200 text-zinc-700">
+        {logoSrc && (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img
+            src={logoSrc}
+            alt={label}
+            className="h-6 w-auto max-w-[96px] object-contain shrink-0"
+          />
+        )}
+        <span className="text-xs font-semibold text-zinc-700">
+          {label}
+          {statusSuffix ? ` ${statusSuffix}` : ""}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-50 border border-zinc-200/80 text-zinc-700 text-[11px] font-semibold">

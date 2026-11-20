@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { getDemoSession } from "@/lib/utils/demo";
@@ -48,7 +48,7 @@ export default function AdminModerasiPage() {
   const [deleteSearch, setDeleteSearch] = useState("");
   const [deleteFilter, setDeleteFilter] = useState<"semua" | DeleteStatus>("semua");
 
-  const fetchModerationData = useCallback(async () => {
+  const fetchModerationData = useCallback(async (silent = false) => {
     try {
       const [reportsRes, deletionsRes] = await Promise.all([
         adminService.getModerationReports({ limit: 100 }),
@@ -83,14 +83,18 @@ export default function AdminModerasiPage() {
         );
       }
 
-      if (typeof window !== "undefined") {
+      if (!silent && typeof window !== "undefined") {
         window.dispatchEvent(new Event("admin_moderasi_updated"));
       }
     } catch (err) {
-      console.error("Gagal memuat data moderasi:", err);
-      toast.error("Gagal memuat data moderasi dari server.");
+      if (!silent) {
+        console.error("Gagal memuat data moderasi:", err);
+        toast.error("Gagal memuat data moderasi dari server.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -224,7 +228,7 @@ export default function AdminModerasiPage() {
         ))}
       </div>
 
-      {/* ── TAB: LAPORAN PELANGGARAN ── */}
+      {/* â”€â”€ TAB: LAPORAN PELANGGARAN â”€â”€ */}
       {activeTab === "laporan" && (
         <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
           {/* Toolbar */}
@@ -346,7 +350,7 @@ export default function AdminModerasiPage() {
 
 
                         ) : (
-                          <div className="flex justify-center"><span className="text-sm text-zinc-400">—</span></div>
+                          <div className="flex justify-center"><span className="text-sm text-zinc-400">â€”</span></div>
                         )}
 
                       </td>
@@ -367,7 +371,7 @@ export default function AdminModerasiPage() {
         </div>
       )}
 
-      {/* ── TAB: PENGAJUAN HAPUS AKUN ── */}
+      {/* â”€â”€ TAB: PENGAJUAN HAPUS AKUN â”€â”€ */}
       {activeTab === "hapus-akun" && (
         <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
           {/* Toolbar */}
@@ -475,7 +479,7 @@ export default function AdminModerasiPage() {
                           </button>
                         </div>
                       ) : (
-                        <span className="text-sm text-zinc-400">—</span>
+                        <span className="text-sm text-zinc-400">â€”</span>
                       )}
                     </td>
                   </tr>

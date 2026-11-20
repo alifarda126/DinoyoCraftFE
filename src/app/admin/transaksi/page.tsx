@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import Pusher from "pusher-js";
@@ -128,6 +128,7 @@ export default function AdminTransaksiPage() {
     const q = search.toLowerCase();
     const matchSearch =
       t.id.toLowerCase().includes(q) ||
+      (t.reference_code || "").toLowerCase().includes(q) ||
       (t.gateway_order_id || "").toLowerCase().includes(q) ||
       t.customer.toLowerCase().includes(q) ||
       t.store.toLowerCase().includes(q) ||
@@ -362,7 +363,7 @@ export default function AdminTransaksiPage() {
         doc.setFontSize(8);
         doc.setTextColor(113, 113, 122);
         doc.text(
-          "DinoyoCraft Admin — Laporan Transaksi Lintas Toko",
+          "DinoyoCraft Admin â€” Laporan Transaksi Lintas Toko",
           marginX,
           pageHeight - 8
         );
@@ -395,7 +396,7 @@ export default function AdminTransaksiPage() {
           <h1 className="text-2xl font-bold text-zinc-900  mb-1">Transaksi Lintas Toko</h1>
           <p className="text-zinc-500 text-sm">Pantau perputaran uang dari seluruh Mitra Pengrajin.</p>
         </div>
-        {/* Tombol Ekspor — CSV (outline) + PDF (clay primary) */}
+        {/* Tombol Ekspor â€” CSV (outline) + PDF (clay primary) */}
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
           {/* CSV */}
           <button

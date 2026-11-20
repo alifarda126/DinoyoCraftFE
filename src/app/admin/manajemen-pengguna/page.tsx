@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Users, MagnifyingGlass, ArrowsClockwise, Prohibit, CheckCircle, SignOut } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { adminService } from "@/services/admin.service";
+import { EarthySelect } from "@/components/ui/EarthySelect";
 
 type UserItem = {
   id: number;
@@ -162,16 +163,17 @@ export default function ManajemenPenggunaPage() {
           </div>
           
           <div className="flex gap-2">
-            <select
-              value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 text-sm focus:outline-none"
-            >
-              <option value="">Semua Role</option>
-              <option value="Admin">Admin</option>
-              <option value="Seller">Seller</option>
-              <option value="Customer">Customer</option>
-            </select>
+            <EarthySelect
+              value={roleFilter || "all"}
+              onChange={(val) => setRoleFilter(val === "all" ? "" : val)}
+              minWidth={150}
+              options={[
+                { value: "all", label: "Semua Role" },
+                { value: "Admin", label: "Admin" },
+                { value: "Seller", label: "Seller" },
+                { value: "Customer", label: "Customer" },
+              ]}
+            />
           </div>
         </div>
 

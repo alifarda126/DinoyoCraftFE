@@ -12,12 +12,12 @@ export interface Transaction {
 
 export const transactionService = {
   getAll: async (params?: any): Promise<PaginatedResponse<Transaction>> => {
-    const response = await api.get("/transactions", { params });
+    const response = await api.get("/admin/transactions", { params });
     return response.data;
   },
 
   getStats: async () => {
-    const response = await api.get("/transactions/stats");
+    const response = await api.get("/admin/dashboard-stats");
     return response.data;
   },
 };

@@ -7,6 +7,7 @@ import { mitraService } from "@/services/mitra.service";
 import { useAuthStore } from "@/store/useAuthStore";
 import { toast } from "sonner";
 import api from "@/lib/axios";
+import { EarthySelect } from "@/components/ui/EarthySelect";
 import {
   Camera, Storefront, MapPin, Phone, EnvelopeSimple,
   CalendarBlank, Globe, InstagramLogo, CheckCircle,
@@ -226,6 +227,54 @@ export default function SellerProfilPage() {
     }
   }
 
+  // Sinkronisasi status verifikasi & dokumen saja secara silent (tanpa menimpa input form yang sedang diketik)
+  async function syncStatusAndDocsSilently() {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if (!storedToken) return;
+    try {
+      const res = await api.get("/auth/profile");
+      if (res.data?.success && res.data?.data) {
+        const d = res.data.data;
+        setDocsData({
+          ktp_file_url: d.ktp_file_url,
+          nib_file_url: d.nib_file_url,
+          sample_product_images: d.sample_product_images,
+        });
+
+        const reason = d.rejection_reason || null;
+        setRejectionReason(reason);
+
+        let status: "pending" | "approved" | "rejected" = "pending";
+        if (d.is_verified === 1 || d.is_verified === true || d.is_verified === "1" || Number(d.is_verified) === 1) {
+          status = "approved";
+        } else if (d.is_verified === 2 || Number(d.is_verified) === 2 || reason) {
+          status = "rejected";
+        } else {
+          status = "pending";
+        }
+        setVerificationStatus(status);
+        setIsVerified(status === "approved");
+
+        if (typeof window !== "undefined") {
+          const userStr = localStorage.getItem("user");
+          let parsedUser: Record<string, any> = {};
+          try { parsedUser = userStr ? JSON.parse(userStr) : {}; } catch {}
+          const updatedUserObj = {
+            ...parsedUser,
+            name: d.name || parsedUser.name,
+            store_name: d.store_name || parsedUser.store_name,
+            is_verified: d.is_verified,
+            rejection_reason: reason,
+          };
+          localStorage.setItem("user", JSON.stringify(updatedUserObj));
+          useAuthStore.getState().updateUser(updatedUserObj);
+        }
+      }
+    } catch {
+      // silent background sync
+    }
+  }
+
   useEffect(() => {
     const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
@@ -237,14 +286,21 @@ export default function SellerProfilPage() {
     fetchProfileData();
 
     const handleVerificationUpdated = () => {
-      fetchProfileData();
+      if (typeof document === "undefined" || document.visibilityState === "visible") {
+        syncStatusAndDocsSilently();
+      }
     };
+
+    const pollInterval = setInterval(handleVerificationUpdated, 5000);
     window.addEventListener("mitra-verification-updated", handleVerificationUpdated);
     window.addEventListener("focus", handleVerificationUpdated);
+    document.addEventListener("visibilitychange", handleVerificationUpdated);
 
     return () => {
+      clearInterval(pollInterval);
       window.removeEventListener("mitra-verification-updated", handleVerificationUpdated);
       window.removeEventListener("focus", handleVerificationUpdated);
+      document.removeEventListener("visibilitychange", handleVerificationUpdated);
     };
   }, [router]);
 
@@ -1136,13 +1192,12 @@ export default function SellerProfilPage() {
                   />
                 </Field>
                 <Field label="Kategori Utama">
-                  <select
+                  <EarthySelect
                     value={profile.kategori}
-                    onChange={e => handleChange("kategori", e.target.value)}
-                    style={{ ...inputStyle, appearance: "none", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24'%3E%3Cpath fill='%236b7280' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 0.75rem center" }}
-                  >
-                    {KATEGORI_LIST.map(k => <option key={k} value={k}>{k}</option>)}
-                  </select>
+                    onChange={(v) => handleChange("kategori", v)}
+                    options={KATEGORI_LIST.map((k) => ({ value: k, label: k }))}
+                    style={{ width: "100%", padding: "0.625rem 0.85rem" }}
+                  />
                 </Field>
                 <Field label="Tahun Mulai Usaha">
                   <div style={{ position: "relative" }}>

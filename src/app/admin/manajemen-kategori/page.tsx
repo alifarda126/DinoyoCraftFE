@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Folder, MagnifyingGlass, Plus, PencilSimple, Trash, Check, X } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { adminService } from "@/services/admin.service";
 import api from "@/lib/axios";
+import { EarthySelect } from "@/components/ui/EarthySelect";
 
 type Category = {
   id: number;
@@ -184,11 +185,15 @@ export default function ManajemenKategoriPage() {
           </div>
           <div>
             <label className="block text-sm font-semibold mb-1.5 text-zinc-700">Status</label>
-            <select value={newStatus} onChange={e => setNewStatus(e.target.value as "Active" | "Inactive")}
-              className="px-3 py-2 rounded-lg border border-zinc-200 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white">
-              <option value="Active">Active</option>
-              <option value="Inactive">Inactive</option>
-            </select>
+            <EarthySelect
+              value={newStatus}
+              onChange={(v) => setNewStatus(v as "Active" | "Inactive")}
+              minWidth={130}
+              options={[
+                { value: "Active", label: "Active" },
+                { value: "Inactive", label: "Inactive" },
+              ]}
+            />
           </div>
           <button type="submit" className="bg-zinc-900 text-white px-5 py-2 rounded-lg font-semibold text-sm hover:bg-zinc-700 transition-colors flex items-center gap-2">
             <Check size={18} /> Simpan
@@ -226,11 +231,16 @@ export default function ManajemenKategoriPage() {
                       <form onSubmit={e => handleEdit(e, cat.id)} className="flex items-center gap-2">
                         <input type="text" value={editName} onChange={e => setEditName(e.target.value)} required autoFocus
                           className="px-2 py-1 rounded border border-zinc-300 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 w-40" />
-                        <select value={editStatus} onChange={e => setEditStatus(e.target.value as "Active" | "Inactive")}
-                          className="px-2 py-1 rounded border border-zinc-300 text-sm focus:outline-none bg-white">
-                          <option value="Active">Active</option>
-                          <option value="Inactive">Inactive</option>
-                        </select>
+                        <EarthySelect
+                          value={editStatus}
+                          onChange={(v) => setEditStatus(v as "Active" | "Inactive")}
+                          minWidth={120}
+                          style={{ padding: "0.35rem 0.65rem", fontSize: "0.8rem" }}
+                          options={[
+                            { value: "Active", label: "Active" },
+                            { value: "Inactive", label: "Inactive" },
+                          ]}
+                        />
                         <button type="submit" className="p-1 text-green-600 hover:text-green-700" title="Simpan"><Check size={18} weight="bold" /></button>
                         <button type="button" onClick={() => setEditingId(null)} className="p-1 text-zinc-400 hover:text-zinc-600" title="Batal"><X size={18} weight="bold" /></button>
                       </form>

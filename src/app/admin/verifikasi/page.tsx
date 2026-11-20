@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -111,17 +111,24 @@ export default function AdminVerifikasiPage() {
         });
 
         setRegistrations(mappedData);
+        setSelectedReg((prev) =>
+          prev ? (mappedData.find((item) => String(item.id) === String(prev.id)) ?? prev) : null
+        );
       } else {
         setRegistrations([]);
       }
-      if (typeof window !== "undefined") {
+      if (isInitial && typeof window !== "undefined") {
         window.dispatchEvent(new Event("admin_verifikasi_updated"));
       }
     } catch (error: any) {
-      console.error("Gagal memuat data verifikasi:", error);
-      toast.error(error?.response?.data?.message || "Gagal memuat daftar pengajuan verifikasi toko.");
+      if (isInitial) {
+        console.error("Gagal memuat data verifikasi:", error);
+        toast.error(error?.response?.data?.message || "Gagal memuat daftar pengajuan verifikasi toko.");
+      }
     } finally {
-      setLoading(false);
+      if (isInitial) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -199,7 +206,7 @@ export default function AdminVerifikasiPage() {
     }
   };
 
-  // 3. Handler download file langsung (blob — bypass CORS download restriction)
+  // 3. Handler download file langsung (blob â€” bypass CORS download restriction)
   const handleDownload = async (url: string, label: string) => {
     try {
       const response = await fetch(url, { mode: "cors" });
@@ -398,7 +405,7 @@ export default function AdminVerifikasiPage() {
         </div>
       </div>
 
-      {/* ── Modal Konfirmasi Penolakan Pengajuan ── */}
+      {/* â”€â”€ Modal Konfirmasi Penolakan Pengajuan â”€â”€ */}
       {rejectModalReg && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 250,
@@ -533,7 +540,7 @@ export default function AdminVerifikasiPage() {
         </div>
       )}
 
-      {/* ── Modal Detail & Persyaratan ── */}
+      {/* â”€â”€ Modal Detail & Persyaratan â”€â”€ */}
       {selectedReg && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 200,
@@ -781,7 +788,7 @@ export default function AdminVerifikasiPage() {
         </div>
       )}
 
-      {/* ── Modal Preview Dokumen ── */}
+      {/* â”€â”€ Modal Preview Dokumen â”€â”€ */}
       {docPreview && (
         <div
           onClick={() => setDocPreview(null)}
@@ -834,7 +841,7 @@ export default function AdminVerifikasiPage() {
                     display: "flex", alignItems: "center", gap: "0.35rem",
                   }}
                 >
-                  ↓ Unduh
+                  â†“ Unduh
                 </button>
                 <button
                   onClick={() => setDocPreview(null)}
