@@ -841,7 +841,7 @@ export default function LaporanKeuanganPage() {
       </div>
 
       {/* Transaction History */}
-      <div className="card-shadow" style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.02)" }}>
+      <div className="card-shadow" style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", overflow: "hidden", boxShadow: "0 2px 10px rgba(0,0,0,0.02)", marginBottom: "2rem" }}>
         <div style={{ padding: "1rem 1.5rem", borderBottom: "1px solid var(--line)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
           <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--bark)", margin: 0 }}>Riwayat Transaksi</h2>
           <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
