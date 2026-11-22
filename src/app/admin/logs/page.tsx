@@ -37,6 +37,7 @@ import {
   LogsSummaryData,
 } from "@/services/logs.service";
 import { getDemoSession } from "@/lib/utils/demo";
+import { EarthySelect } from "@/components/ui/EarthySelect";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
@@ -117,18 +118,26 @@ function HttpStatusChip({
   statusCode,
   severity,
   outcome,
+  category,
 }: {
   statusCode?: number | null;
   severity: LogSeverity;
   outcome?: SystemLogItem["outcome"];
+  category?: string;
 }) {
   const code = statusCode ?? 0;
 
   if (outcome === "pending" && code < 400) {
+    const pendingHint =
+      category === "auth" || category === "product_store"
+        ? "Menunggu verifikasi Admin (Pending)"
+        : category === "transaction" || category === "order"
+        ? "Menunggu pembayaran (Pending)"
+        : "Status Pending";
     return (
       <span
         className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-yellow-100 text-yellow-800 border border-yellow-400 whitespace-nowrap"
-        title={code > 0 ? `HTTP ${code} — Menunggu pembayaran (Pending)` : "Pending"}
+        title={code > 0 ? `HTTP ${code} — ${pendingHint}` : pendingHint}
       >
         <Clock size={13} weight="bold" />
         PENDING
@@ -1297,34 +1306,38 @@ function AdminSystemLogsContent() {
 
             {/* Filter HTTP Status Group */}
             <div className="xl:col-span-2">
-              <select
+              <EarthySelect
                 value={statusCodeFilter}
-                onChange={(e) => setStatusCodeFilter(e.target.value)}
-                className="w-full px-2.5 py-2 text-xs border border-zinc-300 rounded-lg bg-white font-semibold text-zinc-700"
-              >
-                <option value="all">Semua Status HTTP</option>
-                <option value="2xx">2xx (Success)</option>
-                <option value="3xx">3xx (Redirect/Info)</option>
-                <option value="4xx">4xx (Client Warning)</option>
-                <option value="5xx">5xx (Server Error)</option>
-                <option value="0">Non-HTTP / Worker</option>
-              </select>
+                onChange={setStatusCodeFilter}
+                minWidth={145}
+                style={{ width: "100%", padding: "0.45rem 0.7rem", fontSize: "0.75rem" }}
+                options={[
+                  { value: "all", label: "Semua Status HTTP" },
+                  { value: "2xx", label: "2xx (Success)" },
+                  { value: "3xx", label: "3xx (Redirect/Info)" },
+                  { value: "4xx", label: "4xx (Client Warning)" },
+                  { value: "5xx", label: "5xx (Server Error)" },
+                  { value: "0", label: "Non-HTTP / Worker" },
+                ]}
+              />
             </div>
 
             {/* Filter Source */}
             <div className="xl:col-span-2">
-              <select
+              <EarthySelect
                 value={sourceFilter}
-                onChange={(e) => setSourceFilter(e.target.value)}
-                className="w-full px-2.5 py-2 text-xs border border-zinc-300 rounded-lg bg-white font-semibold text-zinc-700"
-              >
-                <option value="all">Semua Sumber</option>
-                <option value="backend">Backend API</option>
-                <option value="external">External (Pusher/FCM/Gateway)</option>
-                <option value="mobile">Mobile Flutter</option>
-                <option value="web">Web Frontend</option>
-                <option value="worker">Background Worker</option>
-              </select>
+                onChange={setSourceFilter}
+                minWidth={145}
+                style={{ width: "100%", padding: "0.45rem 0.7rem", fontSize: "0.75rem" }}
+                options={[
+                  { value: "all", label: "Semua Sumber" },
+                  { value: "backend", label: "Backend API" },
+                  { value: "external", label: "External (Pusher/FCM/Gateway)" },
+                  { value: "mobile", label: "Mobile Flutter" },
+                  { value: "web", label: "Web Frontend" },
+                  { value: "worker", label: "Background Worker" },
+                ]}
+              />
             </div>
 
             {/* Tombol Filter Korelasi & Reset */}
@@ -1389,10 +1402,10 @@ function AdminSystemLogsContent() {
                   ? "bg-amber-600 text-white border-amber-700"
                   : "bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100"
               }`}
-              title="Tampilkan log transaksi/pembayaran berstatus pending (belum dibayar)"
+              title="Tampilkan log berstatus pending (menunggu pembayaran atau verifikasi mitra)"
             >
               <Clock size={12} weight="bold" className="shrink-0" />
-              Pending (Belum Bayar)
+              Pending (Belum Bayar / Verifikasi)
             </button>
           </div>
 
@@ -1451,17 +1464,19 @@ function AdminSystemLogsContent() {
                 <label className="block text-[10px] font-bold uppercase text-zinc-500 mb-1">
                   Peran Aktor (Role)
                 </label>
-                <select
+                <EarthySelect
                   value={roleFilter}
-                  onChange={(e) => setRoleFilter(e.target.value)}
-                  className="w-full px-2.5 py-1.5 text-xs border border-zinc-300 rounded-md bg-white"
-                >
-                  <option value="all">Semua Peran</option>
-                  <option value="admin">Admin</option>
-                  <option value="mitra">Mitra</option>
-                  <option value="pengunjung">Pengunjung / Buyer</option>
-                  <option value="guest">Guest</option>
-                </select>
+                  onChange={setRoleFilter}
+                  minWidth={140}
+                  style={{ width: "100%", padding: "0.38rem 0.65rem", fontSize: "0.75rem" }}
+                  options={[
+                    { value: "all", label: "Semua Peran" },
+                    { value: "admin", label: "Admin" },
+                    { value: "mitra", label: "Mitra" },
+                    { value: "pengunjung", label: "Pengunjung / Buyer" },
+                    { value: "guest", label: "Guest" },
+                  ]}
+                />
               </div>
             </div>
           )}
@@ -1629,6 +1644,7 @@ function AdminSystemLogsContent() {
                           statusCode={item.http?.statusCode}
                           severity={item.severity}
                           outcome={item.outcome}
+                          category={item.category}
                         />
                       </td>
 
@@ -1750,6 +1766,7 @@ function AdminSystemLogsContent() {
                     statusCode={activeLog.http?.statusCode}
                     severity={activeLog.severity}
                     outcome={activeLog.outcome}
+                    category={activeLog.category}
                   />
                   <span className="px-2 py-0.5 rounded bg-zinc-100 text-zinc-800 font-bold text-xs">
                     {activeLog.category}
@@ -1841,6 +1858,19 @@ function AdminSystemLogsContent() {
                   Telusuri Order #{activeLog.correlation.orderId}
                 </button>
               )}
+
+              {activeLog.outcome === "pending" &&
+                (activeLog.eventName.includes("mitra") ||
+                  activeLog.correlation?.role === "mitra") && (
+                  <button
+                    type="button"
+                    onClick={() => router.push("/admin/verifikasi")}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 hover:bg-amber-200"
+                  >
+                    <LinkSimple size={14} weight="bold" />
+                    Tinjau Verifikasi Mitra
+                  </button>
+                )}
 
               {!activeLog.deletedAt && activeLog.category !== "admin_audit" && (
                 <button
@@ -1996,6 +2026,7 @@ function AdminSystemLogsContent() {
                               statusCode={rel.http?.statusCode}
                               severity={rel.severity}
                               outcome={rel.outcome}
+                              category={rel.category}
                             />
                             <span className="font-mono font-bold text-zinc-900">
                               {rel.eventName}
