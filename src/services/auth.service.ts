@@ -1,21 +1,22 @@
 // src/services/authService.ts
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export const authService = {
   // --- FUNGSI LOGIN (Sudah ada sebelumnya) ---
-  login: async (credentials: { email: string; password: string }) => {
-    const res = await fetch('http://localhost:5000/api/auth/login', {
+  login: async (credentials: { email: string; password: string; portal?: 'web' | 'mobile' }) => {
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json', // WAJIB ADA UNTUK LOGIN
       },
-      body: JSON.stringify(credentials),
+      body: JSON.stringify({ ...credentials, portal: credentials.portal ?? 'web' }),
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      throw { response: { data: { message: data.message || 'Gagal login' } } };
+      throw { response: { status: res.status, data: { ...data, message: data.message || 'Gagal login' } } };
     }
 
     const token = data.data?.token || data.token || "token-sementara";
@@ -24,6 +25,7 @@ export const authService = {
     return {
       success: true,
       message: data.message,
+      requires_2fa: Boolean(data.requires_2fa || data.data?.requires_2fa),
       data: {
         user,
         token
@@ -33,7 +35,7 @@ export const authService = {
 
   // --- FUNGSI REGISTER BARU UNTUK MEMPERBAIKI ERROR ---
   register: async (formData: FormData) => {
-    const res = await fetch('http://localhost:5000/api/auth/register-mitra', {
+    const res = await fetch(`${API_BASE_URL}/auth/register-mitra`, {
       method: 'POST',
       // PENTING: JANGAN ADA PROPERTI 'headers' DI SINI SAMA SEKALI
       // Biarkan browser yang men-generate 'Content-Type: multipart/form-data; boundary=...'
@@ -48,34 +50,35 @@ export const authService = {
   },
 
   // --- FUNGSI GOOGLE LOGIN ---
-  googleLogin: async (payload: { credential?: string; userInfo?: any }) => {
-    const res = await fetch('http://localhost:5000/api/auth/google-login', {
+  googleLogin: async (payload: { credential?: string; access_token?: string; userInfo?: any; role?: string; portal?: 'web' | 'mobile' }) => {
+    const res = await fetch(`${API_BASE_URL}/auth/google-login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ ...payload, portal: payload.portal ?? 'web' }),
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      throw { response: { data: { message: data.message || 'Gagal login dengan Google' } } };
+      throw { response: { status: res.status, data: { ...data, message: data.message || 'Gagal login dengan Google' } } };
     }
 
     return {
       success: true,
       message: data.message,
+      requires_2fa: Boolean(data.requires_2fa || data.data?.requires_2fa),
       data: {
-        user: data.data,
-        token: data.token || "token-sementara"
+        user: data.data?.user || data.data,
+        token: data.token || data.data?.token || "token-sementara"
       }
     };
   },
 
   // --- FUNGSI LUPA KATA SANDI ---
   forgotPassword: async (email: string) => {
-    const res = await fetch('http://localhost:5000/api/auth/forgot-password', {
+    const res = await fetch(`${API_BASE_URL}/auth/forgot-password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -94,7 +97,7 @@ export const authService = {
 
   // --- FUNGSI VERIFIKASI OTP ---
   verifyOtp: async (payload: { email: string; otp: string }) => {
-    const res = await fetch('http://localhost:5000/api/auth/verify-otp', {
+    const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -113,7 +116,7 @@ export const authService = {
 
   // --- FUNGSI RESET KATA SANDI ---
   resetPassword: async (payload: { email: string; newPassword: string; otp?: string }) => {
-    const res = await fetch('http://localhost:5000/api/auth/reset-password', {
+    const res = await fetch(`${API_BASE_URL}/auth/reset-password`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

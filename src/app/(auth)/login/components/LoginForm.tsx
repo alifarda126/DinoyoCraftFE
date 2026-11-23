@@ -17,6 +17,7 @@ import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
 import { loginSchema, LoginFormData } from "@/validators/authSchemas";
 
 const pjs = Plus_Jakarta_Sans({ subsets: ["latin"] });
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 function LoginFormContent() {
   const router = useRouter();
@@ -41,10 +42,11 @@ function LoginFormContent() {
 
     try {
       const response = await axios.post(
-        "http://localhost:5000/api/auth/login",
+        `${API_BASE_URL}/auth/login`,
         {
           email: data.email,
           password: data.password,
+          portal: "web",
         },
         {
           withCredentials: true,
@@ -54,6 +56,10 @@ function LoginFormContent() {
       console.log("=== RESPONSE BACKEND ===", response.data);
 
       if (response.data.success) {
+        if (response.data.requires_2fa || response.data.data?.requires_2fa) {
+          toast.info(response.data.message || "Akun ini mengaktifkan 2FA. Periksa email Anda untuk kode OTP.");
+          return;
+        }
         const token = response.data.data?.token || response.data.token;
         const userData = response.data.data?.user || response.data.data;
 
@@ -62,6 +68,13 @@ function LoginFormContent() {
 
         if (!userData || !token) {
           toast.error("Format data dari server tidak sesuai");
+          return;
+        }
+
+        const role = userData?.role;
+        if (role === "pengunjung") {
+          toast.error("Email ini sudah terdaftar sebagai Pengunjung di aplikasi DinoyoCraft. Silakan daftar sebagai Mitra terlebih dahulu.");
+          router.push("/register");
           return;
         }
 
@@ -74,7 +87,6 @@ function LoginFormContent() {
         toast.success("Login berhasil!");
 
         // Arahkan ke dashboard
-        const role = userData?.role;
         if (role === "admin") {
           router.push("/admin");
         } else if (role === "mitra") {
@@ -92,7 +104,11 @@ function LoginFormContent() {
       }
     } catch (error: any) {
       console.error("Gagal login", error);
-      toast.error(error.response?.data?.message || "Terjadi kesalahan saat login");
+      const errData = error.response?.data;
+      toast.error(errData?.message || "Terjadi kesalahan saat login");
+      if (errData?.code === "PENGUNJUNG_ROLE_NOT_ALLOWED_WEB" || errData?.redirect_to_register) {
+        router.push("/register");
+      }
     } finally {
       setLoading(false);
     }
@@ -108,14 +124,29 @@ function LoginFormContent() {
       });
       const userInfo = await userInfoRes.json();
 
-      const response = await authService.googleLogin({ userInfo });
+      const response = await authService.googleLogin({
+        access_token: tokenResponse.access_token,
+        userInfo,
+        portal: "web",
+      });
 
       if (response.success !== false) {
+        if (response.requires_2fa) {
+          toast.info(response.message || "Akun ini mengaktifkan 2FA. Periksa email Anda untuk kode OTP.");
+          return;
+        }
         const userData = response.data?.user || response.data;
         const userToken = response.data?.token || (response as any).token;
 
         if (!userData || !userToken) {
           toast.error("Format data dari server tidak sesuai");
+          return;
+        }
+
+        const role = userData?.role;
+        if (role === "pengunjung") {
+          toast.error("Akun Google ini sudah terdaftar sebagai Pengunjung di aplikasi DinoyoCraft. Silakan daftar sebagai Mitra terlebih dahulu.");
+          router.push("/register");
           return;
         }
 
@@ -125,7 +156,6 @@ function LoginFormContent() {
         login(userData, userToken);
         toast.success("Login dengan Google berhasil!");
 
-        const role = userData?.role;
         if (role === "admin") {
           router.push("/admin");
         } else if (role === "mitra") {
@@ -143,7 +173,11 @@ function LoginFormContent() {
       }
     } catch (error: any) {
       console.error("Google login error:", error);
-      toast.error(error.response?.data?.message || "Terjadi kesalahan saat login dengan Google");
+      const errData = error.response?.data;
+      toast.error(errData?.message || "Terjadi kesalahan saat login dengan Google");
+      if (errData?.code === "PENGUNJUNG_ROLE_NOT_ALLOWED_WEB" || errData?.redirect_to_register) {
+        router.push("/register");
+      }
     } finally {
       setLoading(false);
     }
