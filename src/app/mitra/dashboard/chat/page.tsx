@@ -5,18 +5,31 @@ import Pusher from "pusher-js";
 import api from "@/lib/axios";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
-import { UserCircle, Storefront, ChatCircle, MagnifyingGlass } from "@phosphor-icons/react";
+import { Storefront, ChatCircle, MagnifyingGlass, Headset } from "@phosphor-icons/react";
 import { useAuthStore } from "@/store/useAuthStore";
 import {
+  ChatComposerContextBanner,
+  ChatContextMetadata,
   ChatMediaComposer,
+  ChatMessageContextCard,
   ChatMessageMedia,
   DinoyoSticker,
   formatLastSeen,
   formatMessagePreview,
+  getValidMitraOrderCode,
   isStickerUrl,
+  parseChatMetadata,
 } from "@/components/chat/ChatMediaControls";
 
-type ChatMsg = { id?: number; tempId?: string; from: "me" | "other"; text: string; time: string; image_url?: string };
+type ChatMsg = {
+  id?: number;
+  tempId?: string;
+  from: "me" | "other";
+  text: string;
+  time: string;
+  image_url?: string;
+  metadata?: ChatContextMetadata | null;
+};
 type ChatContact = {
   id: number;
   name: string;
@@ -42,7 +55,7 @@ const getAuthUserId = (): number => {
           if (!isNaN(uid) && uid > 0) return uid;
         }
       }
-    } catch {}
+    } catch { }
     try {
       const uStr = localStorage.getItem("user");
       if (uStr) {
@@ -50,7 +63,7 @@ const getAuthUserId = (): number => {
         const uid = Number(u.id || u.userId);
         if (!isNaN(uid) && uid > 0) return uid;
       }
-    } catch {}
+    } catch { }
   }
   return 0;
 };
@@ -66,10 +79,12 @@ export default function SellerChatPage() {
   });
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [message, setMessage] = useState("");
+  const [attachedContext, setAttachedContext] = useState<ChatContextMetadata | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [search, setSearch] = useState("");
   const { user, initAuth } = useAuthStore();
 
+  const targetCustomerRef = useRef<{ id: number; name: string } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -95,6 +110,36 @@ export default function SellerChatPage() {
       return;
     }
 
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const cid = Number(sp.get("customerId") || 0);
+      const cname = sp.get("customerName") || "Customer";
+      if (cid > 0) {
+        targetCustomerRef.current = { id: cid, name: cname };
+        setChatTab("customer");
+        setActiveContact(cid);
+      }
+
+      try {
+        const rawCtx = sessionStorage.getItem("mitra_chat_order_context");
+        if (rawCtx) {
+          const parsedCtx = parseChatMetadata(rawCtx);
+          if (parsedCtx) {
+            setAttachedContext(parsedCtx);
+            if (!cid && parsedCtx.customer_id) {
+              targetCustomerRef.current = {
+                id: Number(parsedCtx.customer_id),
+                name: parsedCtx.customer_name || "Customer",
+              };
+              setChatTab("customer");
+              setActiveContact(Number(parsedCtx.customer_id));
+            }
+          }
+          sessionStorage.removeItem("mitra_chat_order_context");
+        }
+      } catch { }
+    }
+
     setLoading(false);
   }, [router]);
 
@@ -111,14 +156,17 @@ export default function SellerChatPage() {
             const customerList: ChatContact[] = [];
 
             res.data.data.forEach((c: any) => {
-              const displayName = c.role === "admin" ? (c.name || "CS DinoyoCraft") : (c.store_name || c.name || "Customer");
-              const initials = displayName
-                .split(" ")
-                .filter(Boolean)
-                .map((w: string) => w[0])
-                .slice(0, 2)
-                .join("")
-                .toUpperCase() || (c.role === "admin" ? "CS" : "C");
+              const isAdminCs = c.role === "admin" || c.is_cs === true;
+              const displayName = isAdminCs ? "Customer Service" : (c.store_name || c.name || "Customer");
+              const initials = isAdminCs
+                ? "CS"
+                : displayName
+                  .split(" ")
+                  .filter(Boolean)
+                  .map((w: string) => w[0])
+                  .slice(0, 2)
+                  .join("")
+                  .toUpperCase() || "C";
 
               let timeStr = "";
               if (c.last_message_time) {
@@ -129,7 +177,8 @@ export default function SellerChatPage() {
               const hasChatHistory = Boolean(
                 c.last_message_time ||
                 (c.last_message && String(c.last_message).trim()) ||
-                (c.last_image_url && String(c.last_image_url).trim())
+                (c.last_image_url && String(c.last_image_url).trim()) ||
+                c.last_metadata
               );
 
               const contact: ChatContact = {
@@ -139,7 +188,8 @@ export default function SellerChatPage() {
                 lastMsg: formatMessagePreview(
                   c.last_message,
                   c.last_image_url,
-                  "Belum ada percakapan"
+                  "Belum ada percakapan",
+                  c.last_metadata
                 ),
                 time: timeStr,
                 unread: Number(c.unread_count) || 0,
@@ -148,12 +198,38 @@ export default function SellerChatPage() {
                 last_seen_at: c.last_seen_at || undefined,
               };
 
+              const isPinnedTarget =
+                targetCustomerRef.current && Number(c.id) === Number(targetCustomerRef.current.id);
+
               if (c.role === "admin") {
                 csList.push(contact);
-              } else if (hasChatHistory) {
+              } else if (hasChatHistory || isPinnedTarget) {
                 customerList.push(contact);
               }
             });
+
+            if (
+              targetCustomerRef.current &&
+              !customerList.some((c) => Number(c.id) === Number(targetCustomerRef.current!.id))
+            ) {
+              const tName = targetCustomerRef.current.name || "Customer";
+              customerList.unshift({
+                id: targetCustomerRef.current.id,
+                name: tName,
+                avatar:
+                  tName
+                    .split(" ")
+                    .filter(Boolean)
+                    .map((w) => w[0])
+                    .slice(0, 2)
+                    .join("")
+                    .toUpperCase() || "C",
+                lastMsg: "Percakapan pesanan",
+                time: "",
+                unread: 0,
+                role: "pengunjung",
+              });
+            }
 
             setChatContacts({
               cs: csList,
@@ -161,6 +237,9 @@ export default function SellerChatPage() {
             });
 
             setActiveContact((current) => {
+              if (targetCustomerRef.current && chatTab === "customer") {
+                return targetCustomerRef.current.id;
+              }
               const currentList = chatTab === "cs" ? csList : customerList;
               if (current && currentList.some((c) => c.id === current)) {
                 return current;
@@ -182,7 +261,7 @@ export default function SellerChatPage() {
   // Heartbeat otomatis setiap 30 detik untuk memperbarui status online user
   useEffect(() => {
     const sendHeartbeat = () => {
-      api.post("/chat/heartbeat").catch(() => {});
+      api.post("/chat/heartbeat").catch(() => { });
     };
     sendHeartbeat();
     const hbTimer = setInterval(sendHeartbeat, 30000);
@@ -217,6 +296,7 @@ export default function SellerChatPage() {
                 from: Number(m.sender_id) == id1 ? ("me" as const) : ("other" as const),
                 text: m.message,
                 image_url: m.image_url || undefined,
+                metadata: parseChatMetadata(m.metadata),
                 time,
               };
             });
@@ -228,15 +308,21 @@ export default function SellerChatPage() {
 
             setMessages((prev) => {
               if (prev.length !== uniqueApiMessages.length) return uniqueApiMessages;
-              const hasDiff = uniqueApiMessages.some((msg, idx) => prev[idx]?.id !== msg.id || prev[idx]?.text !== msg.text || prev[idx]?.image_url !== msg.image_url);
+              const hasDiff = uniqueApiMessages.some(
+                (msg, idx) =>
+                  prev[idx]?.id !== msg.id ||
+                  prev[idx]?.text !== msg.text ||
+                  prev[idx]?.image_url !== msg.image_url ||
+                  JSON.stringify(prev[idx]?.metadata || null) !== JSON.stringify(msg.metadata || null)
+              );
               return hasDiff ? uniqueApiMessages : prev;
             });
 
             const targetOnline = res.data?.is_online !== undefined
               ? Boolean(res.data.is_online)
               : res.data?.target_user?.is_online !== undefined
-              ? Boolean(res.data.target_user.is_online)
-              : undefined;
+                ? Boolean(res.data.target_user.is_online)
+                : undefined;
             const targetLastSeen = res.data?.last_seen_at || res.data?.target_user?.last_seen_at;
 
             const lastApiMsg = apiMessages.length > 0 ? apiMessages[apiMessages.length - 1] : null;
@@ -250,7 +336,7 @@ export default function SellerChatPage() {
                     is_online: targetOnline !== undefined ? targetOnline : c.is_online,
                     last_seen_at: targetLastSeen !== undefined ? targetLastSeen : c.last_seen_at,
                     lastMsg: lastApiMsg
-                      ? formatMessagePreview(lastApiMsg.text, lastApiMsg.image_url, c.lastMsg)
+                      ? formatMessagePreview(lastApiMsg.text, lastApiMsg.image_url, c.lastMsg, lastApiMsg.metadata)
                       : c.lastMsg,
                     time: lastApiMsg?.time || c.time,
                   };
@@ -318,11 +404,13 @@ export default function SellerChatPage() {
             processedMsgIds.add(msgId);
           }
 
+          const incomingMeta = parseChatMetadata(data.metadata);
           const incomingMsg: ChatMsg = {
             id: msgId || undefined,
             from: isMe ? "me" : "other",
             text: data.message,
             image_url: data.image_url || undefined,
+            metadata: incomingMeta,
             time,
           };
 
@@ -337,7 +425,12 @@ export default function SellerChatPage() {
                 (msg) =>
                   !msg.id &&
                   msg.from === incomingMsg.from &&
-                  ((msg.text && msg.text === incomingMsg.text) ||
+                  ((msg.metadata &&
+                    incomingMeta &&
+                    msg.metadata.context_type === incomingMeta.context_type &&
+                    String(msg.metadata.order_id || msg.metadata.product_id || "") ===
+                    String(incomingMeta.order_id || incomingMeta.product_id || "")) ||
+                    (msg.text && msg.text === incomingMsg.text) ||
                     (msg.image_url &&
                       incomingMsg.image_url &&
                       ((isStickerUrl(msg.image_url) &&
@@ -347,7 +440,13 @@ export default function SellerChatPage() {
               );
               if (optIndex !== -1) {
                 const updated = [...prevMessages];
-                updated[optIndex] = { ...updated[optIndex], id: msgId, tempId: undefined, image_url: incomingMsg.image_url };
+                updated[optIndex] = {
+                  ...updated[optIndex],
+                  id: msgId,
+                  tempId: undefined,
+                  image_url: incomingMsg.image_url,
+                  metadata: incomingMeta ?? updated[optIndex].metadata,
+                };
                 return updated;
               }
               // 3. Cek duplikasi konten dan waktu
@@ -356,14 +455,15 @@ export default function SellerChatPage() {
                   msg.from === incomingMsg.from &&
                   msg.text === incomingMsg.text &&
                   msg.time === incomingMsg.time &&
-                  (msg.image_url || null) === (incomingMsg.image_url || null)
+                  (msg.image_url || null) === (incomingMsg.image_url || null) &&
+                  JSON.stringify(msg.metadata || null) === JSON.stringify(incomingMeta || null)
               );
               if (isDuplicate) return prevMessages;
               return [...prevMessages, incomingMsg];
             });
           }
 
-          const pusherPreview = formatMessagePreview(data.message, data.image_url);
+          const pusherPreview = formatMessagePreview(data.message, data.image_url, "", incomingMeta);
           setChatContacts((prev) => {
             const updateList = (list: ChatContact[]) =>
               list.map((c) =>
@@ -434,11 +534,11 @@ export default function SellerChatPage() {
       return prev.map((m) =>
         m.tempId === tempId
           ? {
-              ...m,
-              id: numericId,
-              tempId: undefined,
-              image_url: serverImageUrl || m.image_url,
-            }
+            ...m,
+            id: numericId,
+            tempId: undefined,
+            image_url: serverImageUrl || m.image_url,
+          }
           : m
       );
     });
@@ -446,23 +546,50 @@ export default function SellerChatPage() {
 
   async function handleSend(e: React.FormEvent) {
     e.preventDefault();
-    if (!message.trim() || !activeContact || !myUserId || isSending) return;
+    if ((!message.trim() && !attachedContext) || !activeContact || !myUserId || isSending) return;
 
     const currentMsgText = message.trim();
+    const contextToSend = attachedContext;
     setIsSending(true);
     setMessage("");
+    setAttachedContext(null);
 
     const now = new Date();
     const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}`;
-    const tempId = `temp_txt_${Date.now()}`;
-    const newMsg: ChatMsg = { tempId, from: "me", text: currentMsgText, time };
 
-    setMessages((prev) => [...prev, newMsg]);
-    updateContactPreview(currentMsgText, time);
+    const tempCtxId = contextToSend ? `temp_ctx_${Date.now()}` : "";
+    const tempTxtId = currentMsgText ? `temp_txt_${Date.now() + 1}` : "";
+
+    setMessages((prev) => {
+      const next = [...prev];
+      if (contextToSend) {
+        next.push({ tempId: tempCtxId, from: "me", text: "", metadata: contextToSend, time });
+      }
+      if (currentMsgText) {
+        next.push({ tempId: tempTxtId, from: "me", text: currentMsgText, time });
+      }
+      return next;
+    });
+
+    const previewSummary =
+      currentMsgText ||
+      formatMessagePreview("", null, "Lampiran terkirim", contextToSend);
+    updateContactPreview(previewSummary, time);
 
     try {
-      const res = await api.post(`/chat/send/${activeContact}`, { message: currentMsgText });
-      reconcileOptimisticMsg(tempId, res.data?.data?.id);
+      if (contextToSend) {
+        const resCtx = await api.post(`/chat/send/${activeContact}`, {
+          message: "",
+          metadata: contextToSend,
+        });
+        reconcileOptimisticMsg(tempCtxId, resCtx.data?.data?.id);
+      }
+      if (currentMsgText) {
+        const resTxt = await api.post(`/chat/send/${activeContact}`, {
+          message: currentMsgText,
+        });
+        reconcileOptimisticMsg(tempTxtId, resTxt.data?.data?.id);
+      }
     } catch (err: any) {
       console.warn("Gagal mengirim pesan via backend API:", err?.message || err);
     } finally {
@@ -538,7 +665,7 @@ export default function SellerChatPage() {
       <div className="mb-6 flex items-end justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 mb-1">Live Chat</h1>
-          <p className="text-zinc-500 text-sm">Balas pesan dari CS DinoyoCraft maupun customer toko Anda.</p>
+          <p className="text-zinc-500 text-sm">Balas pesan dari Customer Service maupun customer toko Anda.</p>
         </div>
 
         {/* Tab Switch */}
@@ -563,8 +690,8 @@ export default function SellerChatPage() {
                   transition: "all 0.18s",
                 }}
               >
-                {tab === "cs" ? <UserCircle size={16} /> : <Storefront size={16} />}
-                {tab === "cs" ? "CS DinoyoCraft" : "Customer"}
+                {tab === "cs" ? <Headset size={16} /> : <Storefront size={16} />}
+                {tab === "cs" ? "Customer Service" : "Customer"}
                 {count > 0 && (
                   <span style={{
                     background: "#ef4444", color: "#fff",
@@ -618,12 +745,11 @@ export default function SellerChatPage() {
                         fontSize: "0.7rem", fontWeight: 800,
                         color: chatTab === "cs" ? "#fff" : "#52525b",
                       }}>
-                        {contact.avatar}
+                        {chatTab === "cs" ? <Headset size={18} weight="fill" /> : contact.avatar}
                       </div>
                       <span
-                        className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
-                          contact.is_online ? "bg-green-500" : "bg-zinc-300"
-                        }`}
+                        className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${contact.is_online ? "bg-green-500" : "bg-zinc-300"
+                          }`}
                         title={contact.is_online ? "Online" : formatLastSeen(contact.last_seen_at)}
                       />
                     </div>
@@ -660,21 +786,19 @@ export default function SellerChatPage() {
                     fontSize: "0.8rem", fontWeight: 800,
                     color: chatTab === "cs" ? "#fff" : "#52525b",
                   }}>
-                    {activeChatData.avatar}
+                    {chatTab === "cs" ? <Headset size={20} weight="fill" /> : activeChatData.avatar}
                   </div>
                   <span
-                    className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
-                      activeChatData.is_online ? "bg-green-500" : "bg-zinc-400"
-                    }`}
+                    className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${activeChatData.is_online ? "bg-green-500" : "bg-zinc-400"
+                      }`}
                   />
                 </div>
                 <div>
                   <h2 className="font-semibold text-zinc-900">{activeChatData.name}</h2>
                   <div className="flex items-center gap-1.5 text-xs text-zinc-500">
                     <span
-                      className={`w-2 h-2 rounded-full ${
-                        activeChatData.is_online ? "bg-green-500" : "bg-zinc-400"
-                      }`}
+                      className={`w-2 h-2 rounded-full ${activeChatData.is_online ? "bg-green-500" : "bg-zinc-400"
+                        }`}
                     ></span>
                     <span className={activeChatData.is_online ? "text-green-600 font-medium" : "text-zinc-500"}>
                       {activeChatData.is_online
@@ -707,26 +831,53 @@ export default function SellerChatPage() {
               ) : (
                 messages.map((msg, i) => {
                   const msgIsSticker = isStickerUrl(msg.image_url);
+                  const hasContextCard = Boolean(msg.metadata);
 
                   return (
                     <div key={msg.id ? `msg-${msg.id}` : msg.tempId || `idx-${i}`} className={`flex ${msg.from === "me" ? "justify-end" : "justify-start"}`}>
-                      <div className={`flex flex-col max-w-[75%] ${msg.from === "me" ? "items-end" : "items-start"}`}>
-                        <div
-                          className={`text-sm inline-block ${
-                            msgIsSticker
-                              ? "bg-transparent !p-0 shadow-none border-none"
-                              : msg.from === "me"
-                              ? "p-3 rounded-2xl bg-zinc-900 text-white rounded-tr-sm"
-                              : "p-3 rounded-2xl bg-zinc-100 text-zinc-800 rounded-tl-sm"
-                          }`}
-                        >
-                          <ChatMessageMedia imageUrl={msg.image_url} text={msg.text} />
-                          {msg.text && (
-                            <div className={msgIsSticker ? "mt-1 text-zinc-800 bg-zinc-100 px-3 py-1.5 rounded-xl inline-block" : ""}>
-                              {msg.text}
-                            </div>
-                          )}
-                        </div>
+                      <div className={`flex flex-col max-w-[82%] ${msg.from === "me" ? "items-end" : "items-start"}`}>
+                        {hasContextCard && (
+                          <div className={msg.text || msg.image_url ? "mb-1.5" : ""}>
+                            <ChatMessageContextCard
+                              metadata={msg.metadata}
+                              viewerRole="mitra"
+                              onOpenOrder={(meta) => {
+                                const validMitraCode = getValidMitraOrderCode(meta);
+                                const searchCode =
+                                  validMitraCode ||
+                                  meta.order_code ||
+                                  (meta.order_id ? `#DNC-${meta.order_id}` : "") ||
+                                  meta.reference_code ||
+                                  meta.mitra_order_code ||
+                                  "";
+                                const params = new URLSearchParams();
+                                if (searchCode) params.set("search", searchCode);
+                                if (meta.order_id) params.set("orderId", String(meta.order_id));
+                                router.push(`/mitra/dashboard/pesanan?${params.toString()}`);
+                              }}
+                              onOpenProduct={() => {
+                                router.push("/mitra/dashboard/katalog");
+                              }}
+                            />
+                          </div>
+                        )}
+                        {(msg.image_url || msg.text) && (
+                          <div
+                            className={`text-sm inline-block ${msgIsSticker
+                                ? "bg-transparent !p-0 shadow-none border-none"
+                                : msg.from === "me"
+                                  ? "p-3 rounded-2xl bg-zinc-900 text-white rounded-tr-sm"
+                                  : "p-3 rounded-2xl bg-zinc-100 text-zinc-800 rounded-tl-sm"
+                              }`}
+                          >
+                            <ChatMessageMedia imageUrl={msg.image_url} text={msg.text} />
+                            {msg.text && (
+                              <div className={msgIsSticker ? "mt-1 text-zinc-800 bg-zinc-100 px-3 py-1.5 rounded-xl inline-block" : ""}>
+                                {msg.text}
+                              </div>
+                            )}
+                          </div>
+                        )}
                         {msg.time && (
                           <p className="text-[10px] text-zinc-400 mt-1">
                             {msg.time}
@@ -741,6 +892,14 @@ export default function SellerChatPage() {
               <div ref={messagesEndRef} />
             </div>
 
+            {attachedContext && (
+              <ChatComposerContextBanner
+                context={attachedContext}
+                onClear={() => setAttachedContext(null)}
+                onPickQuickReply={(tpl) => setMessage(tpl)}
+              />
+            )}
+
             {/* Input */}
             <ChatMediaComposer
               message={message}
@@ -750,6 +909,7 @@ export default function SellerChatPage() {
               onSelectSticker={handleSendSticker}
               placeholder={chatTab === "cs" ? "Tulis pesan ke CS DinoyoCraft..." : `Balas ${activeChatData.name}...`}
               disabled={isSending}
+              canSubmitEmptyText={Boolean(attachedContext)}
             />
           </div>
         ) : (

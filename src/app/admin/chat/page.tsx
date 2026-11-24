@@ -8,15 +8,27 @@ import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import { UserCircle, Robot, Storefront, ChatCircle } from "@phosphor-icons/react";
 import {
+  ChatContextMetadata,
   ChatMediaComposer,
+  ChatMessageContextCard,
   ChatMessageMedia,
   DinoyoSticker,
   formatLastSeen,
   formatMessagePreview,
   isStickerUrl,
+  parseChatMetadata,
 } from "@/components/chat/ChatMediaControls";
 
-type ChatMessage = { id?: number; tempId?: string; role: "user" | "admin"; text: string; time?: string; sender_id?: number; image_url?: string };
+type ChatMessage = {
+  id?: number;
+  tempId?: string;
+  role: "user" | "admin";
+  text: string;
+  time?: string;
+  sender_id?: number;
+  image_url?: string;
+  metadata?: ChatContextMetadata | null;
+};
 type ChatContact = {
   id: number; name: string; lastMsg: string; time: string; unread: number; botHandled: boolean;
   type: "customer" | "mitra";
@@ -37,7 +49,7 @@ const getAuthUserId = (): number => {
           if (!isNaN(uid) && uid > 0) return uid;
         }
       }
-    } catch {}
+    } catch { }
     try {
       const uStr = localStorage.getItem("user");
       if (uStr) {
@@ -45,7 +57,7 @@ const getAuthUserId = (): number => {
         const uid = Number(u.id || u.userId);
         if (!isNaN(uid) && uid > 0) return uid;
       }
-    } catch {}
+    } catch { }
   }
   return 0;
 };
@@ -82,7 +94,7 @@ export default function AdminLiveChatPage() {
   useEffect(() => {
     const sessionData = getDemoSession();
     if (!sessionData || sessionData.role !== "admin") {
-      router.push("/auth/login");
+      router.push("/login");
       return;
     }
     setLoading(false);
@@ -102,8 +114,9 @@ export default function AdminLiveChatPage() {
                 if (c.role === "mitra") return true;
                 return Boolean(
                   c.last_message_time ||
-                    (c.last_message && String(c.last_message).trim()) ||
-                    (c.last_image_url && String(c.last_image_url).trim())
+                  (c.last_message && String(c.last_message).trim()) ||
+                  (c.last_image_url && String(c.last_image_url).trim()) ||
+                  c.last_metadata
                 );
               })
               .map((c: any) => ({
@@ -112,7 +125,8 @@ export default function AdminLiveChatPage() {
                 lastMsg: formatMessagePreview(
                   c.last_message,
                   c.last_image_url,
-                  "Belum ada percakapan"
+                  "Belum ada percakapan",
+                  c.last_metadata
                 ),
                 time: c.last_message_time
                   ? new Date(c.last_message_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
@@ -174,6 +188,7 @@ export default function AdminLiveChatPage() {
                 role: Number(m.sender_id) == id1 ? ("admin" as const) : ("user" as const),
                 text: m.message,
                 image_url: m.image_url || undefined,
+                metadata: parseChatMetadata(m.metadata),
                 time,
                 sender_id: Number(m.sender_id),
               };
@@ -189,7 +204,8 @@ export default function AdminLiveChatPage() {
                 (msg, idx) =>
                   prev[idx]?.id !== msg.id ||
                   prev[idx]?.text !== msg.text ||
-                  prev[idx]?.image_url !== msg.image_url
+                  prev[idx]?.image_url !== msg.image_url ||
+                  JSON.stringify(prev[idx]?.metadata || null) !== JSON.stringify(msg.metadata || null)
               );
               return hasDiff ? uniqueApiMessages : prev;
             });
@@ -197,8 +213,8 @@ export default function AdminLiveChatPage() {
             const targetOnline = res.data?.is_online !== undefined
               ? Boolean(res.data.is_online)
               : res.data?.target_user?.is_online !== undefined
-              ? Boolean(res.data.target_user.is_online)
-              : undefined;
+                ? Boolean(res.data.target_user.is_online)
+                : undefined;
             const targetLastSeen = res.data?.last_seen_at || res.data?.target_user?.last_seen_at;
 
             const lastApiMsg = apiMessages.length > 0 ? apiMessages[apiMessages.length - 1] : null;
@@ -211,7 +227,7 @@ export default function AdminLiveChatPage() {
                   is_online: targetOnline !== undefined ? targetOnline : c.is_online,
                   last_seen_at: targetLastSeen !== undefined ? targetLastSeen : c.last_seen_at,
                   lastMsg: lastApiMsg
-                    ? formatMessagePreview(lastApiMsg.text, lastApiMsg.image_url, c.lastMsg)
+                    ? formatMessagePreview(lastApiMsg.text, lastApiMsg.image_url, c.lastMsg, lastApiMsg.metadata)
                     : c.lastMsg,
                   time: lastApiMsg?.time || c.time,
                 };
@@ -273,11 +289,13 @@ export default function AdminLiveChatPage() {
             processedMsgIds.add(msgId);
           }
 
+          const incomingMeta = parseChatMetadata(data.metadata);
           const incomingMsg: ChatMessage = {
             id: msgId || undefined,
             role: isMe ? "admin" : "user",
             text: data.message,
             image_url: data.image_url || undefined,
+            metadata: incomingMeta,
             time,
             sender_id: senderId,
           };
@@ -306,6 +324,7 @@ export default function AdminLiveChatPage() {
                   id: msgId,
                   tempId: undefined,
                   image_url: incomingMsg.image_url,
+                  metadata: incomingMeta ?? updated[optIndex].metadata,
                 };
                 return updated;
               }
@@ -314,14 +333,15 @@ export default function AdminLiveChatPage() {
                   msg.role === incomingMsg.role &&
                   msg.text === incomingMsg.text &&
                   msg.time === incomingMsg.time &&
-                  (msg.image_url || null) === (incomingMsg.image_url || null)
+                  (msg.image_url || null) === (incomingMsg.image_url || null) &&
+                  JSON.stringify(msg.metadata || null) === JSON.stringify(incomingMeta || null)
               );
               if (isDuplicate) return prevMessages;
               return [...prevMessages, incomingMsg];
             });
           }
 
-          const previewLabel = formatMessagePreview(data.message, data.image_url);
+          const previewLabel = formatMessagePreview(data.message, data.image_url, "", incomingMeta);
 
           setChats((prevChats) =>
             prevChats.map((contact) =>
@@ -377,11 +397,11 @@ export default function AdminLiveChatPage() {
       return prev.map((m) =>
         m.tempId === tempId
           ? {
-              ...m,
-              id: numericId,
-              tempId: undefined,
-              image_url: serverImageUrl || m.image_url,
-            }
+            ...m,
+            id: numericId,
+            tempId: undefined,
+            image_url: serverImageUrl || m.image_url,
+          }
           : m
       );
     });
@@ -576,9 +596,8 @@ export default function AdminLiveChatPage() {
               <div
                 key={chat.id}
                 onClick={() => setActiveChat(chat.id)}
-                className={`p-4 border-b border-zinc-100 cursor-pointer transition-colors ${
-                  activeChat === chat.id ? "bg-zinc-100" : "hover:bg-zinc-100/50"
-                }`}
+                className={`p-4 border-b border-zinc-100 cursor-pointer transition-colors ${activeChat === chat.id ? "bg-zinc-100" : "hover:bg-zinc-100/50"
+                  }`}
               >
                 <div className="flex justify-between items-start mb-1">
                   <div className="flex items-center gap-2">
@@ -629,9 +648,8 @@ export default function AdminLiveChatPage() {
                   <h2 className="font-semibold text-zinc-900">{activeChatData.name}</h2>
                   <div className="flex items-center gap-1.5 text-xs text-zinc-500">
                     <span
-                      className={`w-2 h-2 rounded-full ${
-                        activeChatData.is_online ? "bg-green-500" : "bg-zinc-400"
-                      }`}
+                      className={`w-2 h-2 rounded-full ${activeChatData.is_online ? "bg-green-500" : "bg-zinc-400"
+                        }`}
                     ></span>
                     <span className={activeChatData.is_online ? "text-green-600 font-medium" : "text-zinc-500"}>
                       {activeChatData.is_online
@@ -663,23 +681,45 @@ export default function AdminLiveChatPage() {
               ) : (
                 messages.map((msg, i) => {
                   const msgIsSticker = isStickerUrl(msg.image_url);
+                  const hasContextCard = Boolean(msg.metadata);
                   return (
                     <div key={msg.id ? `msg-${msg.id}` : msg.tempId || `idx-${i}`} className={`flex ${msg.role === "user" ? "justify-start" : "justify-end"}`}>
-                      <div className={`flex flex-col max-w-[75%] ${msg.role === "user" ? "items-start" : "items-end"}`}>
-                        <div className={`text-sm inline-block ${
-                          msgIsSticker
-                            ? "bg-transparent !p-0 shadow-none border-none"
-                            : msg.role === "user"
-                            ? "p-3 rounded-2xl bg-zinc-100 text-zinc-800 rounded-tl-sm"
-                            : "p-3 rounded-2xl bg-zinc-900 text-white rounded-tr-sm"
-                        }`}>
-                          <ChatMessageMedia imageUrl={msg.image_url} text={msg.text} />
-                          {msg.text && (
-                            <div className={msgIsSticker ? "mt-1 text-zinc-800 bg-zinc-100 px-3 py-1.5 rounded-xl inline-block" : ""}>
-                              {msg.text}
-                            </div>
-                          )}
-                        </div>
+                      <div className={`flex flex-col max-w-[82%] ${msg.role === "user" ? "items-start" : "items-end"}`}>
+                        {hasContextCard && (
+                          <div className={msg.text || msg.image_url ? "mb-1.5" : ""}>
+                            <ChatMessageContextCard
+                              metadata={msg.metadata}
+                              viewerRole="admin"
+                              onOpenOrder={(meta) => {
+                                const trxQuery =
+                                  meta.reference_code ||
+                                  (meta.mitra_order_code?.toUpperCase().startsWith("TRX-") ? meta.mitra_order_code : "") ||
+                                  meta.order_code ||
+                                  (meta.order_id ? String(meta.order_id) : "");
+                                router.push(
+                                  trxQuery
+                                    ? `/admin/transaksi?search=${encodeURIComponent(trxQuery)}`
+                                    : "/admin/transaksi"
+                                );
+                              }}
+                            />
+                          </div>
+                        )}
+                        {(msg.image_url || msg.text) && (
+                          <div className={`text-sm inline-block ${msgIsSticker
+                              ? "bg-transparent !p-0 shadow-none border-none"
+                              : msg.role === "user"
+                                ? "p-3 rounded-2xl bg-zinc-100 text-zinc-800 rounded-tl-sm"
+                                : "p-3 rounded-2xl bg-zinc-900 text-white rounded-tr-sm"
+                            }`}>
+                            <ChatMessageMedia imageUrl={msg.image_url} text={msg.text} />
+                            {msg.text && (
+                              <div className={msgIsSticker ? "mt-1 text-zinc-800 bg-zinc-100 px-3 py-1.5 rounded-xl inline-block" : ""}>
+                                {msg.text}
+                              </div>
+                            )}
+                          </div>
+                        )}
                         {msg.time && (
                           <p className="text-[10px] text-zinc-400 mt-1">{msg.time}</p>
                         )}
