@@ -1,0 +1,4 @@
+/auth/login /login 301
+/auth/register /register 301
+/auth/lupa-kata-sandi /lupa-kata-sandi 301
+/auth /login 301
