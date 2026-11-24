@@ -1,5 +1,5 @@
 // src/services/authService.ts
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api').replace(/\/+$/, '');
 
 export const authService = {
   // --- FUNGSI LOGIN (Sudah ada sebelumnya) ---
@@ -19,7 +19,7 @@ export const authService = {
       throw { response: { status: res.status, data: { ...data, message: data.message || 'Gagal login' } } };
     }
 
-    const token = data.data?.token || data.token || "token-sementara";
+    const token = data.data?.token || data.token || "";
     const user = data.data?.user || data.data;
 
     return {
@@ -71,7 +71,7 @@ export const authService = {
       requires_2fa: Boolean(data.requires_2fa || data.data?.requires_2fa),
       data: {
         user: data.data?.user || data.data,
-        token: data.token || data.data?.token || "token-sementara"
+        token: data.token || data.data?.token || ""
       }
     };
   },

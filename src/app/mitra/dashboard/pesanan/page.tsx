@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -341,7 +341,7 @@ export default function PesananSellerPage() {
     if (userId) {
       import("pusher-js")
         .then(({ default: PusherClient }) => {
-          const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+          const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b5fa050e0050acfb222a";
           const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
           const p = new PusherClient(pusherKey, { cluster: pusherCluster });
           const ch = p.subscribe(`user-${userId}`);
@@ -502,7 +502,7 @@ export default function PesananSellerPage() {
 
     const sectionLabelByStatus: Record<OrderStatus, string> = {
       unpaid: "Konfirmasi Pembayaran",
-      packed: order.rawStatus === "paid" ? "Pesanan Baru â€¢ Perlu Dikemas" : "Produk Sedang Dikemas",
+      packed: order.rawStatus === "paid" ? "Pesanan Baru • Perlu Dikemas" : "Produk Sedang Dikemas",
       shipped: "Pesanan Sedang Dikirim",
       completed: "Pesanan Selesai",
       cancelled: "Pesanan Dibatalkan",
@@ -519,11 +519,13 @@ export default function PesananSellerPage() {
     const orderChatContext = {
       context_type: "order" as const,
       initiated_by: "mitra" as const,
+      badge: sectionLabelByStatus[order.status],
       order_id: order.numericId,
       order_code: `#DNC-${order.numericId || order.id}`,
       mitra_order_code: order.id,
       reference_code: order.referenceCode,
-      status: order.rawStatus || order.status,
+      status: order.status === "completed" ? "completed" : (order.rawStatus || order.status),
+      ui_status: order.status,
       status_label: statusLabelByStatus[order.status],
       section_label: sectionLabelByStatus[order.status],
       customer_id: order.customerId,
@@ -540,6 +542,7 @@ export default function PesananSellerPage() {
       image_url: firstItem?.image,
       tracking_number: order.resi,
       shipping_method: order.kurir,
+      has_review: Boolean(order.rating),
     };
 
     if (typeof window !== "undefined") {
@@ -755,9 +758,9 @@ export default function PesananSellerPage() {
                           <User size={16} className="text-zinc-500" />
                           {order.customerName}
                         </div>
-                        <span className="text-zinc-300">â€¢</span>
+                        <span className="text-zinc-300">•</span>
                         <span className="text-sm text-zinc-500">{order.date}</span>
-                        <span className="text-zinc-300">â€¢</span>
+                        <span className="text-zinc-300">•</span>
                         <span className="text-sm font-mono text-zinc-500">{order.id}</span>
                         {order.numericId > 0 && (
                           <span className="text-xs font-mono font-semibold text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded">
@@ -799,7 +802,7 @@ export default function PesananSellerPage() {
                       {order.resi && (
                         <div className="mt-3 inline-flex items-center gap-2 bg-purple-50 text-purple-700 text-xs font-semibold px-3 py-1.5 rounded-lg">
                           <Truck size={13} />
-                          {order.kurir} Â· No. Resi: {order.resi}
+                          {order.kurir} · No. Resi: {order.resi}
                         </div>
                       )}
                     </div>
@@ -826,9 +829,9 @@ export default function PesananSellerPage() {
                               size="lg"
                               statusSuffix={
                                 order.paymentStatus === "paid"
-                                  ? "Â· Lunas"
+                                  ? "· Lunas"
                                   : order.paymentStatus === "pending"
-                                  ? "Â· Menunggu"
+                                  ? "· Menunggu"
                                   : undefined
                               }
                             />

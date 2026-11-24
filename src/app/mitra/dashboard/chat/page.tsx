@@ -14,9 +14,11 @@ import {
   ChatMessageContextCard,
   ChatMessageMedia,
   DinoyoSticker,
+  formatChatTime,
   formatLastSeen,
   formatMessagePreview,
   getValidMitraOrderCode,
+  isAiChatMetadata,
   isStickerUrl,
   parseChatMetadata,
 } from "@/components/chat/ChatMediaControls";
@@ -29,6 +31,7 @@ type ChatMsg = {
   time: string;
   image_url?: string;
   metadata?: ChatContextMetadata | null;
+  is_ai?: boolean;
 };
 type ChatContact = {
   id: number;
@@ -168,11 +171,7 @@ export default function SellerChatPage() {
                   .join("")
                   .toUpperCase() || "C";
 
-              let timeStr = "";
-              if (c.last_message_time) {
-                const d = new Date(c.last_message_time);
-                timeStr = isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-              }
+              const timeStr = formatChatTime(c.last_message_time);
 
               const hasChatHistory = Boolean(
                 c.last_message_time ||
@@ -297,6 +296,7 @@ export default function SellerChatPage() {
                 text: m.message,
                 image_url: m.image_url || undefined,
                 metadata: parseChatMetadata(m.metadata),
+                is_ai: isAiChatMetadata(m.metadata),
                 time,
               };
             });
@@ -363,7 +363,7 @@ export default function SellerChatPage() {
     const pollTimer = setInterval(fetchMessages, 2000);
 
     // 2. Pusher connection
-    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b5fa050e0050acfb222a";
     const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
 
     let channel: any = null;
@@ -411,6 +411,7 @@ export default function SellerChatPage() {
             text: data.message,
             image_url: data.image_url || undefined,
             metadata: incomingMeta,
+            is_ai: isAiChatMetadata(data.metadata),
             time,
           };
 
@@ -502,6 +503,7 @@ export default function SellerChatPage() {
   }, [myUserId, activeContact]);
 
   function handleTabSwitch(tab: "cs" | "customer") {
+    targetCustomerRef.current = null;
     setChatTab(tab);
     const list = chatContacts[tab];
     setActiveContact(list.length > 0 ? list[0].id : null);
@@ -729,7 +731,10 @@ export default function SellerChatPage() {
             {filteredContacts.map(contact => (
               <div
                 key={contact.id}
-                onClick={() => setActiveContact(contact.id)}
+                onClick={() => {
+                  targetCustomerRef.current = null;
+                  setActiveContact(contact.id);
+                }}
                 className={`p-4 border-b border-zinc-100 cursor-pointer transition-colors ${activeContact === contact.id ? "bg-zinc-100" : "hover:bg-zinc-100/50"
                   }`}
               >
@@ -772,7 +777,7 @@ export default function SellerChatPage() {
 
         {/* Area Chat */}
         {activeChatData ? (
-          <div className="flex-1 flex flex-col bg-white">
+          <div className="flex-1 min-w-0 flex flex-col bg-white overflow-hidden">
             {/* Header chat */}
             <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -881,6 +886,7 @@ export default function SellerChatPage() {
                         {msg.time && (
                           <p className="text-[10px] text-zinc-400 mt-1">
                             {msg.time}
+                            {msg.is_ai ? " • Asisten AI" : ""}
                           </p>
                         )}
                       </div>

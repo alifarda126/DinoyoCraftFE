@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { getDemoSession } from "@/lib/utils/demo";
@@ -102,7 +102,7 @@ export default function AdminModerasiPage() {
     const session = getDemoSession();
     const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if ((!session || session.role !== "admin") && !storedToken) {
-      router.push("/auth/login");
+      router.push("/login");
       return;
     }
     fetchModerationData();

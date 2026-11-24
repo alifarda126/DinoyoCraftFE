@@ -13,8 +13,10 @@ import {
   ChatMessageContextCard,
   ChatMessageMedia,
   DinoyoSticker,
+  formatChatTime,
   formatLastSeen,
   formatMessagePreview,
+  isAiChatMetadata,
   isStickerUrl,
   parseChatMetadata,
 } from "@/components/chat/ChatMediaControls";
@@ -28,6 +30,7 @@ type ChatMessage = {
   sender_id?: number;
   image_url?: string;
   metadata?: ChatContextMetadata | null;
+  is_ai?: boolean;
 };
 type ChatContact = {
   id: number; name: string; lastMsg: string; time: string; unread: number; botHandled: boolean;
@@ -128,9 +131,7 @@ export default function AdminLiveChatPage() {
                   "Belum ada percakapan",
                   c.last_metadata
                 ),
-                time: c.last_message_time
-                  ? new Date(c.last_message_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                  : "",
+                time: formatChatTime(c.last_message_time),
                 unread: c.unread_count || 0,
                 botHandled: false,
                 type: c.role === "mitra" ? ("mitra" as const) : ("customer" as const),
@@ -189,6 +190,7 @@ export default function AdminLiveChatPage() {
                 text: m.message,
                 image_url: m.image_url || undefined,
                 metadata: parseChatMetadata(m.metadata),
+                is_ai: isAiChatMetadata(m.metadata),
                 time,
                 sender_id: Number(m.sender_id),
               };
@@ -250,7 +252,7 @@ export default function AdminLiveChatPage() {
     const pollTimer = setInterval(fetchMessages, 2000);
 
     // 2. Pusher connection
-    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b5fa050e0050acfb222a";
     const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
 
     let channel: any = null;
@@ -296,6 +298,7 @@ export default function AdminLiveChatPage() {
             text: data.message,
             image_url: data.image_url || undefined,
             metadata: incomingMeta,
+            is_ai: isAiChatMetadata(data.metadata),
             time,
             sender_id: senderId,
           };
@@ -631,7 +634,7 @@ export default function AdminLiveChatPage() {
 
         {/* Chat Area */}
         {activeChatData ? (
-          <div className="flex-1 flex flex-col bg-white">
+          <div className="flex-1 min-w-0 flex flex-col bg-white overflow-hidden">
             {/* Chat Header */}
             <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -721,7 +724,10 @@ export default function AdminLiveChatPage() {
                           </div>
                         )}
                         {msg.time && (
-                          <p className="text-[10px] text-zinc-400 mt-1">{msg.time}</p>
+                          <p className="text-[10px] text-zinc-400 mt-1">
+                            {msg.time}
+                            {msg.is_ai ? " • Asisten AI" : ""}
+                          </p>
                         )}
                       </div>
                     </div>

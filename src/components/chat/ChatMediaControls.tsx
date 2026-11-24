@@ -202,6 +202,35 @@ export const resolveChatImageUrl = (url?: string | null): string => {
   return `${apiHost}${normalized}`;
 };
 
+export const isAiChatMetadata = (raw: unknown): boolean => {
+  if (!raw) return false;
+  if (typeof raw === "object" && !Array.isArray(raw)) {
+    return Boolean((raw as Record<string, unknown>).is_ai);
+  }
+  if (typeof raw === "string" && raw.trim()) {
+    try {
+      const parsed = JSON.parse(raw);
+      return Boolean(parsed && typeof parsed === "object" && parsed.is_ai);
+    } catch {
+      return false;
+    }
+  }
+  return false;
+};
+
+export const formatChatTime = (value?: string | Date | null): string => {
+  if (!value) return "";
+  try {
+    const d = value instanceof Date ? value : new Date(value);
+    if (isNaN(d.getTime())) return "";
+    const hours = d.getHours().toString().padStart(2, "0");
+    const minutes = d.getMinutes().toString().padStart(2, "0");
+    return `${hours}:${minutes}`;
+  } catch {
+    return "";
+  }
+};
+
 export const formatLastSeen = (lastSeen?: string): string => {
   if (!lastSeen) return "Offline";
   try {
@@ -642,34 +671,77 @@ export function ChatMessageContextCard({
   );
 }
 
-const getQuickTemplatesForStatus = (rawStatus?: string): string[] => {
+interface QuickReplyOption {
+  label: string;
+  text: string;
+}
+
+const getQuickTemplatesForStatus = (
+  rawStatus?: string,
+  orderCode?: string,
+  productName?: string
+): QuickReplyOption[] => {
   const st = (rawStatus || "").toLowerCase();
+  const codeRef = orderCode ? ` (${orderCode})` : "";
+  const prodRef = productName || "produk keramik";
+
   if (st === "pending" || st === "unpaid") {
     return [
-      "Halo Kak, pesanan sudah kami terima. Silakan selesaikan pembayaran agar segera kami kemas ya 🙏",
-      "Halo Kak, apakah ada kendala saat proses pembayaran pesanan ini?",
+      {
+        label: "Ingatkan pembayaran",
+        text: `Halo Kak, pesanan ${prodRef}${codeRef} sudah kami terima. Silakan selesaikan pembayaran agar segera kami kemas ya 🙏`,
+      },
+      {
+        label: "Tanya kendala bayar",
+        text: `Halo Kak, apakah ada kendala saat proses pembayaran pesanan${codeRef}? Kami siap membantu.`,
+      },
     ];
   }
   if (st === "paid" || st === "packed") {
     return [
-      "Halo Kak, pesanan sedang kami siapkan & kemas ekstra aman dengan bubble wrap + rangka kayu 📦",
-      "Halo Kak, mohon konfirmasi detail pesanan yang sedang dikemas ini sudah sesuai ya 🙏",
+      {
+        label: "Info sedang dikemas",
+        text: `Halo Kak, pesanan ${prodRef}${codeRef} sedang kami siapkan & kemas ekstra aman dengan bubble wrap + rangka kayu 📦`,
+      },
+      {
+        label: "Konfirmasi detail pesanan",
+        text: `Halo Kak, mohon konfirmasi apakah detail pesanan ${prodRef}${codeRef} sudah sesuai ya 🙏`,
+      },
     ];
   }
   if (st === "shipped") {
     return [
-      "Halo Kak, paket sudah kami serahkan ke kurir pengiriman. Silakan dipantau resinya ya 🚚",
-      "Halo Kak, jika paket keramik sudah diterima dengan aman, mohon konfirmasi Pesanan Diterima ya 🙏",
+      {
+        label: "Info sudah dikirim",
+        text: `Halo Kak, paket ${prodRef}${codeRef} sudah kami serahkan ke kurir pengiriman. Silakan dipantau resinya ya 🚚`,
+      },
+      {
+        label: "Minta konfirmasi terima",
+        text: `Halo Kak, jika paket ${prodRef}${codeRef} sudah diterima dengan aman, mohon konfirmasi Pesanan Diterima ya 🙏`,
+      },
     ];
   }
-  if (st === "completed") {
+  if (st === "completed" || st === "selesai" || st === "delivered") {
     return [
-      "Terima kasih sudah berbelanja di toko kami Kak! Ditunggu ulasan & bintang 5-nya ya ⭐",
-      "Semoga puas dengan karya keramik Dinoyo kami ya Kak 🙏",
+      {
+        label: "Terima kasih & minta rating ⭐",
+        text: `Terima kasih telah membeli ${prodRef}${codeRef} di toko kami Kak! Jika berkenan, mohon berikan rating & ulasan untuk membantu toko kami ya ⭐🙏`,
+      },
+      {
+        label: "Tanya kondisi paket",
+        text: `Halo Kak, terima kasih sudah berbelanja di toko kami! Semoga ${prodRef}${codeRef} diterima dalam kondisi baik dan berkenan di hati Kakak. Ditunggu ulasannya ya 😊`,
+      },
+      {
+        label: "Ucapan & undang repeat order",
+        text: `Pesanan${codeRef} sudah selesai. Terima kasih banyak atas kepercayaannya Kak! Jangan ragu beri bintang & ulasan jika puas, kami tunggu pesanan berikutnya 🙏`,
+      },
     ];
   }
   return [
-    "Halo Kak, terkait pesanan yang dibatalkan ini, silakan kabari kami jika ingin memesan kembali ya 🙏",
+    {
+      label: "Tawarkan pesan ulang",
+      text: `Halo Kak, terkait pesanan${codeRef} yang dibatalkan, silakan kabari kami jika ingin memesan kembali ya 🙏`,
+    },
   ];
 };
 
@@ -687,29 +759,37 @@ export function ChatComposerContextBanner({
   const imgSrc =
     resolveChatImageUrl(context.image_url) ||
     "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&w=200&q=80";
+  const displayCode =
+    getValidMitraOrderCode(context) ||
+    context.order_code ||
+    (context.order_id ? `#DNC-${context.order_id}` : "");
   const templates =
-    context.context_type === "order" ? getQuickTemplatesForStatus(context.status) : [];
+    context.context_type === "order"
+      ? getQuickTemplatesForStatus(context.status, displayCode, context.product_name)
+      : [];
 
   return (
-    <div className="px-4 pt-3 pb-2.5 bg-zinc-50 border-t border-zinc-200 flex flex-col gap-2">
-      <div className="flex items-center gap-3 bg-white border border-zinc-200 rounded-xl p-2.5 shadow-2xs">
+    <div className="px-4 pt-3 pb-2.5 bg-zinc-50 border-t border-zinc-200 flex flex-col gap-2 min-w-0 overflow-hidden">
+      <div className="flex items-center gap-3 bg-white border border-zinc-200 rounded-xl p-2.5 shadow-2xs min-w-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imgSrc}
           alt={context.product_name || "Preview"}
-          className="w-13 h-13 rounded-lg object-cover border border-zinc-200 shrink-0 bg-zinc-100"
+          className="w-12 h-12 rounded-lg object-cover border border-zinc-200 shrink-0 bg-zinc-100"
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border ${theme.badgeClass}`}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold border shrink-0 ${theme.badgeClass}`}
             >
               <StatusIcon size={11} weight="bold" />
               {context.section_label || context.status_label || theme.label}
             </span>
-            <span className="text-[11px] font-mono font-semibold text-zinc-500 truncate">
-              {getValidMitraOrderCode(context) || context.order_code || `#DNC-${context.order_id || ""}`}
-            </span>
+            {displayCode && (
+              <span className="text-[11px] font-mono font-semibold text-zinc-500 truncate">
+                {displayCode}
+              </span>
+            )}
           </div>
           <p className="text-xs font-bold text-zinc-900 truncate mt-1">
             {context.product_name || "Pesanan Keramik"}
@@ -727,6 +807,7 @@ export function ChatComposerContextBanner({
           type="button"
           onClick={onClear}
           title="Hapus lampiran pesanan"
+          aria-label="Hapus lampiran pesanan"
           className="p-1.5 text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 rounded-lg transition-colors cursor-pointer shrink-0"
         >
           <X size={16} weight="bold" />
@@ -734,15 +815,16 @@ export function ChatComposerContextBanner({
       </div>
 
       {onPickQuickReply && templates.length > 0 && (
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
           {templates.map((tpl, idx) => (
             <button
               key={idx}
               type="button"
-              onClick={() => onPickQuickReply(tpl)}
-              className="text-[11px] font-medium text-zinc-700 bg-white hover:bg-zinc-100 border border-zinc-200 rounded-full px-3 py-1 whitespace-nowrap transition-colors cursor-pointer"
+              onClick={() => onPickQuickReply(tpl.text)}
+              title={tpl.text}
+              className="text-[11px] font-medium text-zinc-700 bg-white hover:bg-zinc-100 border border-zinc-200 rounded-full px-3 py-1 transition-colors cursor-pointer text-left max-w-full truncate"
             >
-              {tpl.length > 58 ? `${tpl.slice(0, 58)}…` : tpl}
+              {tpl.label}
             </button>
           ))}
         </div>

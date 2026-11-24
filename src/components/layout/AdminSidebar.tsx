@@ -158,7 +158,7 @@ export default function AdminSidebar() {
 
   // Real-time update via Pusher untuk chat & log baru
   useEffect(() => {
-    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b5fa050e0050acfb222a";
     const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
     let adminId = user?.id;
     if (!adminId && typeof window !== "undefined") {

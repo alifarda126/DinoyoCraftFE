@@ -17,7 +17,7 @@ import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
 import { loginSchema, LoginFormData } from "@/validators/authSchemas";
 
 const pjs = Plus_Jakarta_Sans({ subsets: ["latin"] });
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/+$/, "");
 
 function LoginFormContent() {
   const router = useRouter();
@@ -53,8 +53,6 @@ function LoginFormContent() {
         }
       );
 
-      console.log("=== RESPONSE BACKEND ===", response.data);
-
       if (response.data.success) {
         if (response.data.requires_2fa || response.data.data?.requires_2fa) {
           toast.info(response.data.message || "Akun ini mengaktifkan 2FA. Periksa email Anda untuk kode OTP.");
@@ -62,9 +60,6 @@ function LoginFormContent() {
         }
         const token = response.data.data?.token || response.data.token;
         const userData = response.data.data?.user || response.data.data;
-
-        console.log("=== EXTRACTED USER ===", userData);
-        console.log("=== EXTRACTED TOKEN ===", token);
 
         if (!userData || !token) {
           toast.error("Format data dari server tidak sesuai");

@@ -616,7 +616,7 @@ function AdminSystemLogsContent() {
 
   // Integrasi Pusher Real-Time + Reconnect Catch-Up + Polling Fallback (§8.4)
   useEffect(() => {
-    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b5fa050e0050acfb222a";
     const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
     const token =
       typeof window !== "undefined"

@@ -67,10 +67,13 @@ const STORAGE_KEY = "_dc_demo_v1";
 export function getDemoSession(): DemoSession | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as DemoSession;
+    // Di production, sesi hanya boleh berasal dari token & user login asli
+    if (process.env.NODE_ENV !== "production") {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw) as DemoSession;
+    }
 
-    // Fallback otomatis dari data user yang login sebenarnya (token & user di localStorage)
+    // Ambil dari data user yang login sebenarnya (token & user di localStorage)
     const storedToken = localStorage.getItem("token");
     const storedUserStr = localStorage.getItem("user");
     if (storedToken && storedUserStr) {

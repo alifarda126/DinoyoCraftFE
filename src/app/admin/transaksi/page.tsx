@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import Pusher from "pusher-js";
@@ -82,7 +82,7 @@ export default function AdminTransaksiPage() {
     const session = getDemoSession();
     const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
     if ((!session || session.role !== "admin") && !storedToken) {
-      router.push("/auth/login");
+      router.push("/login");
       return;
     }
 
@@ -98,7 +98,7 @@ export default function AdminTransaksiPage() {
     window.addEventListener("focus", onFocusOrVisible);
     document.addEventListener("visibilitychange", onFocusOrVisible);
 
-    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b0fa050e0050acfb222a";
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY || "b5fa050e0050acfb222a";
     const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "ap1";
     let pusher: Pusher | null = null;
     try {
