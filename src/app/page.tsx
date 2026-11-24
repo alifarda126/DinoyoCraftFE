@@ -997,7 +997,7 @@ export default function Home() {
               textAlign: "center",
             }}
           >
-            <Headset size={32} weight="duotone" style={{ color: "var(--clay)" }} />
+            <Headset size={32} weight="duotone" className="mx-auto" style={{ color: "var(--clay)" }} />
             <p
               style={{
                 marginTop: "0.75rem",
@@ -1018,7 +1018,7 @@ export default function Home() {
               Hubungi Relationship Manager kami.
             </p>
             <a
-              href="mailto:cs@dinoyocraft.id"
+              href="mailto:support@dinoyocraft.my.id"
               style={{
                 display: "inline-block",
                 marginTop: "1rem",
@@ -1026,9 +1026,10 @@ export default function Home() {
                 fontWeight: 700,
                 fontSize: "0.95rem",
                 textDecoration: "none",
+                wordBreak: "break-word",
               }}
             >
-              cs@dinoyocraft.id
+              support@dinoyocraft.my.id
             </a>
           </div>
         </div>
@@ -1059,17 +1060,9 @@ export default function Home() {
           }}
         />
 
-        <div
-          className="max-w-[1400px] mx-auto px-5 lg:px-8"
-          style={{
-            padding: "3.5rem 2rem 2.5rem",
-            display: "grid",
-            gridTemplateColumns: "2fr 1fr 1fr 1.5fr",
-            gap: "2.5rem",
-          }}
-        >
+        <div className="max-w-[1400px] mx-auto px-5 sm:px-8 pt-12 pb-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1.5fr] gap-8 lg:gap-10">
           {/* Brand column */}
-          <div>
+          <div className="min-w-0">
             <span
               style={{
                 fontWeight: 800,
@@ -1124,7 +1117,7 @@ export default function Home() {
           </div>
 
           {/* Program */}
-          <div>
+          <div className="min-w-0">
             <p
               style={{
                 fontSize: "0.72rem",
@@ -1174,7 +1167,7 @@ export default function Home() {
           </div>
 
           {/* Kontak */}
-          <div>
+          <div className="min-w-0">
             <p
               style={{
                 fontSize: "0.72rem",
@@ -1199,10 +1192,10 @@ export default function Home() {
                 onMouseLeave={(e) => (e.currentTarget.style.color = "var(--bark-muted)")}>
                 WhatsApp: +62 812-3456-7890
               </a>
-              <a href="mailto:cs@dinoyocraft.id" style={{ fontSize: "0.82rem", color: "var(--bark-muted)", textDecoration: "none", display: "block" }}
+              <a href="mailto:support@dinoyocraft.my.id" className="break-words" style={{ fontSize: "0.82rem", color: "var(--bark-muted)", textDecoration: "none", display: "block" }}
                 onMouseEnter={(e) => (e.currentTarget.style.color = "var(--clay)")}
                 onMouseLeave={(e) => (e.currentTarget.style.color = "var(--bark-muted)")}>
-                Email: cs@dinoyocraft.id
+                Email: support@dinoyocraft.my.id
               </a>
               <p style={{ fontSize: "0.82rem", color: "var(--bark-muted)" }}>
                 Jl. Dinoyo, Kec. Lowokwaru
@@ -1213,7 +1206,7 @@ export default function Home() {
           </div>
 
           {/* Jam layanan */}
-          <div>
+          <div className="min-w-0">
             <p
               style={{
                 fontSize: "0.72rem",

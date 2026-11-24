@@ -45,3 +45,7 @@ next-env.d.ts
 Rombak.txt
 AGENTS.md
 CLAUDE.md
+
+# Internal PRD docs
+PRD_*.md
+docs/PRD_*.md

@@ -98,7 +98,7 @@ export default function AuthLayout({
           </span>
         </Link>
         <a
-          href="mailto:bantuan@dinoyocraft.id"
+          href="mailto:support@dinoyocraft.my.id"
           style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--clay)", textDecoration: "none" }}
         >
           Butuh bantuan?

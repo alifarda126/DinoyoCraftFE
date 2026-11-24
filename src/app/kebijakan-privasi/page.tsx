@@ -129,8 +129,8 @@ export default function KebijakanPrivasiPage() {
 
         <p style={{ marginTop: "2rem", fontSize: "0.8rem", color: "var(--bark-muted)", textAlign: "center", lineHeight: 1.6 }}>
           Pertanyaan? Hubungi kami di{" "}
-          <a href="mailto:bantuan@dinoyocraft.id" style={{ color: "var(--clay)", fontWeight: 600 }}>
-            bantuan@dinoyocraft.id
+          <a href="mailto:support@dinoyocraft.my.id" style={{ color: "var(--clay)", fontWeight: 600 }}>
+            support@dinoyocraft.my.id
           </a>
         </p>
       </main>
