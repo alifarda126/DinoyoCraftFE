@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Package, Receipt, Users, CurrencyCircleDollar, TrendUp, ArrowRight, X, Bank } from "@phosphor-icons/react";
 import Image from "next/image";
@@ -62,28 +62,50 @@ export default function SellerDashboardHome() {
     useAuthStore.getState().initAuth();
   }, []);
 
+  const isFetchingRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
+
   const fetchDashboardData = useCallback(async (isInitial = false) => {
     const storedToken =
       (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
-    if (!storedToken) return;
-    if (isInitial) setLoading(true);
+    if (!storedToken || isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+    if (isInitial && !hasLoadedRef.current) setLoading(true);
+    let shouldKeepLoading = false;
     try {
       const response = await axios.get(`${API_BASE_URL}/mitra/dashboard`, {
         withCredentials: true,
+        timeout: 15000,
         headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
       });
 
       if (response.data.success && response.data.data) {
         const resData = response.data.data;
         setDashboardData(resData);
+        hasLoadedRef.current = true;
+        retryCountRef.current = 0;
         if (resData.mitraName) {
           setSellerName(resData.mitraName);
         }
       }
     } catch (error) {
       console.error("Gagal mengambil data dashboard:", error);
+      if (!hasLoadedRef.current && retryCountRef.current < 4) {
+        retryCountRef.current += 1;
+        shouldKeepLoading = true;
+        retryTimerRef.current = setTimeout(() => fetchDashboardData(false), 3000);
+      }
     } finally {
-      setLoading(false);
+      isFetchingRef.current = false;
+      if (!shouldKeepLoading) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -141,6 +163,7 @@ export default function SellerDashboardHome() {
 
     return () => {
       clearInterval(pollInterval);
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
       window.removeEventListener("focus", onRefresh);
       document.removeEventListener("visibilitychange", onRefresh);
       window.removeEventListener("mitra_orders_updated", onRefresh);
@@ -156,8 +179,7 @@ export default function SellerDashboardHome() {
   }, [user, router, fetchDashboardData]);
 
   const currentBalance = dashboardData?.stats?.saldoAktif ?? 0;
-
-  if (loading) return <div>Memuat data...</div>;
+  const isDataLoading = loading && !dashboardData;
 
   const stats = [
     {
@@ -303,7 +325,11 @@ export default function SellerDashboardHome() {
             </div>
             <div>
               <p style={{ fontSize: "0.85rem", color: "var(--bark-muted)", marginBottom: "0.25rem" }}>{stat.label}</p>
-              <p style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--bark)" }}>{stat.value}</p>
+              {isDataLoading ? (
+                <div className="h-7 w-24 rounded-md bg-zinc-200/80 animate-pulse mt-1" />
+              ) : (
+                <p style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--bark)" }}>{stat.value}</p>
+              )}
             </div>
           </div>
         ))}
@@ -314,7 +340,9 @@ export default function SellerDashboardHome() {
         <div className="card-shadow" style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", padding: "1.5rem" }}>
           <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--bark)", marginBottom: "1.25rem" }}>Pesanan Terbaru</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {recentOrdersList.length > 0 ? (
+            {isDataLoading ? (
+              <p className="text-zinc-400 text-sm py-4 text-center animate-pulse">Memuat pesanan terbaru...</p>
+            ) : recentOrdersList.length > 0 ? (
               recentOrdersList.map((order) => (
                 <div key={order.id} onClick={() => router.push("/mitra/dashboard/pesanan")} style={{
                   display: "flex", justifyContent: "space-between", alignItems: "center",

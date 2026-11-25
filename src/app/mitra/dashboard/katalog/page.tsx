@@ -387,6 +387,7 @@ export default function SellerCatalogPage() {
           Authorization: `Bearer ${storedToken}`,
         },
         withCredentials: true,
+        timeout: 15000,
       });
 
       if (response.data.success && Array.isArray(response.data.data)) {
@@ -403,7 +404,7 @@ export default function SellerCatalogPage() {
 
   const loadCategories = useCallback(async () => {
     try {
-      const res = await axios.get(`${API_BASE_URL}/products/categories?all=1`);
+      const res = await axios.get(`${API_BASE_URL}/products/categories?all=1`, { timeout: 15000 });
       if (res.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
         const opts = res.data.data
           .map((c: any) => String(c?.name || "").trim())
@@ -435,7 +436,7 @@ export default function SellerCatalogPage() {
         loadCategories();
       }
     };
-    const pollInterval = setInterval(onRefresh, 5000);
+    const pollInterval = setInterval(onRefresh, 25000);
     window.addEventListener("focus", onRefresh);
     document.addEventListener("visibilitychange", onRefresh);
     return () => {

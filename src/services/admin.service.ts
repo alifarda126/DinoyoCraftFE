@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 import Cookies from 'js-cookie';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
@@ -12,45 +12,60 @@ export const getToken = () => {
     return null;
 };
 
+const adminHttp = axios.create({
+    baseURL: API_BASE_URL,
+    timeout: 15000,
+    withCredentials: true,
+});
+
+adminHttp.interceptors.request.use((config) => {
+    const token = getToken();
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
+adminHttp.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const config = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
+        const method = (config?.method || 'get').toLowerCase();
+        const status = error.response?.status;
+        const isTransient =
+            !error.response ||
+            error.code === 'ECONNABORTED' ||
+            status === 502 ||
+            status === 503 ||
+            status === 504;
+
+        if (config && method === 'get' && !config._retried && isTransient) {
+            config._retried = true;
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            return adminHttp(config);
+        }
+        return Promise.reject(error);
+    }
+);
+
 export const adminService = {
     getVerifikasiList: async () => {
-        const token = getToken();
-        console.log("Token yang dikirim ke backend:", token);
-
-        const response = await axios.get(`${API_BASE_URL}/admin/verifikasi`, {
-            headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await adminHttp.get('/admin/verifikasi');
         return response.data;
     },
 
     getDashboardStats: async () => {
-        const token = getToken();
-        const response = await axios.get(`${API_BASE_URL}/admin/dashboard-stats`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            withCredentials: true,
-        });
+        const response = await adminHttp.get('/admin/dashboard-stats');
         return response.data;
     },
 
     getTransactions: async (params?: { status?: string; q?: string; page?: number; limit?: number }) => {
-        const token = getToken();
-        const response = await axios.get(`${API_BASE_URL}/admin/transactions`, {
-            params,
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            withCredentials: true,
-        });
+        const response = await adminHttp.get('/admin/transactions', { params });
         return response.data;
     },
 
     verifyStore: async (id: number, status: 'approved' | 'rejected', reason?: string) => {
-        const token = getToken();
-        console.log("Token yang dikirim ke backend (verifyStore):", token);
-
-        const response = await axios.patch(
-            `${API_BASE_URL}/admin/verifikasi/${id}`,
-            { status, reason },
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
+        const response = await adminHttp.patch(`/admin/verifikasi/${id}`, { status, reason });
         return response.data;
     },
 
@@ -61,12 +76,7 @@ export const adminService = {
         page?: number;
         limit?: number;
     }) => {
-        const token = getToken();
-        const response = await axios.get(`${API_BASE_URL}/admin/moderation/reports`, {
-            params,
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            withCredentials: true,
-        });
+        const response = await adminHttp.get('/admin/moderation/reports', { params });
         return response.data;
     },
 
@@ -78,15 +88,7 @@ export const adminService = {
             type?: string | null;
         }
     ) => {
-        const token = getToken();
-        const response = await axios.put(
-            `${API_BASE_URL}/admin/moderation/reports/${id}/action`,
-            payload,
-            {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-                withCredentials: true,
-            }
-        );
+        const response = await adminHttp.put(`/admin/moderation/reports/${id}/action`, payload);
         return response.data;
     },
 
@@ -96,12 +98,7 @@ export const adminService = {
         page?: number;
         limit?: number;
     }) => {
-        const token = getToken();
-        const response = await axios.get(`${API_BASE_URL}/admin/moderation/account-deletions`, {
-            params,
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            withCredentials: true,
-        });
+        const response = await adminHttp.get('/admin/moderation/account-deletions', { params });
         return response.data;
     },
 
@@ -109,69 +106,34 @@ export const adminService = {
         id: string | number,
         action: 'approved' | 'rejected'
     ) => {
-        const token = getToken();
-        const response = await axios.put(
-            `${API_BASE_URL}/admin/moderation/account-deletions/${id}/action`,
-            { action },
-            {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-                withCredentials: true,
-            }
-        );
+        const response = await adminHttp.put(`/admin/moderation/account-deletions/${id}/action`, { action });
         return response.data;
     },
 
     getUnreadChatCount: async () => {
-        const token = getToken();
-        const response = await axios.get(`${API_BASE_URL}/chat/unread-count`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            withCredentials: true,
-        });
+        const response = await adminHttp.get('/chat/unread-count');
         return response.data;
     },
 
     getUsers: async (params?: { page?: number; limit?: number }) => {
-        const token = getToken();
-        const response = await axios.get(`${API_BASE_URL}/admin/users`, {
+        const response = await adminHttp.get('/admin/users', {
             params: { limit: 100, ...params },
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            withCredentials: true,
         });
         return response.data;
     },
 
     updateUserStatus: async (id: number, is_active: boolean) => {
-        const token = getToken();
-        const response = await axios.patch(
-            `${API_BASE_URL}/admin/users/${id}/status`,
-            { is_active },
-            {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-                withCredentials: true,
-            }
-        );
+        const response = await adminHttp.patch(`/admin/users/${id}/status`, { is_active });
         return response.data;
     },
 
     forceLogoutUser: async (id: number) => {
-        const token = getToken();
-        const response = await axios.patch(
-            `${API_BASE_URL}/admin/users/${id}/force-logout`,
-            {},
-            {
-                headers: token ? { Authorization: `Bearer ${token}` } : {},
-                withCredentials: true,
-            }
-        );
+        const response = await adminHttp.patch(`/admin/users/${id}/force-logout`, {});
         return response.data;
     },
 
     getAiSettings: async () => {
-        const token = getToken();
-        const response = await axios.get(`${API_BASE_URL}/admin/ai-settings`, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            withCredentials: true,
-        });
+        const response = await adminHttp.get('/admin/ai-settings');
         return response.data;
     },
 
@@ -181,20 +143,13 @@ export const adminService = {
         api_key: string;
         system_prompt: string;
     }) => {
-        const token = getToken();
-        const response = await axios.put(`${API_BASE_URL}/admin/ai-settings`, payload, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            withCredentials: true,
-        });
+        const response = await adminHttp.put('/admin/ai-settings', payload);
         return response.data;
     },
 
     getMasterData: async (category?: string) => {
-        const token = getToken();
-        const response = await axios.get(`${API_BASE_URL}/admin/master-data`, {
+        const response = await adminHttp.get('/admin/master-data', {
             params: category ? { category } : undefined,
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            withCredentials: true,
         });
         return response.data;
     },
@@ -205,11 +160,7 @@ export const adminService = {
         value: string;
         description?: string;
     }) => {
-        const token = getToken();
-        const response = await axios.post(`${API_BASE_URL}/admin/master-data`, payload, {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            withCredentials: true,
-        });
+        const response = await adminHttp.post('/admin/master-data', payload);
         return response.data;
     },
 };

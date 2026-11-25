@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Pusher from "pusher-js";
 import { toast } from "sonner";
@@ -58,9 +58,22 @@ export default function AdminVerifikasiPage() {
   const [customReason, setCustomReason] = useState<string>("");
   const [rejecting, setRejecting] = useState<boolean>(false);
 
-  // 1. Ambil data pengajuan toko dari backend
+  // 1. Ambil data pengajuan toko dari backend (otomatis & tahan gangguan transien)
+  const isFetchingRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
+
   const fetchVerifikasi = useCallback(async (isInitial = false) => {
-    if (isInitial) setLoading(true);
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    if (isInitial && !hasLoadedRef.current) setLoading(true);
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+
+    let shouldKeepLoading = false;
     try {
       const res = await adminService.getVerifikasiList();
       const rawData = res.data || res;
@@ -117,16 +130,23 @@ export default function AdminVerifikasiPage() {
       } else {
         setRegistrations([]);
       }
+      hasLoadedRef.current = true;
+      retryCountRef.current = 0;
       if (isInitial && typeof window !== "undefined") {
         window.dispatchEvent(new Event("admin_verifikasi_updated"));
       }
     } catch (error: any) {
-      if (isInitial) {
-        console.error("Gagal memuat data verifikasi:", error);
-        toast.error(error?.response?.data?.message || "Gagal memuat daftar pengajuan verifikasi toko.");
+      console.error("Gagal memuat data verifikasi:", error);
+      if (!hasLoadedRef.current && retryCountRef.current < 4) {
+        retryCountRef.current += 1;
+        shouldKeepLoading = true;
+        retryTimerRef.current = setTimeout(() => {
+          fetchVerifikasi(false);
+        }, 3000);
       }
     } finally {
-      if (isInitial) {
+      isFetchingRef.current = false;
+      if (!shouldKeepLoading) {
         setLoading(false);
       }
     }
@@ -141,7 +161,7 @@ export default function AdminVerifikasiPage() {
       }
     };
 
-    const pollInterval = setInterval(onFocusOrVisible, 45_000);
+    const pollInterval = setInterval(onFocusOrVisible, 30_000);
     window.addEventListener("focus", onFocusOrVisible);
     document.addEventListener("visibilitychange", onFocusOrVisible);
 
@@ -156,6 +176,9 @@ export default function AdminVerifikasiPage() {
 
     return () => {
       clearInterval(pollInterval);
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+      }
       window.removeEventListener("focus", onFocusOrVisible);
       document.removeEventListener("visibilitychange", onFocusOrVisible);
       if (pusher) {
@@ -250,14 +273,6 @@ export default function AdminVerifikasiPage() {
     { key: "setuju" as const, icon: CheckSquare, label: "Menyetujui Syarat & Ketentuan Mitra" },
   ];
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-zinc-500 font-medium">Memuat data pengajuan...</div>
-      </div>
-    );
-  }
-
   return (
     <div>
       <div className="mb-6">
@@ -269,7 +284,7 @@ export default function AdminVerifikasiPage() {
         <div className="p-4 border-b border-zinc-200 flex justify-between items-center bg-zinc-50">
           <h2 className="font-semibold text-lg flex items-center gap-2">
             <Storefront size={24} weight="duotone" className="text-zinc-500" />
-            Daftar Pengajuan ({filtered.length})
+            Daftar Pengajuan ({loading && registrations.length === 0 ? "..." : filtered.length})
           </h2>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative">
@@ -317,7 +332,13 @@ export default function AdminVerifikasiPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading && registrations.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-zinc-400 text-sm animate-pulse">
+                    Memuat data pengajuan...
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-8 text-center text-zinc-500 text-sm">
                     Tidak ada pengajuan verifikasi toko yang ditemukan.

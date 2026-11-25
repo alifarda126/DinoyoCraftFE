@@ -538,12 +538,10 @@ function AdminSystemLogsContent() {
       } catch (err: any) {
         if (err?.response?.status === 403) {
           setAccessDenied(true);
-        } else {
-          setLoadError(
-            err?.response?.data?.message ||
-              err?.message ||
-              "Gagal memuat data log dari server. Data sebelumnya tetap dipertahankan."
-          );
+        } else if (isReset) {
+          setTimeout(() => {
+            fetchLogsAndSummary(false);
+          }, 3000);
         }
       } finally {
         setLoading(false);
@@ -962,15 +960,6 @@ function AdminSystemLogsContent() {
           >
             {isPaused ? <Play size={15} weight="fill" /> : <Pause size={15} weight="fill" />}
             {isPaused ? "Resume Live" : "Pause Stream"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => fetchLogsAndSummary(true)}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-white text-zinc-800 border border-zinc-300 hover:bg-zinc-50 transition whitespace-nowrap"
-          >
-            <ArrowsClockwise size={15} weight="bold" className={loading ? "animate-spin" : ""} />
-            Refresh
           </button>
 
           <button
@@ -1498,20 +1487,6 @@ function AdminSystemLogsContent() {
             className="px-3 py-1.5 rounded-lg text-xs font-bold bg-amber-600 text-white hover:bg-amber-700 transition whitespace-nowrap"
           >
             Tampilkan Event Baru &amp; Lanjutkan Live
-          </button>
-        </div>
-      )}
-
-      {/* BANNER ERROR LOAD HISTORIS (§8.6) */}
-      {loadError && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between flex-wrap gap-3">
-          <div className="text-xs font-semibold text-red-800">{loadError}</div>
-          <button
-            type="button"
-            onClick={() => fetchLogsAndSummary(false)}
-            className="px-3 py-1 rounded-md text-xs font-bold bg-red-600 text-white hover:bg-red-700 whitespace-nowrap"
-          >
-            Coba Lagi
           </button>
         </div>
       )}

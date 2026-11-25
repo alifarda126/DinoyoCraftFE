@@ -291,7 +291,7 @@ export default function SellerProfilPage() {
       }
     };
 
-    const pollInterval = setInterval(handleVerificationUpdated, 5000);
+    const pollInterval = setInterval(handleVerificationUpdated, 15000);
     window.addEventListener("mitra-verification-updated", handleVerificationUpdated);
     window.addEventListener("focus", handleVerificationUpdated);
     document.addEventListener("visibilitychange", handleVerificationUpdated);
@@ -539,8 +539,6 @@ export default function SellerProfilPage() {
     .join("")
     .toUpperCase() || "DC";
 
-  if (loading) return <div>Memuat...</div>;
-
   if (isNewRegistration) {
     return (
       <div style={{ animation: "fadeIn 0.4s ease-out" }}>
@@ -697,16 +695,23 @@ export default function SellerProfilPage() {
     <div style={{ animation: "fadeIn 0.4s ease-out" }}>
       {/* Page Header */}
       <header style={{ marginBottom: "1.5rem" }}>
-        <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--bark)", marginBottom: "0.25rem", letterSpacing: "-0.02em" }}>
-          Edit Profil Toko
-        </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
+          <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--bark)", marginBottom: "0.25rem", letterSpacing: "-0.02em" }}>
+            Edit Profil Toko
+          </h1>
+          {loading && (
+            <span className="px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-500 text-xs font-medium animate-pulse">
+              Memuat data profil...
+            </span>
+          )}
+        </div>
         <p style={{ color: "var(--bark-muted)", fontSize: "0.95rem" }}>
           Lengkapi informasi toko agar lebih mudah ditemukan dan dipercaya pelanggan.
         </p>
       </header>
 
       {/* ── Banners Pengumuman Status Verifikasi ── */}
-      {verificationStatus === "rejected" && (
+      {!loading && verificationStatus === "rejected" && (
         <div style={{
           marginBottom: "1.75rem",
           background: "linear-gradient(135deg, #fff1f2 0%, #fff5f5 100%)",
@@ -807,7 +812,7 @@ export default function SellerProfilPage() {
         </div>
       )}
 
-      {verificationStatus === "pending" && (
+      {!loading && verificationStatus === "pending" && (
         <div style={{
           marginBottom: "1.75rem",
           background: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",

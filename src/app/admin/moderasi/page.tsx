@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import {
@@ -48,7 +48,19 @@ export default function AdminModerasiPage() {
   const [deleteSearch, setDeleteSearch] = useState("");
   const [deleteFilter, setDeleteFilter] = useState<"semua" | DeleteStatus>("semua");
 
+  const isFetchingRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
+
   const fetchModerationData = useCallback(async (silent = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+    let shouldKeepLoading = false;
     try {
       const [reportsRes, deletionsRes] = await Promise.all([
         adminService.getModerationReports({ limit: 100 }),
@@ -83,16 +95,23 @@ export default function AdminModerasiPage() {
         );
       }
 
+      hasLoadedRef.current = true;
+      retryCountRef.current = 0;
       if (!silent && typeof window !== "undefined") {
         window.dispatchEvent(new Event("admin_moderasi_updated"));
       }
     } catch (err) {
-      if (!silent) {
-        console.error("Gagal memuat data moderasi:", err);
-        toast.error("Gagal memuat data moderasi dari server.");
+      console.error("Gagal memuat data moderasi:", err);
+      if (!hasLoadedRef.current && retryCountRef.current < 4) {
+        retryCountRef.current += 1;
+        shouldKeepLoading = true;
+        retryTimerRef.current = setTimeout(() => {
+          fetchModerationData(true);
+        }, 3000);
       }
     } finally {
-      if (!silent) {
+      isFetchingRef.current = false;
+      if (!shouldKeepLoading) {
         setLoading(false);
       }
     }
@@ -105,22 +124,25 @@ export default function AdminModerasiPage() {
       router.push("/login");
       return;
     }
-    fetchModerationData();
+    fetchModerationData(false);
 
     const onFocusOrVisible = () => {
       if (typeof document === "undefined" || document.visibilityState === "visible") {
-        fetchModerationData();
+        fetchModerationData(true);
       }
     };
 
-    const pollInterval = setInterval(onFocusOrVisible, 45_000);
+    const pollInterval = setInterval(onFocusOrVisible, 30_000);
     window.addEventListener("focus", onFocusOrVisible);
     document.addEventListener("visibilitychange", onFocusOrVisible);
 
     return () => {
       clearInterval(pollInterval);
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+      }
       window.removeEventListener("focus", onFocusOrVisible);
-      document.removeEventListener("visibilitychange", onFocusOrVisible);
+      window.removeEventListener("visibilitychange", onFocusOrVisible);
     };
   }, [router, fetchModerationData]);
 
@@ -185,8 +207,6 @@ export default function AdminModerasiPage() {
 
   const pendingCount = reports.filter(r => r.status === "pending").length;
   const deleteCount = deletes.filter(d => d.status === "pending").length;
-
-  if (loading) return <div>Memuat...</div>;
 
   return (
     <div>
@@ -286,7 +306,15 @@ export default function AdminModerasiPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredReports.map(report => {
+                {loading && reports.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-10 text-center text-zinc-400 text-sm animate-pulse">
+                      Memuat data laporan...
+                    </td>
+                  </tr>
+                ) : (
+                  <>
+                    {filteredReports.map(report => {
                   const typeStyle = TYPE_COLORS[report.type];
                   return (
                     <tr key={report.id} className="border-b border-zinc-200 hover:bg-zinc-50/60 transition-colors">
@@ -365,6 +393,8 @@ export default function AdminModerasiPage() {
                     </td>
                   </tr>
                 )}
+                  </>
+                )}
               </tbody>
             </table>
           </div>
@@ -418,7 +448,15 @@ export default function AdminModerasiPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredDeletes.map(req => (
+                {loading && deletes.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="p-10 text-center text-zinc-400 text-sm animate-pulse">
+                      Memuat data pengajuan...
+                    </td>
+                  </tr>
+                ) : (
+                  <>
+                    {filteredDeletes.map(req => (
                   <tr key={req.id} className="border-b border-zinc-200 hover:bg-zinc-50/60 transition-colors">
                     <td className="p-4 text-sm text-zinc-500 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
@@ -491,6 +529,8 @@ export default function AdminModerasiPage() {
                       Tidak ada pengajuan yang sesuai filter.
                     </td>
                   </tr>
+                )}
+                  </>
                 )}
               </tbody>
             </table>

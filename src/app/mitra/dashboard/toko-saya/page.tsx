@@ -53,6 +53,7 @@ export default function TokoSaya() {
       try {
         const response = await axios.get(`${apiBase}/mitra/store-profile`, {
           withCredentials: true,
+          timeout: 15000,
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (response.data.success && response.data.data) {
@@ -90,16 +91,7 @@ export default function TokoSaya() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex-1 p-8 flex items-center justify-center min-h-[400px]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-[#8B5A2B]/20 border-t-[#8B5A2B] rounded-full animate-spin"></div>
-          <p className="text-sm font-medium text-gray-500">Memuat profil toko...</p>
-        </div>
-      </div>
-    );
-  }
+  const isDataLoading = isLoading && !data;
 
   // Fallback defaults to match the reference visual design precisely
   const storeName = data?.store?.name || 'Dinoyo Ceramic Studio';
@@ -195,18 +187,27 @@ export default function TokoSaya() {
 
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-                  {storeName}
-                </h1>
-                <div className="flex flex-wrap items-center gap-3 text-sm mt-1.5 text-gray-500">
-                  <span className="flex items-center gap-1.5 text-stone-600">
-                    <FiMapPin size={15} className="text-stone-400" />
-                    {storeAddress}
-                  </span>
-                  <span className="flex items-center gap-1 text-amber-500 font-bold">
-                    ★ {storeRating > 0 ? storeRating.toFixed(1) : 'Baru'} <span className="text-gray-400 font-normal">({storeReviewCount} Ulasan)</span>
-                  </span>
-                </div>
+                {isDataLoading ? (
+                  <>
+                    <div className="h-7 w-56 rounded-lg bg-gray-200 animate-pulse" />
+                    <div className="h-4 w-44 rounded bg-gray-100 animate-pulse mt-2" />
+                  </>
+                ) : (
+                  <>
+                    <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+                      {storeName}
+                    </h1>
+                    <div className="flex flex-wrap items-center gap-3 text-sm mt-1.5 text-gray-500">
+                      <span className="flex items-center gap-1.5 text-stone-600">
+                        <FiMapPin size={15} className="text-stone-400" />
+                        {storeAddress}
+                      </span>
+                      <span className="flex items-center gap-1 text-amber-500 font-bold">
+                        ★ {storeRating > 0 ? storeRating.toFixed(1) : 'Baru'} <span className="text-gray-400 font-normal">({storeReviewCount} Ulasan)</span>
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <button
@@ -219,7 +220,14 @@ export default function TokoSaya() {
 
             {/* Description Box */}
             <div className="p-4 bg-white border border-gray-200/80 rounded-2xl text-sm text-stone-700 leading-relaxed font-normal shadow-2xs">
-              {storeDescription}
+              {isDataLoading ? (
+                <div className="space-y-2">
+                  <div className="h-4 w-full rounded bg-gray-100 animate-pulse" />
+                  <div className="h-4 w-3/4 rounded bg-gray-100 animate-pulse" />
+                </div>
+              ) : (
+                storeDescription
+              )}
             </div>
           </div>
         </div>
@@ -229,7 +237,7 @@ export default function TokoSaya() {
           <div>
             <h2 className="text-xl font-bold text-gray-900">Katalog Produk</h2>
             <p className="text-sm text-gray-500 mt-1">
-              Menampilkan {filteredProducts.length} Produk
+              {isDataLoading ? 'Memuat produk...' : `Menampilkan ${filteredProducts.length} Produk`}
             </p>
           </div>
 
@@ -246,7 +254,20 @@ export default function TokoSaya() {
         </div>
 
         {/* Grid Produk atau Empty State */}
-        {filteredProducts.length === 0 ? (
+        {isDataLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((idx) => (
+              <div key={idx} className="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
+                <div className="h-56 bg-stone-100 animate-pulse" />
+                <div className="p-5 space-y-2.5">
+                  <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-3 w-1/2 bg-gray-100 rounded animate-pulse" />
+                  <div className="h-5 w-1/3 bg-gray-200 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredProducts.length === 0 ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center shadow-xs">
             <div className="w-16 h-16 rounded-full bg-stone-100 text-stone-400 flex items-center justify-center mx-auto mb-4 text-2xl">
               📦

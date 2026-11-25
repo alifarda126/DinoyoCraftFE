@@ -1,9 +1,12 @@
-import axios from "axios";
+import axios, { InternalAxiosRequestConfig } from "axios";
+import Cookies from "js-cookie";
 
 const baseURL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 const api = axios.create({
   baseURL,
+  timeout: 15000,
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
   },
@@ -16,19 +19,17 @@ api.interceptors.request.use(
       delete config.headers["Content-Type"];
     }
     if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token"); // Atau bisa ambil dari Zustand
+      const token = localStorage.getItem("token") || Cookies.get("token");
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Interceptor untuk menangani error respons dari server & menyertakan requestId (§10.3)
+// Interceptor untuk menangani error respons dari server, retry otomatis GET transien, & menyertakan requestId
 api.interceptors.response.use(
   (response) => {
     const reqId = response.headers?.["x-request-id"];
@@ -37,16 +38,35 @@ api.interceptors.response.use(
     }
     return response;
   },
-  (error) => {
+  async (error) => {
     const reqId = error.response?.headers?.["x-request-id"];
     if (reqId) {
       error.requestId = reqId;
     }
-    if (error.response?.status === 401) {
-      // Token tidak valid atau kedaluwarsa -> otomatis logout
+
+    const config = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
+    const method = (config?.method || "get").toLowerCase();
+    const status = error.response?.status;
+    const isTransient =
+      !error.response ||
+      error.code === "ECONNABORTED" ||
+      status === 502 ||
+      status === 503 ||
+      status === 504;
+
+    if (config && method === "get" && !config._retried && isTransient) {
+      config._retried = true;
+      await new Promise((resolve) => setTimeout(resolve, 800));
+      return api(config);
+    }
+
+    if (status === 401) {
       if (typeof window !== "undefined") {
         localStorage.removeItem("token");
-        window.location.href = "/login";
+        Cookies.remove("token");
+        if (!window.location.pathname.startsWith("/login")) {
+          window.location.href = "/login";
+        }
       }
     }
     return Promise.reject(error);

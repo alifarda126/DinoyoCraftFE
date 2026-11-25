@@ -62,6 +62,10 @@ export default function LaporanKeuanganPage() {
   useEffect(() => {
     useAuthStore.getState().initAuth();
 
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retries = 0;
+    let hasLoaded = false;
+
     const fetchFinance = async (isInitial = false) => {
       const storedToken = (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
 
@@ -70,23 +74,31 @@ export default function LaporanKeuanganPage() {
         return;
       }
 
+      let shouldKeepLoading = false;
       try {
-        if (isInitial) setLoading(true);
+        if (isInitial && !hasLoaded) setLoading(true);
         const res = await axios.get(`${API_BASE_URL}/mitra/finance`, {
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           withCredentials: true,
+          timeout: 15000,
         });
 
         if (res.data?.success && res.data?.data) {
           setFinanceData(res.data.data);
           setRiwayatPenarikan(res.data.data.riwayatPenarikan || []);
           setMinWithdrawal(res.data.data.minWithdrawal || 50000);
+          hasLoaded = true;
+          retries = 0;
         }
       } catch (error) {
         console.error("Gagal memuat laporan keuangan:", error);
-        if (isInitial) toast.error("Gagal memuat data laporan keuangan");
+        if (!hasLoaded && retries < 4) {
+          retries += 1;
+          shouldKeepLoading = true;
+          retryTimer = setTimeout(() => fetchFinance(false), 3000);
+        }
       } finally {
-        if (isInitial) {
+        if (!shouldKeepLoading) {
           setLoading(false);
         }
       }
@@ -100,13 +112,14 @@ export default function LaporanKeuanganPage() {
       }
     };
 
-    const pollInterval = setInterval(onRefresh, 45_000);
+    const pollInterval = setInterval(onRefresh, 30_000);
     window.addEventListener("focus", onRefresh);
     document.addEventListener("visibilitychange", onRefresh);
     window.addEventListener("mitra_orders_updated", onRefresh);
 
     return () => {
       clearInterval(pollInterval);
+      if (retryTimer) clearTimeout(retryTimer);
       window.removeEventListener("focus", onRefresh);
       document.removeEventListener("visibilitychange", onRefresh);
       window.removeEventListener("mitra_orders_updated", onRefresh);
@@ -545,20 +558,6 @@ export default function LaporanKeuanganPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", padding: "1rem" }}>
-        <div style={{ height: "32px", width: "240px", background: "var(--surface)", borderRadius: "8px" }} />
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1rem" }}>
-          {[1, 2, 3].map((i) => (
-            <div key={i} style={{ height: "110px", background: "#fff", borderRadius: "12px", border: "1px solid var(--line)" }} />
-          ))}
-        </div>
-        <div style={{ height: "260px", background: "#fff", borderRadius: "12px", border: "1px solid var(--line)" }} />
-      </div>
-    );
-  }
-
   const stats = [
     { 
       label: "Saldo Aktif", 
@@ -727,7 +726,11 @@ export default function LaporanKeuanganPage() {
               </div>
               <div>
                 <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--bark-muted)", marginBottom: "0.2rem" }}>{stat.label}</p>
-                <p style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--bark)", letterSpacing: "-0.02em" }}>{stat.value}</p>
+                {loading ? (
+                  <div className="h-7 w-32 rounded-md bg-zinc-200/80 animate-pulse mt-1" />
+                ) : (
+                  <p style={{ fontSize: "1.6rem", fontWeight: 800, color: "var(--bark)", letterSpacing: "-0.02em" }}>{stat.value}</p>
+                )}
               </div>
             </div>
             <div style={{ paddingTop: "1rem", borderTop: "1px dashed var(--line-light)", fontSize: "0.8rem", color: "var(--bark-muted)", fontWeight: 500 }}>
@@ -877,7 +880,13 @@ export default function LaporanKeuanganPage() {
               </tr>
             </thead>
             <tbody>
-              {filteredTrx.length > 0 ? (
+              {loading && filteredTrx.length === 0 ? (
+                <tr>
+                  <td colSpan={5} style={{ padding: "3rem 1.5rem", textAlign: "center", color: "var(--bark-muted)", fontSize: "0.9rem" }} className="animate-pulse">
+                    Memuat riwayat transaksi...
+                  </td>
+                </tr>
+              ) : filteredTrx.length > 0 ? (
                 filteredTrx.map((trx, i) => (
                   <tr key={i} style={{ borderBottom: "1px solid var(--line-light)", transition: "background 0.2s" }} onMouseEnter={(e) => e.currentTarget.style.background = "var(--surface)"} onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}>
                     <td style={{ padding: "1rem 1.5rem", fontSize: "0.9rem", color: "var(--bark)", fontWeight: 600 }}>{trx.id}</td>

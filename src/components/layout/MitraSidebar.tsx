@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 import Cookies from "js-cookie";
 import Pusher from "pusher-js";
@@ -121,7 +121,10 @@ export default function MitraSidebar() {
     "/mitra/dashboard/chat": 0,
   });
 
-  const updateBadges = useCallback(async () => {
+  const isUpdatingBadgesRef = useRef(false);
+  const lastBadgeUpdateAtRef = useRef(0);
+
+  const updateBadges = useCallback(async (force = false) => {
     const storedToken =
       (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
 
@@ -130,30 +133,40 @@ export default function MitraSidebar() {
       return;
     }
 
-    const headers = { Authorization: `Bearer ${storedToken}` };
-    const [ordersRes, chatRes] = await Promise.allSettled([
-      axios.get(`${API_BASE_URL}/mitra/orders`, { headers, withCredentials: true }),
-      axios.get(`${API_BASE_URL}/chat/unread-count`, { headers, withCredentials: true }),
-    ]);
+    const now = Date.now();
+    if (isUpdatingBadgesRef.current) return;
+    if (!force && now - lastBadgeUpdateAtRef.current < 2000) return;
 
-    const nextUpdates: Record<string, number> = {};
+    isUpdatingBadgesRef.current = true;
+    lastBadgeUpdateAtRef.current = now;
+    try {
+      const headers = { Authorization: `Bearer ${storedToken}` };
+      const [ordersRes, chatRes] = await Promise.allSettled([
+        axios.get(`${API_BASE_URL}/mitra/orders`, { headers, withCredentials: true, timeout: 15000 }),
+        axios.get(`${API_BASE_URL}/chat/unread-count`, { headers, withCredentials: true, timeout: 15000 }),
+      ]);
 
-    // 1. Pesanan perlu tindakan mitra (status "paid" / "packed" -> Perlu Dikemas)
-    if (ordersRes.status === "fulfilled" && ordersRes.value.data?.success && Array.isArray(ordersRes.value.data?.data)) {
-      const needActionCount = ordersRes.value.data.data.filter((item: any) => {
-        const st = String(item.status || "").toLowerCase();
-        return st === "paid" || st === "packed";
-      }).length;
-      nextUpdates["/mitra/dashboard/pesanan"] = needActionCount;
-    }
+      const nextUpdates: Record<string, number> = {};
 
-    // 2. Live Chat (jumlah pesan belum dibaca)
-    if (chatRes.status === "fulfilled" && chatRes.value.data?.success) {
-      nextUpdates["/mitra/dashboard/chat"] = Number(chatRes.value.data?.data?.unread_count ?? 0);
-    }
+      // 1. Pesanan perlu tindakan mitra (status "paid" / "packed" -> Perlu Dikemas)
+      if (ordersRes.status === "fulfilled" && ordersRes.value.data?.success && Array.isArray(ordersRes.value.data?.data)) {
+        const needActionCount = ordersRes.value.data.data.filter((item: any) => {
+          const st = String(item.status || "").toLowerCase();
+          return st === "paid" || st === "packed";
+        }).length;
+        nextUpdates["/mitra/dashboard/pesanan"] = needActionCount;
+      }
 
-    if (Object.keys(nextUpdates).length > 0) {
-      setBadges((prev) => ({ ...prev, ...nextUpdates }));
+      // 2. Live Chat (jumlah pesan belum dibaca)
+      if (chatRes.status === "fulfilled" && chatRes.value.data?.success) {
+        nextUpdates["/mitra/dashboard/chat"] = Number(chatRes.value.data?.data?.unread_count ?? 0);
+      }
+
+      if (Object.keys(nextUpdates).length > 0) {
+        setBadges((prev) => ({ ...prev, ...nextUpdates }));
+      }
+    } finally {
+      isUpdatingBadgesRef.current = false;
     }
   }, [isVerified]);
 
@@ -165,21 +178,24 @@ export default function MitraSidebar() {
         updateBadges();
       }
     };
+    const handleForceBadgeUpdate = () => {
+      updateBadges(true);
+    };
 
-    const pollInterval = setInterval(handleBadgeUpdate, 5000);
+    const pollInterval = setInterval(handleBadgeUpdate, 25000);
 
     window.addEventListener("focus", handleBadgeUpdate);
     document.addEventListener("visibilitychange", handleBadgeUpdate);
-    window.addEventListener("mitra_orders_updated", handleBadgeUpdate);
-    window.addEventListener("chat_unread_updated", handleBadgeUpdate);
-    window.addEventListener("mitra-verification-updated", handleBadgeUpdate);
+    window.addEventListener("mitra_orders_updated", handleForceBadgeUpdate);
+    window.addEventListener("chat_unread_updated", handleForceBadgeUpdate);
+    window.addEventListener("mitra-verification-updated", handleForceBadgeUpdate);
     return () => {
       clearInterval(pollInterval);
       window.removeEventListener("focus", handleBadgeUpdate);
       document.removeEventListener("visibilitychange", handleBadgeUpdate);
-      window.removeEventListener("mitra_orders_updated", handleBadgeUpdate);
-      window.removeEventListener("chat_unread_updated", handleBadgeUpdate);
-      window.removeEventListener("mitra-verification-updated", handleBadgeUpdate);
+      window.removeEventListener("mitra_orders_updated", handleForceBadgeUpdate);
+      window.removeEventListener("chat_unread_updated", handleForceBadgeUpdate);
+      window.removeEventListener("mitra-verification-updated", handleForceBadgeUpdate);
     };
   }, [pathname, updateBadges]);
 

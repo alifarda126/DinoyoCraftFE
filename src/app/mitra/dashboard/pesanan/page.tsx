@@ -175,6 +175,7 @@ export default function PesananSellerPage() {
         const res = await axios.get(`${API_BASE_URL}/mitra/orders`, {
           headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {},
           withCredentials: true,
+          timeout: 15000,
         });
 
         if (res.data?.success && Array.isArray(res.data?.data)) {
@@ -295,11 +296,13 @@ export default function PesananSellerPage() {
         }
       } catch (error) {
         console.error("Gagal memuat pesanan:", error);
-        if (isInitial) toast.error("Gagal memuat data pesanan");
-      } finally {
         if (isInitial) {
-          setLoading(false);
+          setTimeout(() => {
+            fetchOrders(false);
+          }, 3000);
         }
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -655,15 +658,6 @@ export default function PesananSellerPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem", padding: "1rem" }}>
-        <div style={{ height: "32px", width: "240px", background: "var(--surface)", borderRadius: "8px" }} />
-        <div style={{ height: "400px", background: "#fff", borderRadius: "12px", border: "1px solid var(--line)" }} />
-      </div>
-    );
-  }
-
   return (
     <div>
       <div className="mb-6 flex justify-between items-end flex-wrap gap-3">
@@ -735,7 +729,11 @@ export default function PesananSellerPage() {
 
         {/* Order List */}
         <div className="p-0">
-          {filteredOrders.length > 0 ? (
+          {loading && orders.length === 0 ? (
+            <div className="p-10 text-center text-zinc-400 text-sm animate-pulse">
+              Memuat daftar pesanan...
+            </div>
+          ) : filteredOrders.length > 0 ? (
             <>
             <div className="divide-y divide-zinc-200">
               {paginatedOrders.map((order) => {

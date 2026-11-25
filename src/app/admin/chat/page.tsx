@@ -74,6 +74,7 @@ export default function AdminLiveChatPage() {
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [chats, setChats] = useState<ChatContact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const { user, initAuth } = useAuthStore();
 
@@ -96,7 +97,8 @@ export default function AdminLiveChatPage() {
 
   useEffect(() => {
     const sessionData = getDemoSession();
-    if (!sessionData || sessionData.role !== "admin") {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if ((!sessionData || sessionData.role !== "admin") && !storedToken) {
       router.push("/login");
       return;
     }
@@ -153,11 +155,14 @@ export default function AdminLiveChatPage() {
         })
         .catch((err) => {
           console.warn("Gagal memuat kontak dari database:", err?.message || err);
+        })
+        .finally(() => {
+          setContactsLoading(false);
         });
     };
 
     loadContacts();
-    const contactPoll = setInterval(loadContacts, 5000);
+    const contactPoll = setInterval(loadContacts, 12000);
     return () => clearInterval(contactPoll);
   }, [activeTab]);
 
@@ -531,8 +536,6 @@ export default function AdminLiveChatPage() {
     scrollToBottom();
   }, [messages]);
 
-  if (loading) return <div>Memuat...</div>;
-
   return (
     <div className="h-[calc(100vh-6rem)] flex flex-col">
       <div className="mb-6 flex items-end justify-between flex-wrap gap-3">
@@ -592,9 +595,11 @@ export default function AdminLiveChatPage() {
             />
           </div>
           <div className="flex-1 overflow-y-auto">
-            {filteredChats.length === 0 && (
+            {contactsLoading && chats.length === 0 ? (
+              <div className="p-8 text-center text-zinc-400 text-sm animate-pulse">Memuat percakapan...</div>
+            ) : filteredChats.length === 0 ? (
               <div className="p-8 text-center text-zinc-400 text-sm">Tidak ada percakapan</div>
-            )}
+            ) : null}
             {filteredChats.map(chat => (
               <div
                 key={chat.id}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Users, MagnifyingGlass, ArrowsClockwise, Prohibit, CheckCircle, SignOut } from "@phosphor-icons/react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { Users, MagnifyingGlass, Prohibit, CheckCircle, SignOut } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { adminService } from "@/services/admin.service";
 import { EarthySelect } from "@/components/ui/EarthySelect";
@@ -22,10 +22,13 @@ export default function ManajemenPenggunaPage() {
   const [roleFilter, setRoleFilter] = useState("");
   const [users, setUsers] = useState<UserItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const isFetchingRef = useRef(false);
+  const hasLoadedRef = useRef(false);
 
   const fetchUsers = useCallback(async (isInitial = false) => {
-    if (isInitial) setLoading(true);
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    if (isInitial && !hasLoadedRef.current) setLoading(true);
     try {
       const res = await adminService.getUsers({ limit: 100 });
       const rawList = Array.isArray(res?.data) ? res.data : [];
@@ -56,11 +59,11 @@ export default function ManajemenPenggunaPage() {
         };
       });
       setUsers(mapped);
-      setErrorMsg(null);
+      hasLoadedRef.current = true;
     } catch (err: any) {
       console.error("Gagal memuat daftar pengguna:", err);
-      setErrorMsg(err?.response?.data?.message || "Gagal memuat data pengguna dari server.");
     } finally {
+      isFetchingRef.current = false;
       setLoading(false);
     }
   }, []);
@@ -121,33 +124,12 @@ export default function ManajemenPenggunaPage() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
-            <Users size={28} /> Manajemen Pengguna
-          </h1>
-          <p className="text-zinc-500 text-sm mt-1">Kelola data pelanggan, penjual, dan administrator sistem.</p>
-        </div>
-        
-        <button
-          onClick={() => fetchUsers(false)}
-          className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-4 py-2 rounded-lg font-semibold flex items-center gap-2 text-sm"
-        >
-          <ArrowsClockwise size={18} className={loading ? "animate-spin" : ""} /> Refresh Data
-        </button>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 flex items-center gap-2">
+          <Users size={28} /> Manajemen Pengguna
+        </h1>
+        <p className="text-zinc-500 text-sm mt-1">Kelola data pelanggan, penjual, dan administrator sistem.</p>
       </div>
-
-      {errorMsg && (
-        <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between">
-          <span className="text-xs font-semibold text-red-800">{errorMsg}</span>
-          <button
-            onClick={() => fetchUsers(true)}
-            className="px-3 py-1 rounded-md text-xs font-bold bg-red-600 text-white hover:bg-red-700"
-          >
-            Coba Lagi
-          </button>
-        </div>
-      )}
 
       <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl overflow-hidden">
         <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex justify-between items-center">

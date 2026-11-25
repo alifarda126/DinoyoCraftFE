@@ -80,6 +80,7 @@ export default function SellerChatPage() {
     cs: [],
     customer: [],
   });
+  const [contactsLoading, setContactsLoading] = useState(true);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [message, setMessage] = useState("");
   const [attachedContext, setAttachedContext] = useState<ChatContextMetadata | null>(null);
@@ -249,11 +250,14 @@ export default function SellerChatPage() {
         })
         .catch((err) => {
           console.warn("Gagal memuat kontak dari database:", err?.message || err);
+        })
+        .finally(() => {
+          setContactsLoading(false);
         });
     };
 
     loadContacts();
-    const contactPoll = setInterval(loadContacts, 5000);
+    const contactPoll = setInterval(loadContacts, 12000);
     return () => clearInterval(contactPoll);
   }, [chatTab]);
 
@@ -659,8 +663,6 @@ export default function SellerChatPage() {
     scrollToBottom();
   }, [messages]);
 
-  if (loading) return <div>Memuat...</div>;
-
   return (
     <div className="h-[calc(100vh-6rem)] flex flex-col">
       {/* Page Header */}
@@ -725,9 +727,11 @@ export default function SellerChatPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto">
-            {filteredContacts.length === 0 && (
+            {contactsLoading && chatContacts.cs.length === 0 && chatContacts.customer.length === 0 ? (
+              <div className="p-8 text-center text-zinc-400 text-sm animate-pulse">Memuat percakapan...</div>
+            ) : filteredContacts.length === 0 ? (
               <div className="p-8 text-center text-zinc-400 text-sm">Tidak ada percakapan</div>
-            )}
+            ) : null}
             {filteredContacts.map(contact => (
               <div
                 key={contact.id}

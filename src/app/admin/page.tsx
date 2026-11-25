@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
-import { Storefront, Receipt, Users, CurrencyCircleDollar, WarningCircle, ArrowsClockwise } from "@phosphor-icons/react";
+import { Storefront, Receipt, Users, CurrencyCircleDollar, WarningCircle } from "@phosphor-icons/react";
 import { adminService } from "@/services/admin.service";
 import Pusher from "pusher-js";
 
@@ -19,36 +19,47 @@ interface DashboardStats {
 export default function AdminDashboardHome() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [adminName, setAdminName] = useState("");
+  const [adminName, setAdminName] = useState("Admin DinoyoCraft");
   const [statsData, setStatsData] = useState<DashboardStats | null>(null);
   const isFetchingRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
 
   const fetchDashboardData = useCallback(async (isInitial = false) => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
-    if (isInitial) {
+    if (isInitial && !hasLoadedRef.current) {
       setLoading(true);
-    } else {
-      setRefreshing(true);
     }
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+
+    let shouldKeepLoading = false;
     try {
       const res = await adminService.getDashboardStats();
-      if (res?.success && res?.data) {
-        setStatsData(res.data);
-        setErrorMsg(null);
-      } else if (res?.data) {
-        setStatsData(res.data);
-        setErrorMsg(null);
+      const payload = res?.data ?? null;
+      if (payload) {
+        setStatsData(payload);
+        hasLoadedRef.current = true;
+        retryCountRef.current = 0;
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Gagal menarik data dashboard dari backend:", error);
-      setErrorMsg(error?.response?.data?.message || "Gagal memuat statistik terbaru dari server.");
+      if (!hasLoadedRef.current && retryCountRef.current < 4) {
+        retryCountRef.current += 1;
+        shouldKeepLoading = true;
+        retryTimerRef.current = setTimeout(() => {
+          fetchDashboardData(false);
+        }, 3000);
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
       isFetchingRef.current = false;
+      if (!shouldKeepLoading) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -65,9 +76,9 @@ export default function AdminDashboardHome() {
     } else if (typeof window !== "undefined") {
       try {
         const u = JSON.parse(localStorage.getItem("user") || "{}");
-        setAdminName(u?.name || "Admin");
+        setAdminName(u?.name || "Admin DinoyoCraft");
       } catch {
-        setAdminName("Admin");
+        setAdminName("Admin DinoyoCraft");
       }
     }
 
@@ -83,7 +94,7 @@ export default function AdminDashboardHome() {
       if (typeof document === "undefined" || document.visibilityState === "visible") {
         fetchDashboardData(false);
       }
-    }, 45_000);
+    }, 30_000);
 
     window.addEventListener("focus", onFocusOrVisible);
     document.addEventListener("visibilitychange", onFocusOrVisible);
@@ -109,6 +120,9 @@ export default function AdminDashboardHome() {
 
     return () => {
       clearInterval(pollInterval);
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+      }
       window.removeEventListener("focus", onFocusOrVisible);
       document.removeEventListener("visibilitychange", onFocusOrVisible);
       window.removeEventListener("admin_verifikasi_updated", onFocusOrVisible);
@@ -123,13 +137,7 @@ export default function AdminDashboardHome() {
     };
   }, [router, fetchDashboardData]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-zinc-500 font-medium">Memuat data dashboard...</div>
-      </div>
-    );
-  }
+  const isDataLoading = loading && !statsData;
 
   const stats = [
     {
@@ -160,38 +168,14 @@ export default function AdminDashboardHome() {
 
   return (
     <div>
-      <header style={{ marginBottom: "2rem", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "1rem", flexWrap: "wrap" }}>
-        <div>
-          <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--bark)", marginBottom: "0.25rem" }}>
-            Selamat datang, {adminName}!
-          </h1>
-          <p style={{ color: "var(--bark-muted)", fontSize: "0.95rem" }}>
-            Berikut ringkasan statistik dan aktivitas platform DinoyoCraft.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => fetchDashboardData(false)}
-          disabled={refreshing}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-white text-zinc-800 border border-zinc-300 hover:bg-zinc-50 transition"
-        >
-          <ArrowsClockwise size={15} weight="bold" className={refreshing ? "animate-spin" : ""} />
-          {refreshing ? "Memperbarui..." : "Refresh"}
-        </button>
+      <header style={{ marginBottom: "2rem" }}>
+        <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--bark)", marginBottom: "0.25rem" }}>
+          Selamat datang, {adminName}!
+        </h1>
+        <p style={{ color: "var(--bark-muted)", fontSize: "0.95rem" }}>
+          Berikut ringkasan statistik dan aktivitas platform DinoyoCraft.
+        </p>
       </header>
-
-      {errorMsg && (
-        <div className="mb-6 bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between flex-wrap gap-3">
-          <span className="text-xs font-semibold text-red-800">{errorMsg}</span>
-          <button
-            type="button"
-            onClick={() => fetchDashboardData(false)}
-            className="px-3 py-1 rounded-md text-xs font-bold bg-red-600 text-white hover:bg-red-700"
-          >
-            Coba Lagi
-          </button>
-        </div>
-      )}
 
       {/* Stats Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "1.25rem", marginBottom: "2rem" }}>
@@ -209,7 +193,11 @@ export default function AdminDashboardHome() {
             </div>
             <div>
               <p style={{ fontSize: "0.85rem", color: "var(--bark-muted)", marginBottom: "0.25rem" }}>{stat.label}</p>
-              <p style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--bark)" }}>{stat.value}</p>
+              {isDataLoading ? (
+                <div className="h-7 w-24 rounded-md bg-zinc-200/80 animate-pulse mt-1" />
+              ) : (
+                <p style={{ fontSize: "1.5rem", fontWeight: 800, color: "var(--bark)" }}>{stat.value}</p>
+              )}
             </div>
           </div>
         ))}
@@ -223,7 +211,9 @@ export default function AdminDashboardHome() {
             <button onClick={() => router.push("/admin/transaksi")} style={{ background: "none", border: "none", color: "var(--clay)", fontWeight: 600, cursor: "pointer", fontSize: "0.85rem" }}>Lihat Semua</button>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {statsData?.transaksiTerbaru && statsData.transaksiTerbaru.length > 0 ? (
+            {isDataLoading ? (
+              <p className="text-zinc-400 text-sm py-4 text-center animate-pulse">Memuat aktivitas transaksi...</p>
+            ) : statsData?.transaksiTerbaru && statsData.transaksiTerbaru.length > 0 ? (
               statsData.transaksiTerbaru.map((trx, index) => (
                 <div key={index} style={{
                   display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -255,7 +245,9 @@ export default function AdminDashboardHome() {
               <h2 style={{ fontSize: "1.1rem", fontWeight: 700 }}>Perlu Perhatian</h2>
             </div>
             <p style={{ fontSize: "0.9rem", lineHeight: 1.6, opacity: 0.9, marginBottom: "1.5rem" }}>
-              {statsData && statsData.pengajuanTokoBaru > 0 ? (
+              {isDataLoading ? (
+                <span className="opacity-75 animate-pulse">Memuat status pengajuan toko...</span>
+              ) : statsData && statsData.pengajuanTokoBaru > 0 ? (
                 <>Terdapat <strong>{statsData.pengajuanTokoBaru} pengajuan toko baru</strong> yang menunggu verifikasi Anda.</>
               ) : (
                 <>Saat ini <strong>tidak ada pengajuan toko baru</strong> yang menunggu verifikasi.</>

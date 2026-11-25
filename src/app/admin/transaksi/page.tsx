@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Pusher from "pusher-js";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
@@ -47,9 +47,21 @@ export default function AdminTransaksiPage() {
   const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
+  const isFetchingRef = useRef(false);
+  const hasLoadedRef = useRef(false);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
+
   const fetchTransactions = useCallback(async (isInitial = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+    let shouldKeepLoading = false;
     try {
-      if (isInitial) setLoading(true);
+      if (isInitial && !hasLoadedRef.current) setLoading(true);
       const res = await adminService.getTransactions({ limit: 100 });
       const list = Array.isArray(res?.data) ? res.data : [];
       const mapped: Transaction[] = list.map((t: any) => ({
@@ -70,11 +82,22 @@ export default function AdminTransaksiPage() {
         date: formatTrxDate(t.paid_at || t.date),
       }));
       setTransactions(mapped);
+      hasLoadedRef.current = true;
+      retryCountRef.current = 0;
     } catch (err) {
       console.error("Gagal mengambil daftar transaksi:", err);
-      if (isInitial) toast.error("Gagal memuat daftar transaksi dari server.");
+      if (!hasLoadedRef.current && retryCountRef.current < 4) {
+        retryCountRef.current += 1;
+        shouldKeepLoading = true;
+        retryTimerRef.current = setTimeout(() => {
+          fetchTransactions(false);
+        }, 3000);
+      }
     } finally {
-      setLoading(false);
+      isFetchingRef.current = false;
+      if (!shouldKeepLoading) {
+        setLoading(false);
+      }
     }
   }, []);
 
@@ -113,6 +136,9 @@ export default function AdminTransaksiPage() {
 
     return () => {
       clearInterval(pollInterval);
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+      }
       window.removeEventListener("focus", onFocusOrVisible);
       document.removeEventListener("visibilitychange", onFocusOrVisible);
       if (pusher) {
@@ -387,8 +413,6 @@ export default function AdminTransaksiPage() {
   }
 
 
-  if (loading) return <div>Memuat...</div>;
-
   return (
     <div>
       <div className="flex justify-between items-end mb-6">
@@ -496,7 +520,13 @@ export default function AdminTransaksiPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.length === 0 ? (
+              {loading && transactions.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-sm text-zinc-400 animate-pulse">
+                    Memuat data transaksi...
+                  </td>
+                </tr>
+              ) : filtered.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="p-8 text-center text-sm text-zinc-500">
                     Belum ada transaksi yang sesuai filter.

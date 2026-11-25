@@ -144,7 +144,8 @@ export default function AdminPengaturanAIPage() {
   // Load saved AI settings on mount
   useEffect(() => {
     const session = getDemoSession();
-    if (!session || session.role !== "admin") {
+    const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+    if ((!session || session.role !== "admin") && !storedToken) {
       router.push("/login");
       return;
     }
@@ -203,7 +204,7 @@ export default function AdminPengaturanAIPage() {
         }
       } catch (err: any) {
         if (!active) return;
-        toast.error(err?.response?.data?.message || "Gagal memuat pengaturan Asisten AI.");
+        console.warn("Gagal memuat pengaturan Asisten AI:", err?.message || err);
       } finally {
         if (active) setLoading(false);
       }
@@ -226,7 +227,7 @@ export default function AdminPengaturanAIPage() {
       }
     };
 
-    const pollInterval = setInterval(syncCountsSilently, 8000);
+    const pollInterval = setInterval(syncCountsSilently, 30000);
     window.addEventListener("focus", syncCountsSilently);
     document.addEventListener("visibilitychange", syncCountsSilently);
 
@@ -358,15 +359,6 @@ export default function AdminPengaturanAIPage() {
     toast.success("Prompt instruksi dikembalikan ke template standar DinoyoCraft (CS & Mitra).");
   };
 
-  if (loading) {
-    return (
-      <div className="p-8 text-sm text-zinc-500 flex items-center gap-2">
-        <ArrowsClockwise size={18} className="animate-spin text-clay" />
-        Memuat konfigurasi Asisten AI...
-      </div>
-    );
-  }
-
   return (
     <div>
       <div className="mb-6">
@@ -386,11 +378,15 @@ export default function AdminPengaturanAIPage() {
                 <Key size={22} className="text-clay" />
                 Kredensial Provider & Model AI
               </h2>
-              {provider && (
+              {loading ? (
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-zinc-100 text-zinc-500 animate-pulse">
+                  Memuat konfigurasi...
+                </span>
+              ) : provider ? (
                 <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-zinc-100 text-zinc-800 border border-zinc-200">
                   Provider Terdeteksi: {providerLabel}
                 </span>
-              )}
+              ) : null}
             </div>
 
             <div className="space-y-5">
