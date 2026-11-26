@@ -37,6 +37,7 @@ type ChatContact = {
   id: number;
   name: string;
   avatar: string;
+  avatarUrl?: string;
   lastMsg: string;
   time: string;
   unread: number;
@@ -44,6 +45,18 @@ type ChatContact = {
   is_online?: boolean;
   last_seen_at?: string;
   messages?: ChatMsg[];
+};
+
+const resolveChatAvatarUrl = (raw?: string | null): string | undefined => {
+  const url = (raw || "").trim();
+  if (!url || url === "null" || url === "undefined") return undefined;
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+    return url;
+  }
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL || "https://api.dinoyocraft.my.id/api")
+    .replace(/\/api\/?$/, "")
+    .replace(/\/+$/, "");
+  return `${apiBase}${url.startsWith("/") ? url : `/${url}`}`;
 };
 
 const getAuthUserId = (): number => {
@@ -86,6 +99,7 @@ export default function SellerChatPage() {
   const [attachedContext, setAttachedContext] = useState<ChatContextMetadata | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [search, setSearch] = useState("");
+  const [brokenAvatars, setBrokenAvatars] = useState<Record<string, boolean>>({});
   const { user, initAuth } = useAuthStore();
 
   const targetCustomerRef = useRef<{ id: number; name: string } | null>(null);
@@ -185,6 +199,7 @@ export default function SellerChatPage() {
                 id: c.id,
                 name: displayName,
                 avatar: initials,
+                avatarUrl: isAdminCs ? undefined : resolveChatAvatarUrl(c.avatar_url),
                 lastMsg: formatMessagePreview(
                   c.last_message,
                   c.last_image_url,
@@ -328,6 +343,7 @@ export default function SellerChatPage() {
                 ? Boolean(res.data.target_user.is_online)
                 : undefined;
             const targetLastSeen = res.data?.last_seen_at || res.data?.target_user?.last_seen_at;
+            const targetAvatar = resolveChatAvatarUrl(res.data?.target_user?.avatar_url);
 
             const lastApiMsg = apiMessages.length > 0 ? apiMessages[apiMessages.length - 1] : null;
             setChatContacts((prev) => {
@@ -337,6 +353,7 @@ export default function SellerChatPage() {
                   return {
                     ...c,
                     unread: 0,
+                    avatarUrl: c.role === "admin" ? undefined : (targetAvatar || c.avatarUrl),
                     is_online: targetOnline !== undefined ? targetOnline : c.is_online,
                     last_seen_at: targetLastSeen !== undefined ? targetLastSeen : c.last_seen_at,
                     lastMsg: lastApiMsg
@@ -753,8 +770,22 @@ export default function SellerChatPage() {
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: "0.7rem", fontWeight: 800,
                         color: chatTab === "cs" ? "#fff" : "#52525b",
+                        overflow: "hidden",
                       }}>
-                        {chatTab === "cs" ? <Headset size={18} weight="fill" /> : contact.avatar}
+                        {chatTab === "cs" ? (
+                          <Headset size={18} weight="fill" />
+                        ) : contact.avatarUrl && !brokenAvatars[contact.avatarUrl] ? (
+                          <img
+                            src={contact.avatarUrl}
+                            alt={contact.name}
+                            className="w-full h-full object-cover"
+                            onError={() =>
+                              setBrokenAvatars((prev) => ({ ...prev, [contact.avatarUrl!]: true }))
+                            }
+                          />
+                        ) : (
+                          contact.avatar
+                        )}
                       </div>
                       <span
                         className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${contact.is_online ? "bg-green-500" : "bg-zinc-300"
@@ -794,8 +825,22 @@ export default function SellerChatPage() {
                     display: "flex", alignItems: "center", justifyContent: "center",
                     fontSize: "0.8rem", fontWeight: 800,
                     color: chatTab === "cs" ? "#fff" : "#52525b",
+                    overflow: "hidden",
                   }}>
-                    {chatTab === "cs" ? <Headset size={20} weight="fill" /> : activeChatData.avatar}
+                    {chatTab === "cs" ? (
+                      <Headset size={20} weight="fill" />
+                    ) : activeChatData.avatarUrl && !brokenAvatars[activeChatData.avatarUrl] ? (
+                      <img
+                        src={activeChatData.avatarUrl}
+                        alt={activeChatData.name}
+                        className="w-full h-full object-cover"
+                        onError={() =>
+                          setBrokenAvatars((prev) => ({ ...prev, [activeChatData.avatarUrl!]: true }))
+                        }
+                      />
+                    ) : (
+                      activeChatData.avatar
+                    )}
                   </div>
                   <span
                     className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${activeChatData.is_online ? "bg-green-500" : "bg-zinc-400"

@@ -35,9 +35,22 @@ type ChatMessage = {
 type ChatContact = {
   id: number; name: string; lastMsg: string; time: string; unread: number; botHandled: boolean;
   type: "customer" | "mitra";
+  avatarUrl?: string;
   is_online?: boolean;
   last_seen_at?: string;
   messages: ChatMessage[];
+};
+
+const resolveChatAvatarUrl = (raw?: string | null): string | undefined => {
+  const url = (raw || "").trim();
+  if (!url || url === "null" || url === "undefined") return undefined;
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+    return url;
+  }
+  const apiBase = (process.env.NEXT_PUBLIC_API_URL || "https://api.dinoyocraft.my.id/api")
+    .replace(/\/api\/?$/, "")
+    .replace(/\/+$/, "");
+  return `${apiBase}${url.startsWith("/") ? url : `/${url}`}`;
 };
 
 const getAuthUserId = (): number => {
@@ -76,6 +89,7 @@ export default function AdminLiveChatPage() {
   const [chats, setChats] = useState<ChatContact[]>([]);
   const [contactsLoading, setContactsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [brokenAvatars, setBrokenAvatars] = useState<Record<string, boolean>>({});
   const { user, initAuth } = useAuthStore();
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -137,6 +151,7 @@ export default function AdminLiveChatPage() {
                 unread: c.unread_count || 0,
                 botHandled: false,
                 type: c.role === "mitra" ? ("mitra" as const) : ("customer" as const),
+                avatarUrl: resolveChatAvatarUrl(c.avatar_url),
                 is_online: Boolean(c.is_online),
                 last_seen_at: c.last_seen_at || undefined,
                 messages: [],
@@ -223,6 +238,7 @@ export default function AdminLiveChatPage() {
                 ? Boolean(res.data.target_user.is_online)
                 : undefined;
             const targetLastSeen = res.data?.last_seen_at || res.data?.target_user?.last_seen_at;
+            const targetAvatar = resolveChatAvatarUrl(res.data?.target_user?.avatar_url);
 
             const lastApiMsg = apiMessages.length > 0 ? apiMessages[apiMessages.length - 1] : null;
             setChats((prev) =>
@@ -231,6 +247,7 @@ export default function AdminLiveChatPage() {
                 return {
                   ...c,
                   unread: 0,
+                  avatarUrl: targetAvatar || c.avatarUrl,
                   is_online: targetOnline !== undefined ? targetOnline : c.is_online,
                   last_seen_at: targetLastSeen !== undefined ? targetLastSeen : c.last_seen_at,
                   lastMsg: lastApiMsg
@@ -616,8 +633,20 @@ export default function AdminLiveChatPage() {
                       fontSize: "0.75rem", fontWeight: 700,
                       color: chat.type === "mitra" ? "#fff" : "#52525b",
                       flexShrink: 0,
+                      overflow: "hidden",
                     }}>
-                      {chat.name.split(" ").map(w => w[0]).slice(0, 2).join("")}
+                      {chat.avatarUrl && !brokenAvatars[chat.avatarUrl] ? (
+                        <img
+                          src={chat.avatarUrl}
+                          alt={chat.name}
+                          className="w-full h-full object-cover"
+                          onError={() =>
+                            setBrokenAvatars((prev) => ({ ...prev, [chat.avatarUrl!]: true }))
+                          }
+                        />
+                      ) : (
+                        chat.name.split(" ").filter(Boolean).map(w => w[0]).slice(0, 2).join("").toUpperCase()
+                      )}
                     </div>
                     <span className="font-semibold text-sm text-zinc-900">{chat.name}</span>
                   </div>
@@ -649,8 +678,21 @@ export default function AdminLiveChatPage() {
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: "0.875rem", fontWeight: 700,
                   color: activeChatData.type === "mitra" ? "#fff" : "#52525b",
+                  overflow: "hidden",
+                  flexShrink: 0,
                 }}>
-                  {activeChatData.name.split(" ").map(w => w[0]).slice(0, 2).join("")}
+                  {activeChatData.avatarUrl && !brokenAvatars[activeChatData.avatarUrl] ? (
+                    <img
+                      src={activeChatData.avatarUrl}
+                      alt={activeChatData.name}
+                      className="w-full h-full object-cover"
+                      onError={() =>
+                        setBrokenAvatars((prev) => ({ ...prev, [activeChatData.avatarUrl!]: true }))
+                      }
+                    />
+                  ) : (
+                    activeChatData.name.split(" ").filter(Boolean).map(w => w[0]).slice(0, 2).join("").toUpperCase()
+                  )}
                 </div>
                 <div>
                   <h2 className="font-semibold text-zinc-900">{activeChatData.name}</h2>
