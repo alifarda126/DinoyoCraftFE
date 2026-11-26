@@ -349,7 +349,7 @@ function AdminSystemLogsContent() {
   // Modal Hapus / Purge
   const [deleteModal, setDeleteModal] = useState<{
     open: boolean;
-    mode: "single" | "selected" | "filter" | "purge";
+    mode: "single" | "selected" | "filter" | "purge" | "purge_selected" | "purge_all";
     targetEventId?: string;
     count: number;
   }>({ open: false, mode: "single", count: 0 });
@@ -357,6 +357,8 @@ function AdminSystemLogsContent() {
   const [deleteReason, setDeleteReason] = useState<string>("");
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
+
+  const trashRetentionDays = summary?.trashRetentionDays ?? 7;
 
   // Sinkronisasi filter ke URL agar persisten saat halaman dimuat ulang (§8.3)
   useEffect(() => {
@@ -416,7 +418,7 @@ function AdminSystemLogsContent() {
       from: range === "custom" && customFrom ? customFrom : undefined,
       to: range === "custom" && customTo ? customTo : undefined,
       onlyDeleted: onlyDeleted || undefined,
-      limit: 100,
+      limit: 200,
     }),
     [
       range,
@@ -551,6 +553,7 @@ function AdminSystemLogsContent() {
   );
 
   useEffect(() => {
+    setSelectedIds(new Set());
     fetchLogsAndSummary(true);
   }, [fetchLogsAndSummary]);
 
@@ -824,34 +827,75 @@ function AdminSystemLogsContent() {
     setIsDeleting(true);
     try {
       if (deleteModal.mode === "single" && deleteModal.targetEventId) {
-        await logsService.softDeleteLog(deleteModal.targetEventId, deleteReason || undefined);
-        toast.success("Log dipindahkan ke tempat sampah (dapat dipulihkan 30 hari)");
-        if (activeLog?.eventId === deleteModal.targetEventId) setActiveLog(null);
+        const targetId = deleteModal.targetEventId;
+        await logsService.softDeleteLog(targetId, deleteReason || undefined);
+        seenEventIdsRef.current.delete(targetId);
+        setLogs((prev) => prev.filter((l) => l.eventId !== targetId));
+        setSelectedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(targetId);
+          return next;
+        });
+        toast.success(`Log dipindahkan ke tempat sampah (otomatis terhapus setelah ${trashRetentionDays} hari)`);
+        if (activeLog?.eventId === targetId) setActiveLog(null);
       } else if (deleteModal.mode === "selected") {
         const ids = Array.from(selectedIds);
-        await logsService.bulkDeleteLogs({
+        const res = await logsService.bulkDeleteLogs({
           eventIds: ids,
-          confirmText: deleteConfirmText.trim(),
           reason: deleteReason || "Hapus pilihan oleh Admin",
         });
-        toast.success(`${ids.length} log dipindahkan ke tempat sampah`);
+        const removed = res?.data?.affectedCount ?? ids.length;
+        ids.forEach((id) => seenEventIdsRef.current.delete(id));
+        setLogs((prev) => prev.filter((l) => !selectedIds.has(l.eventId)));
         setSelectedIds(new Set());
+        toast.success(`${removed} log dipindahkan ke tempat sampah`);
       } else if (deleteModal.mode === "filter") {
-        await logsService.bulkDeleteLogs({
+        const res = await logsService.bulkDeleteLogs({
           filter: currentFilterParams,
-          confirmText: deleteConfirmText.trim(),
           reason: deleteReason || "Hapus hasil filter oleh Admin",
         });
-        toast.success("Seluruh log pada filter aktif dipindahkan ke tempat sampah");
+        const removed = res?.data?.affectedCount ?? logs.length;
+        seenEventIdsRef.current.clear();
+        setLogs([]);
+        setSelectedIds(new Set());
+        toast.success(`${removed} log pada filter aktif dipindahkan ke tempat sampah`);
       } else if (deleteModal.mode === "purge" && deleteModal.targetEventId) {
-        await logsService.purgeLog(deleteModal.targetEventId, deleteConfirmText.trim());
-        toast.success("Log telah dihapus secara permanen (Purged)");
-        if (activeLog?.eventId === deleteModal.targetEventId) setActiveLog(null);
+        const targetId = deleteModal.targetEventId;
+        await logsService.purgeLog(targetId, "PURGE");
+        seenEventIdsRef.current.delete(targetId);
+        setLogs((prev) => prev.filter((l) => l.eventId !== targetId));
+        toast.success("Log telah dihapus permanen dari database");
+        if (activeLog?.eventId === targetId) setActiveLog(null);
+      } else if (deleteModal.mode === "purge_selected") {
+        const ids = Array.from(selectedIds);
+        const res = await logsService.bulkPurgeLogs({ eventIds: ids });
+        const purged = res?.data?.affectedCount ?? ids.length;
+        ids.forEach((id) => seenEventIdsRef.current.delete(id));
+        setLogs((prev) => prev.filter((l) => !selectedIds.has(l.eventId)));
+        setSelectedIds(new Set());
+        toast.success(`${purged} log dihapus permanen dari database`);
+      } else if (deleteModal.mode === "purge_all") {
+        const hasTrashSubFilter =
+          category !== "all" ||
+          selectedSeverities.length > 0 ||
+          outcomeFilter !== "all" ||
+          statusCodeFilter !== "all" ||
+          sourceFilter !== "all" ||
+          roleFilter !== "all" ||
+          Boolean(searchQuery.trim());
+        const res = await logsService.bulkPurgeLogs(
+          hasTrashSubFilter ? { filter: currentFilterParams } : { emptyTrash: true }
+        );
+        const purged = res?.data?.affectedCount ?? 0;
+        seenEventIdsRef.current.clear();
+        setLogs([]);
+        setSelectedIds(new Set());
+        toast.success(`${purged} log di tempat sampah dihapus permanen dari database`);
       }
       setDeleteModal({ open: false, mode: "single", count: 0 });
       setDeleteConfirmText("");
       setDeleteReason("");
-      fetchLogsAndSummary(true);
+      await fetchLogsAndSummary(true);
     } catch (err: any) {
       toast.error(err?.response?.data?.message || "Gagal memproses penghapusan log");
     } finally {
@@ -967,6 +1011,22 @@ function AdminSystemLogsContent() {
           <button
             type="button"
             onClick={() => {
+              if (onlyDeleted) {
+                if (selectedIds.size > 0) {
+                  setDeleteModal({
+                    open: true,
+                    mode: "purge_selected",
+                    count: selectedIds.size,
+                  });
+                } else {
+                  setDeleteModal({
+                    open: true,
+                    mode: "purge_all",
+                    count: summary?.deletedCount || logs.length,
+                  });
+                }
+                return;
+              }
               if (selectedIds.size > 0) {
                 setDeleteModal({
                   open: true,
@@ -977,15 +1037,21 @@ function AdminSystemLogsContent() {
                 setDeleteModal({
                   open: true,
                   mode: "filter",
-                  count: logs.length,
+                  count: summary?.totalEvents || logs.length,
                 });
               }
             }}
-            disabled={logs.length === 0 || onlyDeleted}
+            disabled={onlyDeleted ? logs.length === 0 && (summary?.deletedCount ?? 0) === 0 : logs.length === 0}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 disabled:opacity-40 transition whitespace-nowrap"
           >
             <Trash size={15} weight="bold" />
-            {selectedIds.size > 0 ? `Hapus (${selectedIds.size})` : "Hapus Hasil Filter"}
+            {onlyDeleted
+              ? selectedIds.size > 0
+                ? `Hapus Permanen (${selectedIds.size})`
+                : `Kosongkan Tempat Sampah (${summary?.deletedCount ?? logs.length})`
+              : selectedIds.size > 0
+              ? `Hapus (${selectedIds.size})`
+              : "Hapus Hasil Filter"}
           </button>
         </div>
       </div>
@@ -1464,6 +1530,37 @@ function AdminSystemLogsContent() {
         </div>
       </div>
 
+      {/* BANNER TEMPAT SAMPAH & AUTO-PURGE */}
+      {onlyDeleted && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center justify-between flex-wrap gap-3 shadow-xs">
+          <div className="flex items-center gap-2 text-xs text-red-900">
+            <Trash size={17} weight="bold" className="text-red-600 shrink-0" />
+            <span>
+              <strong>Tempat Sampah:</strong> Log di tempat sampah otomatis dihapus permanen dari
+              database setelah <strong>{trashRetentionDays} hari</strong>, atau dapat Anda hapus
+              permanen langsung kapan saja.
+            </span>
+          </div>
+          {(logs.length > 0 || (summary?.deletedCount ?? 0) > 0) && (
+            <button
+              type="button"
+              onClick={() =>
+                setDeleteModal({
+                  open: true,
+                  mode: selectedIds.size > 0 ? "purge_selected" : "purge_all",
+                  count: selectedIds.size > 0 ? selectedIds.size : summary?.deletedCount || logs.length,
+                })
+              }
+              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 transition whitespace-nowrap"
+            >
+              {selectedIds.size > 0
+                ? `Hapus Permanen Pilihan (${selectedIds.size})`
+                : "Hapus Permanen Semua Sampah"}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* BANNER PAUSED / EVENT BARU (§8.4) */}
       {pausedBuffer.length > 0 && (
         <div className="bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 flex items-center justify-between flex-wrap gap-3 shadow-xs">
@@ -1839,7 +1936,7 @@ function AdminSystemLogsContent() {
                   </button>
                 )}
 
-              {!activeLog.deletedAt && activeLog.category !== "admin_audit" && (
+              {!activeLog.deletedAt && (
                 <button
                   type="button"
                   onClick={() =>
@@ -1853,7 +1950,7 @@ function AdminSystemLogsContent() {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 text-red-700 border border-red-200 hover:bg-red-100"
                 >
                   <Trash size={14} />
-                  Soft Delete
+                  Hapus ke Sampah
                 </button>
               )}
 
@@ -2019,71 +2116,58 @@ function AdminSystemLogsContent() {
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0">
                 <Trash size={20} weight="bold" />
               </div>
               <div>
                 <h3 className="text-base font-extrabold text-zinc-900">
-                  {deleteModal.mode === "purge"
-                    ? "Konfirmasi Purge Permanen"
-                    : "Konfirmasi Penghapusan Log (Soft Delete)"}
+                  {deleteModal.mode === "purge" ||
+                  deleteModal.mode === "purge_selected" ||
+                  deleteModal.mode === "purge_all"
+                    ? "Konfirmasi Hapus Permanen"
+                    : "Konfirmasi Penghapusan Log"}
                 </h3>
                 <p className="text-xs text-zinc-500">
-                  Kategori: <strong>{category}</strong> • Rentang: <strong>{range}</strong>
+                  Kategori: <strong>{category}</strong> • Rentang:{" "}
+                  <strong>{onlyDeleted ? "Tempat Sampah" : range}</strong>
                 </p>
               </div>
             </div>
 
             <p className="text-xs text-zinc-700 leading-relaxed">
-              {deleteModal.mode === "purge" ? (
+              {deleteModal.mode === "purge" ||
+              deleteModal.mode === "purge_selected" ||
+              deleteModal.mode === "purge_all" ? (
                 <>
-                  Tindakan ini akan menghapus log secara <strong>permanen</strong> dari database dan{" "}
-                  <strong>tidak dapat dibatalkan</strong>. Ketik <code>PURGE</code> di bawah ini:
+                  Sebanyak <strong>{deleteModal.count} log</strong> akan dihapus secara{" "}
+                  <strong>permanen dari database</strong> dan{" "}
+                  <strong>tidak dapat dipulihkan kembali</strong>.
                 </>
               ) : (
                 <>
-                  Sebanyak <strong>{deleteModal.count} log</strong> akan dipindahkan ke tempat
-                  sampah (soft delete) dan masih dapat dipulihkan selama <strong>30 hari</strong>.
-                  Log kategori <code>admin_audit</code> tidak akan ikut terhapus.
+                  Sebanyak <strong>{deleteModal.count} log</strong> akan dipindahkan ke Tempat
+                  Sampah dan otomatis terhapus permanen dari database setelah{" "}
+                  <strong>{trashRetentionDays} hari</strong>.
                 </>
               )}
             </p>
 
-            {deleteModal.mode !== "purge" && (
-              <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1">
-                  Alasan Penghapusan (Opsional, tercatat di Audit)
-                </label>
-                <input
-                  type="text"
-                  value={deleteReason}
-                  onChange={(e) => setDeleteReason(e.target.value)}
-                  placeholder="cth: Pembersihan log pengujian mingguan"
-                  className="w-full px-3 py-2 text-xs border border-zinc-300 rounded-lg"
-                />
-              </div>
-            )}
-
-            {(deleteModal.mode === "selected" ||
-              deleteModal.mode === "filter" ||
-              deleteModal.mode === "purge") && (
-              <div>
-                <label className="block text-xs font-bold text-zinc-700 mb-1">
-                  Ketik{" "}
-                  <code className="px-1.5 py-0.5 bg-red-50 text-red-700 rounded">
-                    {deleteModal.mode === "purge" ? "PURGE" : requiredBulkConfirm}
-                  </code>{" "}
-                  untuk mengaktifkan tombol:
-                </label>
-                <input
-                  type="text"
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  placeholder={deleteModal.mode === "purge" ? "PURGE" : requiredBulkConfirm}
-                  className="w-full px-3 py-2 text-xs font-mono border border-zinc-300 rounded-lg"
-                />
-              </div>
-            )}
+            {deleteModal.mode !== "purge" &&
+              deleteModal.mode !== "purge_selected" &&
+              deleteModal.mode !== "purge_all" && (
+                <div>
+                  <label className="block text-xs font-bold text-zinc-700 mb-1">
+                    Catatan Penghapusan (Opsional)
+                  </label>
+                  <input
+                    type="text"
+                    value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)}
+                    placeholder="cth: Pembersihan log error lama yang sudah diperbaiki"
+                    className="w-full px-3 py-2 text-xs border border-zinc-300 rounded-lg"
+                  />
+                </div>
+              )}
 
             <div className="flex items-center justify-end gap-2 pt-2">
               <button
@@ -2099,16 +2183,16 @@ function AdminSystemLogsContent() {
               <button
                 type="button"
                 onClick={executeDeleteAction}
-                disabled={
-                  isDeleting ||
-                  ((deleteModal.mode === "selected" || deleteModal.mode === "filter") &&
-                    deleteConfirmText.trim().toUpperCase() !== requiredBulkConfirm) ||
-                  (deleteModal.mode === "purge" &&
-                    deleteConfirmText.trim().toUpperCase() !== "PURGE")
-                }
+                disabled={isDeleting}
                 className="px-4 py-2 rounded-lg text-xs font-bold bg-red-600 text-white hover:bg-red-700 disabled:opacity-40"
               >
-                {isDeleting ? "Memproses..." : "Konfirmasi Hapus"}
+                {isDeleting
+                  ? "Memproses..."
+                  : deleteModal.mode === "purge" ||
+                    deleteModal.mode === "purge_selected" ||
+                    deleteModal.mode === "purge_all"
+                  ? "Ya, Hapus Permanen"
+                  : "Ya, Hapus Log"}
               </button>
             </div>
           </div>

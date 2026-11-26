@@ -555,12 +555,12 @@ export default function AdminModerasiPage() {
                         </span>
                       )}
                       {req.status === "approved" && (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-50 px-2 py-1 rounded-full">
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded-full">
                           <CheckCircle size={11} weight="fill" /> Disetujui
                         </span>
                       )}
                       {req.status === "rejected" && (
-                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-zinc-600 bg-zinc-100 px-2 py-1 rounded-full">
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-50 px-2 py-1 rounded-full">
                           <X size={11} weight="bold" /> Ditolak
                         </span>
                       )}
@@ -583,13 +583,13 @@ export default function AdminModerasiPage() {
                         </div>
                       ) : req.status === "approved" ? (
                         <div className="flex justify-end">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-50 text-red-600 text-xs font-semibold">
-                            <Trash size={13} /> Akun Dihapus
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-green-50 text-green-700 text-xs font-semibold">
+                            <CheckCircle size={13} weight="fill" /> Akun Dihapus
                           </span>
                         </div>
                       ) : (
                         <div className="flex justify-end">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-zinc-100 text-zinc-600 text-xs font-semibold">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-50 text-red-600 text-xs font-semibold">
                             <X size={12} weight="bold" /> Pengajuan Ditolak
                           </span>
                         </div>

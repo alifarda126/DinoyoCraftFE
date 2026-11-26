@@ -100,6 +100,7 @@ export interface LogsSummaryData {
   apiErrorRate: number;
   unacknowledgedErrors15m: number;
   deletedCount: number;
+  trashRetentionDays?: number;
   categoryCounts: Record<string, number>;
   updatedAt: string;
 }
@@ -175,7 +176,7 @@ export const logsService = {
   bulkDeleteLogs: async (payload: {
     eventIds?: string[];
     filter?: LogFilterParams;
-    confirmText: string;
+    confirmText?: string;
     reason?: string;
   }) => {
     const response = await api.post("/admin/logs/bulk-delete", payload, {
@@ -193,9 +194,20 @@ export const logsService = {
     return response.data;
   },
 
-  purgeLog: async (eventId: string, confirmText: string) => {
+  purgeLog: async (eventId: string, confirmText = "PURGE") => {
     const response = await api.delete(`/admin/logs/${encodeURIComponent(eventId)}/purge`, {
       data: { confirmText },
+      headers: getAuthHeaders(),
+    });
+    return response.data;
+  },
+
+  bulkPurgeLogs: async (payload: {
+    eventIds?: string[];
+    filter?: LogFilterParams;
+    emptyTrash?: boolean;
+  }) => {
+    const response = await api.post("/admin/logs/bulk-purge", payload, {
       headers: getAuthHeaders(),
     });
     return response.data;

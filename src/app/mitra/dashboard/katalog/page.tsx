@@ -364,6 +364,8 @@ export default function SellerCatalogPage() {
   const [editCustomHex, setEditCustomHex] = useState("#b85c3c");
   const [editCustomLabel, setEditCustomLabel] = useState("");
   const [editCustomStock, setEditCustomStock] = useState<number>(5);
+  const [deleteTarget, setDeleteTarget] = useState<Artwork | null>(null);
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
 
   const handleFileChange = useCallback((file: File | null) => {
     if (!file) return;
@@ -541,10 +543,14 @@ export default function SellerCatalogPage() {
     setCustomColorStock(5);
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Apakah Anda yakin ingin menghapus produk ini?")) return;
+  async function confirmDeleteProduct() {
+    if (!deleteTarget || isDeletingProduct) return;
+    const id = deleteTarget.id;
+    setIsDeletingProduct(true);
     try {
-      const storedToken = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+      const storedToken =
+        (typeof window !== "undefined" ? localStorage.getItem("token") : null) ||
+        Cookies.get("token");
       if (storedToken && !id.startsWith("prod-")) {
         await axios.delete(`${API_BASE_URL}/products/${id}`, {
           headers: { Authorization: `Bearer ${storedToken}` },
@@ -552,6 +558,7 @@ export default function SellerCatalogPage() {
         });
       }
       setArtworks(prev => prev.filter(a => a.id !== id));
+      setDeleteTarget(null);
       toast.success("Produk berhasil dihapus!");
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("mitra_products_updated"));
@@ -560,6 +567,8 @@ export default function SellerCatalogPage() {
     } catch (error) {
       console.error("Gagal menghapus produk:", error);
       toast.error("Gagal menghapus produk");
+    } finally {
+      setIsDeletingProduct(false);
     }
   }
 
@@ -957,7 +966,7 @@ export default function SellerCatalogPage() {
                     }}>
                     {editingId === item.id ? <X size={18} /> : <PencilSimple size={18} />}
                   </button>
-                  <button onClick={() => handleDelete(item.id)} title="Hapus Produk" style={{
+                  <button onClick={() => setDeleteTarget(item)} title="Hapus Produk" style={{
                     padding: "0.5rem", borderRadius: "0.5rem",
                     border: "1px solid var(--error, #f56565)", background: "transparent",
                     color: "var(--error, #e53e3e)", cursor: "pointer",
@@ -1066,6 +1075,107 @@ export default function SellerCatalogPage() {
           </>
         )}
       </div>
+
+      {/* Pop-up Konfirmasi Hapus Produk */}
+      {deleteTarget && (
+        <div
+          onClick={() => !isDeletingProduct && setDeleteTarget(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000,
+            background: "rgba(46, 26, 14, 0.45)",
+            backdropFilter: "blur(3px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "1rem",
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: "#fff",
+              borderRadius: "1rem",
+              border: "1px solid var(--line)",
+              boxShadow: "0 20px 50px rgba(46, 26, 14, 0.18)",
+              maxWidth: 420,
+              width: "100%",
+              padding: "1.5rem",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.85rem", marginBottom: "0.85rem" }}>
+              <div
+                style={{
+                  width: 42,
+                  height: 42,
+                  borderRadius: "50%",
+                  background: "#FEE2E2",
+                  color: "#DC2626",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <Trash size={20} weight="bold" />
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <h3 style={{ fontSize: "1.05rem", fontWeight: 800, color: "var(--bark)", margin: 0 }}>
+                  Hapus Produk dari Katalog?
+                </h3>
+                <p style={{ fontSize: "0.78rem", color: "var(--bark-muted)", margin: "0.15rem 0 0" }}>
+                  {deleteTarget.category}
+                </p>
+              </div>
+            </div>
+
+            <p style={{ fontSize: "0.88rem", color: "var(--bark-muted)", lineHeight: 1.55, margin: "0 0 1.35rem" }}>
+              Apakah Anda yakin ingin menghapus produk{" "}
+              <strong style={{ color: "var(--bark)" }}>&ldquo;{deleteTarget.title}&rdquo;</strong>? Tindakan
+              ini tidak dapat dibatalkan.
+            </p>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.6rem" }}>
+              <button
+                type="button"
+                disabled={isDeletingProduct}
+                onClick={() => setDeleteTarget(null)}
+                style={{
+                  padding: "0.6rem 1.1rem",
+                  borderRadius: "0.6rem",
+                  border: "1px solid var(--line)",
+                  background: "#fff",
+                  color: "var(--bark)",
+                  fontSize: "0.84rem",
+                  fontWeight: 600,
+                  cursor: isDeletingProduct ? "not-allowed" : "pointer",
+                }}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingProduct}
+                onClick={confirmDeleteProduct}
+                style={{
+                  padding: "0.6rem 1.2rem",
+                  borderRadius: "0.6rem",
+                  border: "none",
+                  background: "#DC2626",
+                  color: "#fff",
+                  fontSize: "0.84rem",
+                  fontWeight: 700,
+                  cursor: isDeletingProduct ? "not-allowed" : "pointer",
+                  opacity: isDeletingProduct ? 0.65 : 1,
+                }}
+              >
+                {isDeletingProduct ? "Menghapus..." : "Ya, Hapus Produk"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
