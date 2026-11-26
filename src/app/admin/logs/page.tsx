@@ -657,11 +657,6 @@ function AdminSystemLogsContent() {
     try {
       pusher = new Pusher(pusherKey, {
         cluster: pusherCluster,
-        channelAuthorization: {
-          endpoint: `${API_BASE_URL}/admin/logs/pusher-auth`,
-          transport: "ajax",
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        },
       });
 
       pusher.connection.bind("connected", () => {
@@ -680,9 +675,6 @@ function AdminSystemLogsContent() {
       pusher.connection.bind("error", () => {
         setConnectionState("Polling fallback");
       });
-
-      const privateChannel = pusher.subscribe("private-admin-system-logs");
-      privateChannel.bind("system-log.created", handleIncomingEvent);
 
       const publicAdminChannel = pusher.subscribe("admin-system-logs");
       publicAdminChannel.bind("system-log.created", handleIncomingEvent);

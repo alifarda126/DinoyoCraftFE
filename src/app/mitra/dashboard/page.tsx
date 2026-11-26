@@ -30,7 +30,7 @@ interface DashboardData {
   }[];
 }
 
-// Local payment logos from /public/payment/ â€” served as static files
+// Local payment logos from /public/payment/ — served as static files
 const PAYMENT_METHODS = [
   { id: "BCA", name: "BCA", type: "Bank", logo: "/payment/bca.svg" },
   { id: "Mandiri", name: "Mandiri", type: "Bank", logo: "/payment/mandiri.svg" },
@@ -56,6 +56,45 @@ export default function SellerDashboardHome() {
   const [accountNumber, setAccountNumber] = useState("");
   const [accountName, setAccountName] = useState("");
   const [isWithdrawing, setIsWithdrawing] = useState(false);
+
+  // Daily AI Insight State
+  const [aiInsightLoading, setAiInsightLoading] = useState(true);
+  const [aiInsightData, setAiInsightData] = useState<{
+    configured: boolean;
+    insight: string | null;
+    status_message?: string;
+    provider_label?: string | null;
+  } | null>(null);
+
+  const fetchDailyAiInsight = useCallback(async () => {
+    const storedToken =
+      (typeof window !== "undefined" ? localStorage.getItem("token") : null) || Cookies.get("token");
+    if (!storedToken) {
+      setAiInsightLoading(false);
+      return;
+    }
+    try {
+      const res = await axios.get(`${API_BASE_URL}/ai/daily-insight?scope=mitra`, {
+        withCredentials: true,
+        timeout: 20000,
+        headers: { Authorization: `Bearer ${storedToken}` },
+      });
+      if (res.data?.success && res.data?.data) {
+        setAiInsightData(res.data.data);
+      }
+    } catch {
+      setAiInsightData((prev) =>
+        prev ?? {
+          configured: false,
+          insight: null,
+          status_message:
+            "Belum dapat memuat analisis AI saat ini. Pastikan layanan AI aktif atau API Key telah dipasang.",
+        }
+      );
+    } finally {
+      setAiInsightLoading(false);
+    }
+  }, []);
 
   // 1. Inisialisasi Auth Store
   useEffect(() => {
@@ -133,6 +172,7 @@ export default function SellerDashboardHome() {
     setSellerName((prev) => prev || defaultName);
 
     fetchDashboardData(true);
+    fetchDailyAiInsight();
 
     const onRefresh = () => {
       if (typeof document === "undefined" || document.visibilityState === "visible") {
@@ -176,7 +216,7 @@ export default function SellerDashboardHome() {
         } catch {}
       }
     };
-  }, [user, router, fetchDashboardData]);
+  }, [user, router, fetchDashboardData, fetchDailyAiInsight]);
 
   const currentBalance = dashboardData?.stats?.saldoAktif ?? 0;
   const isDataLoading = loading && !dashboardData;
@@ -358,7 +398,7 @@ export default function SellerDashboardHome() {
                     </div>
                     <div>
                       <p style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--bark)" }}>{order.id}</p>
-                      <p style={{ fontSize: "0.8rem", color: "var(--bark-muted)" }}>{order.items} â€¢ {order.buyer}</p>
+                      <p style={{ fontSize: "0.8rem", color: "var(--bark-muted)" }}>{order.items} • {order.buyer}</p>
                     </div>
                   </div>
                   <span style={{
@@ -381,8 +421,13 @@ export default function SellerDashboardHome() {
             <TrendUp size={24} weight="bold" />
             <h2 style={{ fontSize: "1.1rem", fontWeight: 700 }}>Tips AI Hari Ini</h2>
           </div>
-          <p style={{ fontSize: "0.9rem", lineHeight: 1.6, opacity: 0.9, marginBottom: "1.5rem" }}>
-            &quot;Produk Vas Keramik Minimalis-mu sedang tren! Coba tambahkan foto dengan pencahayaan alami untuk meningkatkan konversi hingga 20%.&quot;
+          <p style={{ fontSize: "0.9rem", lineHeight: 1.6, opacity: 0.92, marginBottom: "1.5rem" }}>
+            {aiInsightLoading
+              ? "Memuat tips AI berdasarkan performa tokomu hari ini..."
+              : aiInsightData?.configured && aiInsightData?.insight
+                ? aiInsightData.insight
+                : aiInsightData?.status_message ||
+                  "API Key Asisten AI belum dipasang pada sistem. Tips AI harian akan aktif otomatis setelah Admin mengonfigurasi API Key penyedia AI."}
           </p>
           <button onClick={() => router.push("/mitra/dashboard/katalog")} style={{
             background: "#fff", color: "var(--clay)", border: "none",

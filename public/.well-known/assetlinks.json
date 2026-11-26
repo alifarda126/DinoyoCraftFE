@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.dinoyocraft",
+      "sha256_cert_fingerprints": [
+        "F0:DF:44:93:92:EA:81:A7:85:F1:13:0A:A3:81:0E:80:A8:03:3C:F4:EC:AD:B2:9C:CE:6B:05:50:32:87:F0:54"
+      ]
+    }
+  }
+]

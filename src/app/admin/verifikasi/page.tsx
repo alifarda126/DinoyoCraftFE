@@ -11,6 +11,7 @@ import {
   WarningCircle, ChatText
 } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
+import { TablePagination } from "@/components/ui/TablePagination";
 import { adminService } from "@/services/admin.service";
 
 type StoreRegistration = {
@@ -51,6 +52,8 @@ export default function AdminVerifikasiPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("semua");
   const [filterDok, setFilterDok] = useState("semua");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // State untuk modal penolakan pengajuan
   const [rejectModalReg, setRejectModalReg] = useState<StoreRegistration | null>(null);
@@ -229,7 +232,7 @@ export default function AdminVerifikasiPage() {
     }
   };
 
-  // 3. Handler download file langsung (blob â€” bypass CORS download restriction)
+  // 3. Handler download file langsung (blob — bypass CORS download restriction)
   const handleDownload = async (url: string, label: string) => {
     try {
       const response = await fetch(url, { mode: "cors" });
@@ -265,6 +268,17 @@ export default function AdminVerifikasiPage() {
       (filterDok === "tidak" && !docsComplete);
     return matchSearch && matchStatus && matchDok;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterStatus, filterDok]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedRegistrations = filtered.slice(
+    (safeCurrentPage - 1) * itemsPerPage,
+    safeCurrentPage * itemsPerPage
+  );
 
   const DOCS_LIST = [
     { key: "ktp" as const, icon: IdentificationCard, label: "KTP / Identitas Diri Valid" },
@@ -345,7 +359,7 @@ export default function AdminVerifikasiPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((reg) => {
+                paginatedRegistrations.map((reg) => {
                   const docsComplete = Object.values(reg.docs).every(Boolean);
                   return (
                     <tr key={reg.id} className="border-b border-zinc-200 hover:bg-zinc-50 transition-colors">
@@ -424,9 +438,19 @@ export default function AdminVerifikasiPage() {
             </tbody>
           </table>
         </div>
+        {filtered.length > 0 && (
+          <TablePagination
+            totalItems={filtered.length}
+            currentPage={safeCurrentPage}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={setItemsPerPage}
+            itemLabel="pengajuan"
+          />
+        )}
       </div>
 
-      {/* â”€â”€ Modal Konfirmasi Penolakan Pengajuan â”€â”€ */}
+      {/* ── Modal Konfirmasi Penolakan Pengajuan ── */}
       {rejectModalReg && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 250,
@@ -561,7 +585,7 @@ export default function AdminVerifikasiPage() {
         </div>
       )}
 
-      {/* â”€â”€ Modal Detail & Persyaratan â”€â”€ */}
+      {/* ── Modal Detail & Persyaratan ── */}
       {selectedReg && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 200,
@@ -809,7 +833,7 @@ export default function AdminVerifikasiPage() {
         </div>
       )}
 
-      {/* â”€â”€ Modal Preview Dokumen â”€â”€ */}
+      {/* ── Modal Preview Dokumen ── */}
       {docPreview && (
         <div
           onClick={() => setDocPreview(null)}

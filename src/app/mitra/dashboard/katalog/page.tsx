@@ -10,6 +10,7 @@ import {
   Star, Palette,
 } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
+import { TablePagination } from "@/components/ui/TablePagination";
 import axios from 'axios';
 import Cookies from "js-cookie";
 import { useAuthStore } from "@/store/useAuthStore";
@@ -330,6 +331,8 @@ export default function SellerCatalogPage() {
   const [categoryOptions, setCategoryOptions] = useState<{ value: string; label: string }[]>(DEFAULT_CATEGORY_OPTIONS);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(5);
 
   /* Add-form state */
   const [title, setTitle] = useState("");
@@ -636,6 +639,13 @@ export default function SellerCatalogPage() {
   const avgRating = (reviews: Review[]) =>
     reviews.length ? (reviews.reduce((s, r) => s + r.rating, 0) / reviews.length).toFixed(1) : null;
 
+  const totalPages = Math.max(1, Math.ceil(artworks.length / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedArtworks = artworks.slice(
+    (safeCurrentPage - 1) * itemsPerPage,
+    safeCurrentPage * itemsPerPage
+  );
+
 
 
   /* ── Render ──────────────────────────────────────────────────────────── */
@@ -840,7 +850,8 @@ export default function SellerCatalogPage() {
             </p>
           </div>
         ) : (
-          artworks.map(item => (
+          <>
+          {paginatedArtworks.map(item => (
           <div key={item.id} style={{ display: "flex", flexDirection: "column" }}>
             {/* Card */}
             <div style={{
@@ -1039,7 +1050,21 @@ export default function SellerCatalogPage() {
               </form>
             )}
           </div>
-        )))}
+        ))}
+          {artworks.length > 0 && (
+            <div className="bg-white border border-zinc-200 rounded-2xl overflow-hidden mt-2">
+              <TablePagination
+                totalItems={artworks.length}
+                currentPage={safeCurrentPage}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={setItemsPerPage}
+                itemLabel="produk"
+              />
+            </div>
+          )}
+          </>
+        )}
       </div>
     </div>
   );

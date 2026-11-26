@@ -914,7 +914,7 @@ export default function PesananSellerPage() {
                           </div>
 
                           <p style={{ fontSize: "0.72rem", color: "var(--bark-muted)", margin: "0 0 0.6rem" }}>
-                            Varian: <strong style={{ color: "var(--bark)" }}>{order.items[0]?.variantName} â€” {order.items[0]?.variantName === "Sand White" ? "Glossy Finish" : "Standard"}</strong>
+                            Varian: <strong style={{ color: "var(--bark)" }}>{order.items[0]?.variantName} — {order.items[0]?.variantName === "Sand White" ? "Glossy Finish" : "Standard"}</strong>
                           </p>
 
                           <p style={{ fontSize: "0.88rem", color: "var(--bark)", lineHeight: 1.55, margin: "0 0 0.75rem" }}>
@@ -973,7 +973,7 @@ export default function PesananSellerPage() {
             <div className="px-6 py-4 border-t border-zinc-200 bg-zinc-50/70 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex items-center flex-wrap gap-3 text-xs text-zinc-600">
                 <span>
-                  Menampilkan <strong className="text-zinc-900">{startIndex + 1}â€“{endIndex}</strong> dari{" "}
+                  Menampilkan <strong className="text-zinc-900">{startIndex + 1}–{endIndex}</strong> dari{" "}
                   <strong className="text-zinc-900">{totalItems}</strong> pesanan
                 </span>
                 <div className="inline-flex items-center gap-1.5">
@@ -1058,7 +1058,7 @@ export default function PesananSellerPage() {
         </div>
       </div>
 
-      {/* â”€â”€ Modal Atur Pengiriman â”€â”€ */}
+      {/* ── Modal Atur Pengiriman ── */}
       {shippingOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
@@ -1076,7 +1076,7 @@ export default function PesananSellerPage() {
               {/* Info pesanan */}
               <div style={{ background: "var(--surface)", borderRadius: "0.75rem", padding: "1rem", border: "1px solid var(--line)" }}>
                 <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", marginBottom: "0.25rem" }}>Pesanan</p>
-                <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--bark)", margin: 0 }}>{shippingOrder.id} Â· {shippingOrder.customerName}</p>
+                <p style={{ fontSize: "0.95rem", fontWeight: 700, color: "var(--bark)", margin: 0 }}>{shippingOrder.id} · {shippingOrder.customerName}</p>
               </div>
 
               {/* Pilih kurir */}

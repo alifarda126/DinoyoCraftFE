@@ -10,6 +10,7 @@ import {
 } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { EarthySelect } from "@/components/ui/EarthySelect";
+import { TablePagination } from "@/components/ui/TablePagination";
 import { adminService } from "@/services/admin.service";
 
 type ReportType = "toko" | "ulasan" | "produk";
@@ -19,6 +20,7 @@ type DeleteStatus = "pending" | "approved" | "rejected";
 type Report = {
   id: string; type: ReportType; target: string; target_id?: number | null;
   reporter: string; reason: string; status: ReportStatus; date: string;
+  action_taken?: string | null;
 };
 
 type DeleteRequest = {
@@ -42,11 +44,15 @@ export default function AdminModerasiPage() {
   const [filterType, setFilterType] = useState<"semua" | ReportType>("semua");
   const [filterStatus, setFilterStatus] = useState<"semua" | ReportStatus>("semua");
   const [search, setSearch] = useState("");
+  const [reportPage, setReportPage] = useState(1);
+  const [reportPerPage, setReportPerPage] = useState(10);
 
   // Hapus akun state
   const [deletes, setDeletes] = useState<DeleteRequest[]>([]);
   const [deleteSearch, setDeleteSearch] = useState("");
   const [deleteFilter, setDeleteFilter] = useState<"semua" | DeleteStatus>("semua");
+  const [deletePage, setDeletePage] = useState(1);
+  const [deletePerPage, setDeletePerPage] = useState(10);
 
   const isFetchingRef = useRef(false);
   const hasLoadedRef = useRef(false);
@@ -77,6 +83,7 @@ export default function AdminModerasiPage() {
             reporter: r.reporter || r.reporter_name || "-",
             reason: r.reason || "-",
             status: (r.status === "resolved" ? "resolved" : "pending") as ReportStatus,
+            action_taken: r.action_taken ?? null,
             date: r.date || "-",
           }))
         );
@@ -154,8 +161,14 @@ export default function AdminModerasiPage() {
         targetId: report?.target_id ?? null,
         type: report?.type ?? null,
       });
+      const mappedAction =
+        action === "ignore" ? "abaikan" : action === "suspend" ? "suspend" : "hapus";
       setReports((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, status: "resolved" as ReportStatus } : r))
+        prev.map((r) =>
+          r.id === id
+            ? { ...r, status: "resolved" as ReportStatus, action_taken: mappedAction }
+            : r
+        )
       );
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("admin_moderasi_updated"));
@@ -205,6 +218,51 @@ export default function AdminModerasiPage() {
     return matchStatus && matchSearch;
   });
 
+  useEffect(() => {
+    setReportPage(1);
+  }, [filterType, filterStatus, search]);
+
+  useEffect(() => {
+    setDeletePage(1);
+  }, [deleteFilter, deleteSearch]);
+
+  const reportTotalPages = Math.max(1, Math.ceil(filteredReports.length / reportPerPage));
+  const safeReportPage = Math.min(reportPage, reportTotalPages);
+  const paginatedReports = filteredReports.slice(
+    (safeReportPage - 1) * reportPerPage,
+    safeReportPage * reportPerPage
+  );
+
+  const deleteTotalPages = Math.max(1, Math.ceil(filteredDeletes.length / deletePerPage));
+  const safeDeletePage = Math.min(deletePage, deleteTotalPages);
+  const paginatedDeletes = filteredDeletes.slice(
+    (safeDeletePage - 1) * deletePerPage,
+    safeDeletePage * deletePerPage
+  );
+
+  const renderResolvedReportAction = (report: Report) => {
+    const act = (report.action_taken || (report.type === "ulasan" ? "hapus" : "suspend")).toLowerCase();
+    if (act === "abaikan" || act === "ignore") {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-zinc-100 text-zinc-600 text-xs font-semibold">
+          Diabaikan
+        </span>
+      );
+    }
+    if (act === "hapus" || act === "delete" || act === "takedown") {
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-50 text-red-600 text-xs font-semibold">
+          <Trash size={13} /> Konten Dihapus
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-orange-50 text-orange-600 text-xs font-semibold">
+        <Prohibit size={13} /> Disuspend
+      </span>
+    );
+  };
+
   const pendingCount = reports.filter(r => r.status === "pending").length;
   const deleteCount = deletes.filter(d => d.status === "pending").length;
 
@@ -248,7 +306,7 @@ export default function AdminModerasiPage() {
         ))}
       </div>
 
-      {/* â”€â”€ TAB: LAPORAN PELANGGARAN â”€â”€ */}
+      {/* ── TAB: LAPORAN PELANGGARAN ── */}
       {activeTab === "laporan" && (
         <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
           {/* Toolbar */}
@@ -314,7 +372,7 @@ export default function AdminModerasiPage() {
                   </tr>
                 ) : (
                   <>
-                    {filteredReports.map(report => {
+                    {paginatedReports.map(report => {
                   const typeStyle = TYPE_COLORS[report.type];
                   return (
                     <tr key={report.id} className="border-b border-zinc-200 hover:bg-zinc-50/60 transition-colors">
@@ -375,12 +433,9 @@ export default function AdminModerasiPage() {
                               </button>
                             )}
                           </div>
-
-
                         ) : (
-                          <div className="flex justify-center"><span className="text-sm text-zinc-400">â€”</span></div>
+                          <div className="flex justify-end">{renderResolvedReportAction(report)}</div>
                         )}
-
                       </td>
                     </tr>
                   );
@@ -398,10 +453,20 @@ export default function AdminModerasiPage() {
               </tbody>
             </table>
           </div>
+          {filteredReports.length > 0 && (
+            <TablePagination
+              totalItems={filteredReports.length}
+              currentPage={safeReportPage}
+              itemsPerPage={reportPerPage}
+              onPageChange={setReportPage}
+              onItemsPerPageChange={setReportPerPage}
+              itemLabel="laporan"
+            />
+          )}
         </div>
       )}
 
-      {/* â”€â”€ TAB: PENGAJUAN HAPUS AKUN â”€â”€ */}
+      {/* ── TAB: PENGAJUAN HAPUS AKUN ── */}
       {activeTab === "hapus-akun" && (
         <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
           {/* Toolbar */}
@@ -456,7 +521,7 @@ export default function AdminModerasiPage() {
                   </tr>
                 ) : (
                   <>
-                    {filteredDeletes.map(req => (
+                    {paginatedDeletes.map(req => (
                   <tr key={req.id} className="border-b border-zinc-200 hover:bg-zinc-50/60 transition-colors">
                     <td className="p-4 text-sm text-zinc-500 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
@@ -516,8 +581,18 @@ export default function AdminModerasiPage() {
                             <Trash size={15} /> Hapus Akun
                           </button>
                         </div>
+                      ) : req.status === "approved" ? (
+                        <div className="flex justify-end">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-50 text-red-600 text-xs font-semibold">
+                            <Trash size={13} /> Akun Dihapus
+                          </span>
+                        </div>
                       ) : (
-                        <span className="text-sm text-zinc-400">â€”</span>
+                        <div className="flex justify-end">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-zinc-100 text-zinc-600 text-xs font-semibold">
+                            <X size={12} weight="bold" /> Pengajuan Ditolak
+                          </span>
+                        </div>
                       )}
                     </td>
                   </tr>
@@ -535,6 +610,16 @@ export default function AdminModerasiPage() {
               </tbody>
             </table>
           </div>
+          {filteredDeletes.length > 0 && (
+            <TablePagination
+              totalItems={filteredDeletes.length}
+              currentPage={safeDeletePage}
+              itemsPerPage={deletePerPage}
+              onPageChange={setDeletePage}
+              onItemsPerPageChange={setDeletePerPage}
+              itemLabel="pengajuan"
+            />
+          )}
         </div>
       )}
     </div>

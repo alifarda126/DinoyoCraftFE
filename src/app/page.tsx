@@ -10,8 +10,51 @@ import {
   Headset,
   CaretDown,
   CaretUp,
+  DownloadSimple,
+  AndroidLogo,
+  DeviceMobile,
+  Desktop,
 } from "@phosphor-icons/react";
 import Navbar from "@/components/layout/Navbar";
+
+const appDownloads = [
+  {
+    id: "arm64-v8a",
+    badge: "Direkomendasikan • 64-bit",
+    title: "Android ARM64 (arm64-v8a)",
+    size: "43,6 MB",
+    version: "v1.0.0",
+    recommended: true,
+    icon: DeviceMobile,
+    description:
+      "Pilihan utama untuk mayoritas smartphone Android modern keluaran 2018 ke atas (Samsung, Xiaomi, OPPO, vivo, Realme, Pixel, Infinix 64-bit).",
+    url: "https://github.com/alifarda126/DinoyoCraftApp/releases/download/v1.0.0/DinoyoCraft-v1.0.0-arm64-v8a.apk",
+  },
+  {
+    id: "armeabi-v7a",
+    badge: "Kompatibilitas • 32-bit",
+    title: "Android ARMv7 (armeabi-v7a)",
+    size: "41,5 MB",
+    version: "v1.0.0",
+    recommended: false,
+    icon: AndroidLogo,
+    description:
+      "Untuk ponsel Android generasi lama atau perangkat entry-level berbasis arsitektur ARM 32-bit apabila versi ARM64 tidak dapat dipasang.",
+    url: "https://github.com/alifarda126/DinoyoCraftApp/releases/download/v1.0.0/DinoyoCraft-v1.0.0-armeabi-v7a.apk",
+  },
+  {
+    id: "x86_64",
+    badge: "Emulator & PC • 64-bit",
+    title: "Android x86_64 (Emulator / PC)",
+    size: "45,2 MB",
+    version: "v1.0.0",
+    recommended: false,
+    icon: Desktop,
+    description:
+      "Khusus untuk menjalankan aplikasi di Android Studio Emulator, Chromebook prosesor Intel/AMD, atau emulator Android di komputer.",
+    url: "https://github.com/alifarda126/DinoyoCraftApp/releases/download/v1.0.0/DinoyoCraft-v1.0.0-x86_64.apk",
+  },
+];
 
 /* ────────────────────────────────────────────────────────────────────────────
    DATA — Program Mitra DinoyoCraft
@@ -868,6 +911,322 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── DOWNLOAD APLIKASI DINOYOCRAFT ───────────────────────────────── */}
+      <section
+        id="download-aplikasi"
+        style={{
+          borderBottom: "1.5px solid var(--line)",
+          position: "relative",
+          overflow: "hidden",
+          background: "var(--surface)",
+        }}
+      >
+        <div aria-hidden className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div
+            style={{
+              position: "absolute",
+              top: "38%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              width: 780,
+              height: 440,
+              borderRadius: "9999px",
+              background: "var(--clay)",
+              opacity: 0.07,
+              filter: "blur(130px)",
+            }}
+          />
+        </div>
+
+        <div className="max-w-[1400px] mx-auto px-5 lg:px-8 py-24 lg:py-32 relative z-10">
+          {/* Header Tengah sesuai referensi App Showcase */}
+          <div style={{ textAlign: "center", maxWidth: "46rem", margin: "0 auto" }}>
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.45rem",
+                padding: "0.38rem 0.95rem",
+                borderRadius: "9999px",
+                background: "var(--clay-muted)",
+                color: "var(--clay-dark)",
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                letterSpacing: "0.09em",
+                textTransform: "uppercase",
+              }}
+            >
+              <AndroidLogo size={15} weight="fill" />
+              Aplikasi Mobile DinoyoCraft • Rilis v1.0.0
+            </span>
+
+            <h2
+              style={{
+                marginTop: "1rem",
+                fontSize: "clamp(1.9rem, 4vw, 3rem)",
+                fontWeight: 800,
+                letterSpacing: "-0.03em",
+                lineHeight: 1.1,
+                color: "var(--bark)",
+              }}
+            >
+              Belanja Keramik Asli Dinoyo{" "}
+              <span style={{ color: "var(--clay)" }}>Lebih Mudah</span> dalam Satu Aplikasi
+            </h2>
+
+            <p
+              style={{
+                marginTop: "1rem",
+                color: "var(--bark-muted)",
+                lineHeight: 1.75,
+                fontSize: "1rem",
+                maxWidth: "58ch",
+                marginLeft: "auto",
+                marginRight: "auto",
+              }}
+            >
+              Jelajahi katalog pengrajin Kampung Keramik Dinoyo, konsultasi dengan ClayBot &amp; penjual secara langsung, hingga bayar instan via QRIS, Virtual Account, atau E-Wallet.
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "0.85rem",
+                marginTop: "1.75rem",
+                flexWrap: "wrap",
+              }}
+            >
+              <a
+                href={appDownloads[0].url}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.55rem",
+                  padding: "0.85rem 1.75rem",
+                  borderRadius: "9999px",
+                  background: "var(--clay)",
+                  color: "#fff",
+                  fontWeight: 700,
+                  fontSize: "0.92rem",
+                  textDecoration: "none",
+                  boxShadow: "0 4px 16px rgba(184,92,60,0.25)",
+                  transition: "background 0.2s, transform 0.15s",
+                }}
+              >
+                <DownloadSimple size={18} weight="bold" />
+                Unduh APK Utama (ARM64)
+              </a>
+              <a
+                href="#pilihan-apk"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.45rem",
+                  padding: "0.85rem 1.5rem",
+                  borderRadius: "9999px",
+                  background: "#fff",
+                  color: "var(--bark)",
+                  border: "1.5px solid var(--line-strong)",
+                  fontWeight: 700,
+                  fontSize: "0.92rem",
+                  textDecoration: "none",
+                }}
+              >
+                Lihat Semua Tipe APK
+              </a>
+            </div>
+          </div>
+
+          {/* Showcase Mockup 3 Smartphone */}
+          <div
+            style={{
+              marginTop: "2.75rem",
+              maxWidth: "1020px",
+              marginLeft: "auto",
+              marginRight: "auto",
+              borderRadius: "1.75rem",
+              overflow: "hidden",
+              border: "1.5px solid var(--line)",
+              background: "#FAF6F1",
+              boxShadow: "0 16px 48px rgba(61,43,31,0.1)",
+            }}
+          >
+            <Image
+              src="/images/ScreenDinoyocraftApp.png"
+              alt="Tampilan Aplikasi Mobile DinoyoCraft"
+              width={1376}
+              height={768}
+              className="w-full h-auto block"
+            />
+          </div>
+
+          {/* Pilihan Tipe APK + Penjelasan */}
+          <div id="pilihan-apk" style={{ marginTop: "3rem" }}>
+            <div style={{ textAlign: "center", marginBottom: "1.75rem" }}>
+              <h3
+                style={{
+                  fontSize: "1.3rem",
+                  fontWeight: 800,
+                  color: "var(--bark)",
+                  letterSpacing: "-0.02em",
+                }}
+              >
+                Pilih Tipe Aplikasi Sesuai Perangkat Android Anda
+              </h3>
+              <p
+                style={{
+                  marginTop: "0.35rem",
+                  fontSize: "0.9rem",
+                  color: "var(--bark-muted)",
+                }}
+              >
+                Tersedia 3 varian instalasi APK resmi (v1.0.0) agar ukuran unduhan lebih hemat dan optimal di setiap arsitektur perangkat.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {appDownloads.map((apk) => {
+                const IconComp = apk.icon;
+                return (
+                  <div
+                    key={apk.id}
+                    className="card-hover-glow"
+                    style={{
+                      background: "#fff",
+                      border: apk.recommended
+                        ? "2px solid var(--clay)"
+                        : "1.5px solid var(--line)",
+                      borderRadius: "1.35rem",
+                      padding: "1.75rem",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      position: "relative",
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: "0.5rem",
+                          marginBottom: "1rem",
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            padding: "0.28rem 0.7rem",
+                            borderRadius: "9999px",
+                            fontSize: "0.7rem",
+                            fontWeight: 700,
+                            background: apk.recommended
+                              ? "var(--clay-muted)"
+                              : "var(--surface)",
+                            color: apk.recommended
+                              ? "var(--clay-dark)"
+                              : "var(--bark-muted)",
+                            border: apk.recommended
+                              ? "1px solid rgba(184,92,60,0.25)"
+                              : "1px solid var(--line)",
+                          }}
+                        >
+                          {apk.badge}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "0.76rem",
+                            fontWeight: 700,
+                            color: "var(--bark-muted)",
+                          }}
+                        >
+                          {apk.size}
+                        </span>
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "0.65rem",
+                          marginBottom: "0.6rem",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 38,
+                            height: 38,
+                            borderRadius: "0.75rem",
+                            background: apk.recommended
+                              ? "var(--clay-muted)"
+                              : "var(--surface)",
+                            color: "var(--clay)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          <IconComp size={20} weight="duotone" />
+                        </div>
+                        <h4
+                          style={{
+                            fontSize: "1.05rem",
+                            fontWeight: 800,
+                            color: "var(--bark)",
+                            letterSpacing: "-0.015em",
+                            margin: 0,
+                          }}
+                        >
+                          {apk.title}
+                        </h4>
+                      </div>
+
+                      <p
+                        style={{
+                          fontSize: "0.88rem",
+                          color: "var(--bark-muted)",
+                          lineHeight: 1.65,
+                          marginBottom: "1.5rem",
+                        }}
+                      >
+                        {apk.description}
+                      </p>
+                    </div>
+
+                    <a
+                      href={apk.url}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "0.5rem",
+                        padding: "0.75rem 1rem",
+                        borderRadius: "0.85rem",
+                        background: apk.recommended ? "var(--clay)" : "var(--surface)",
+                        color: apk.recommended ? "#fff" : "var(--bark)",
+                        border: apk.recommended ? "none" : "1.5px solid var(--line-strong)",
+                        fontWeight: 700,
+                        fontSize: "0.86rem",
+                        textDecoration: "none",
+                        transition: "background 0.2s",
+                      }}
+                    >
+                      <DownloadSimple size={16} weight="bold" />
+                      Download APK ({apk.id})
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── FAQ ───────────────────────────────────────────────────────── */}
       <section
         id="faq"
@@ -1140,6 +1499,7 @@ export default function Home() {
               {[
                 { href: "/login", label: "Jadi Mitra" },
                 { href: "/login", label: "Login Mitra" },
+                { href: "/#download-aplikasi", label: "Download Aplikasi" },
                 { href: "/#faq", label: "FAQ" },
               ].map(({ href, label }) => (
                 <Link

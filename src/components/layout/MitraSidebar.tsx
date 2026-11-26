@@ -41,12 +41,43 @@ function NavBadge({ count }: { count: number }) {
   );
 }
 
-export default function MitraSidebar() {
+const resolveSidebarAvatar = (url?: string | null): string | null => {
+  if (!url || typeof url !== "string") return null;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed === "null" || trimmed === "undefined") return null;
+  if (trimmed.includes("googleusercontent.com") || trimmed.includes("google.com")) {
+    return null;
+  }
+  if (
+    trimmed.startsWith("http://") ||
+    trimmed.startsWith("https://") ||
+    trimmed.startsWith("blob:") ||
+    trimmed.startsWith("data:")
+  ) {
+    return trimmed;
+  }
+  const apiHost = API_BASE_URL.replace(/\/api\/?$/, "");
+  return `${apiHost}${trimmed.startsWith("/") ? "" : "/"}${trimmed}`;
+};
+
+export default function MitraSidebar({
+  isMobileOpen = false,
+  onCloseMobile,
+}: {
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
+} = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [session, setSession] = useState<any>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
+
+  useEffect(() => {
+    setAvatarError(false);
+  }, [user?.avatar_url]);
 
   useEffect(() => {
     useAuthStore.getState().initAuth();
@@ -70,14 +101,17 @@ export default function MitraSidebar() {
     };
   }, []);
 
-  // Otomatis menutup saat zoom > 100%, otomatis membuka saat zoom <= 100%
+  // Otomatis menutup saat zoom > 100%, otomatis membuka saat zoom <= 100% (khusus layar desktop >= 768px)
   useEffect(() => {
     function handleZoomAndResize() {
       if (typeof window === "undefined") return;
+      const mobile = window.innerWidth < 768;
+      setIsMobileViewport(mobile);
+      if (mobile) {
+        setIsCollapsed(false);
+        return;
+      }
       const ratio = window.outerWidth && window.innerWidth ? window.outerWidth / window.innerWidth : 1;
-      
-      // Patokan: jika zoom > 100% (ambang batas 1.04 untuk 110% ke atas) -> otomatis menutup (collapsed)
-      // Jika zoom <= 100% (100%, 90%, 80%, dst.) -> otomatis terbuka (expanded)
       if (ratio > 1.04) {
         setIsCollapsed(true);
       } else {
@@ -233,10 +267,21 @@ export default function MitraSidebar() {
 
   const sellerName = user?.store_name || user?.name || session?.profile?.full_name || "Mitra";
   const initials = sellerName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
+  const avatarUrl = resolveSidebarAvatar(user?.avatar_url);
+  const isDrawerMode = isMobileOpen || isMobileViewport;
+  const effectiveCollapsed = isDrawerMode ? false : isCollapsed;
+
+  const handleToggleSidebar = () => {
+    if (onCloseMobile && (isMobileOpen || (typeof window !== "undefined" && window.innerWidth < 768))) {
+      onCloseMobile();
+      return;
+    }
+    setIsCollapsed((prev) => !prev);
+  };
 
   return (
     <aside style={{
-      width: isCollapsed ? "80px" : "280px", 
+      width: effectiveCollapsed ? "80px" : "280px", 
       background: "var(--surface-dark)", 
       borderRight: "1px solid var(--line)",
       display: "flex", flexDirection: "column", padding: "1.5rem 1rem", flexShrink: 0,
@@ -244,8 +289,8 @@ export default function MitraSidebar() {
       transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       height: "100%",
     }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: isCollapsed ? "center" : "space-between", marginBottom: "2rem" }}>
-        {!isCollapsed && (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: effectiveCollapsed ? "center" : "space-between", marginBottom: "2rem" }}>
+        {!effectiveCollapsed && (
           <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", textDecoration: "none" }}>
             <ArrowLeft size={16} color="rgba(255,255,255,0.6)" />
             <span style={{ fontWeight: 800, fontSize: "1.1rem", color: "#ffffff", whiteSpace: "nowrap" }}>
@@ -254,7 +299,8 @@ export default function MitraSidebar() {
           </Link>
         )}
         <button 
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          type="button"
+          onClick={handleToggleSidebar}
           style={{ background: "transparent", border: "none", cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", padding: "0.25rem", flexShrink: 0 }}
         >
           <List size={24} weight="bold" />
@@ -264,10 +310,13 @@ export default function MitraSidebar() {
       {/* Profil Toko mini */}
       <Link
         href={isUnverified ? "/mitra/dashboard/profil" : "/mitra/dashboard/toko-saya"}
+        onClick={() => {
+          if (isDrawerMode && onCloseMobile) onCloseMobile();
+        }}
         style={{
-          display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: isCollapsed ? "center" : "flex-start",
+          display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: effectiveCollapsed ? "center" : "flex-start",
           background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)",
-          borderRadius: "0.75rem", padding: isCollapsed ? "0.75rem 0" : "0.75rem", marginBottom: "1.5rem",
+          borderRadius: "0.75rem", padding: effectiveCollapsed ? "0.75rem 0" : "0.75rem", marginBottom: "1.5rem",
           cursor: "pointer", textAlign: "left", transition: "background 0.2s",
           textDecoration: "none",
         }}
@@ -276,13 +325,24 @@ export default function MitraSidebar() {
       >
         <div style={{
           width: 36, height: 36, borderRadius: "50%",
-          background: "linear-gradient(135deg, var(--clay), #c0673d)",
+          background: avatarUrl && !avatarError ? "transparent" : "linear-gradient(135deg, var(--clay), #c0673d)",
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0, fontSize: "0.8rem", fontWeight: 800, color: "#fff",
+          overflow: "hidden",
         }}>
-          {initials}
+          {avatarUrl && !avatarError ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={avatarUrl}
+              alt={sellerName}
+              onError={() => setAvatarError(true)}
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          ) : (
+            initials
+          )}
         </div>
-        {!isCollapsed && (
+        {!effectiveCollapsed && (
           <>
             <div style={{ overflow: "hidden" }}>
               <p style={{ fontSize: "0.82rem", fontWeight: 700, color: "#fff", margin: 0, whiteSpace: "nowrap", textOverflow: "ellipsis", overflow: "hidden" }}>
@@ -306,6 +366,10 @@ export default function MitraSidebar() {
             if (isItemLocked) {
               e.preventDefault();
               toast.info("Menu ini masih terkunci. Akun toko Anda sedang menunggu atau memerlukan verifikasi.");
+              return;
+            }
+            if (isDrawerMode && onCloseMobile) {
+              onCloseMobile();
             }
           };
 
@@ -315,8 +379,8 @@ export default function MitraSidebar() {
               href={isItemLocked ? "/mitra/dashboard/profil" : item.href} 
               onClick={handleClick}
               style={{
-                display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: isCollapsed ? "center" : "flex-start",
-                padding: isCollapsed ? "0.75rem 0" : "0.75rem 1rem", borderRadius: "0.5rem",
+                display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: effectiveCollapsed ? "center" : "flex-start",
+                padding: effectiveCollapsed ? "0.75rem 0" : "0.75rem 1rem", borderRadius: "0.5rem",
                 textDecoration: "none", position: "relative",
                 background: isActive ? "rgba(255,255,255,0.1)" : "transparent",
                 color: isItemLocked ? "rgba(255,255,255,0.35)" : isActive ? "#ffffff" : "rgba(255,255,255,0.6)",
@@ -339,13 +403,13 @@ export default function MitraSidebar() {
               }}
             >
               <item.icon size={20} weight={isActive ? "bold" : "regular"} style={{ flexShrink: 0 }} />
-              {!isCollapsed && (
+              {!effectiveCollapsed && (
                 <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.label}>
                   {item.label}
                 </span>
               )}
               
-              {isItemLocked && !isCollapsed && (
+              {isItemLocked && !effectiveCollapsed && (
                 <span style={{
                   display: "inline-flex", alignItems: "center", gap: "0.2rem",
                   fontSize: "0.62rem", color: "rgba(255,255,255,0.45)",
@@ -356,13 +420,13 @@ export default function MitraSidebar() {
                 </span>
               )}
 
-              {!isItemLocked && !isCollapsed && <NavBadge count={badges[item.href] ?? 0} />}
+              {!isItemLocked && !effectiveCollapsed && <NavBadge count={badges[item.href] ?? 0} />}
 
-              {isCollapsed && !isItemLocked && (badges[item.href] ?? 0) > 0 && (
+              {effectiveCollapsed && !isItemLocked && (badges[item.href] ?? 0) > 0 && (
                 <div style={{ position: "absolute", top: 4, right: 12, width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
               )}
               
-              {isCollapsed && isItemLocked && (
+              {effectiveCollapsed && isItemLocked && (
                 <div style={{ position: "absolute", top: 6, right: 10 }}>
                   <Lock size={10} color="rgba(255,255,255,0.4)" weight="bold" />
                 </div>
@@ -373,14 +437,14 @@ export default function MitraSidebar() {
       </nav>
 
       <button onClick={handleSignOut} style={{
-        display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: isCollapsed ? "center" : "flex-start",
-        padding: isCollapsed ? "0.75rem 0" : "0.75rem 1rem", borderRadius: "0.5rem",
+        display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: effectiveCollapsed ? "center" : "flex-start",
+        padding: effectiveCollapsed ? "0.75rem 0" : "0.75rem 1rem", borderRadius: "0.5rem",
         border: "none", background: "transparent", color: "#ef4444",
         fontWeight: 600, cursor: "pointer", textAlign: "left",
         fontFamily: "var(--font-outfit), sans-serif",
       }}>
         <SignOut size={20} style={{ flexShrink: 0 }} />
-        {!isCollapsed && <span style={{ whiteSpace: "nowrap" }}>Keluar</span>}
+        {!effectiveCollapsed && <span style={{ whiteSpace: "nowrap" }}>Keluar</span>}
       </button>
     </aside>
   );

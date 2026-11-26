@@ -10,6 +10,7 @@ import { getDemoSession, clearDemoSession, DemoSession } from "@/lib/utils/demo"
 const navLinks = [
   { href: "/#apa-itu", label: "Apa Itu" },
   { href: "/#cara", label: "Cara Kerja" },
+  { href: "/#download-aplikasi", label: "Download Aplikasi" },
   { href: "/#faq", label: "FAQ" },
 ];
 

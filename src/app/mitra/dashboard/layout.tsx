@@ -151,10 +151,13 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
     };
   }, [isVerified, user, updateUser]);
 
-  // 3. Navigation guard untuk mengunci rute selain profil toko bagi mitra belum terverifikasi
+  // Tutup drawer mobile HANYA ketika berpindah halaman (bukan saat state user diperbarui di background)
   useEffect(() => {
     setMobileMenuOpen(false);
+  }, [pathname]);
 
+  // 3. Navigation guard untuk mengunci rute selain profil toko bagi mitra belum terverifikasi
+  useEffect(() => {
     if (user && user.role === "mitra" && !isVerified) {
       if (pathname !== "/mitra/dashboard/profil") {
         router.replace("/mitra/dashboard/profil");
@@ -168,7 +171,15 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
       {/* Mobile Header */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-zinc-200 z-40 flex items-center justify-between px-4 shadow-sm">
         <span className="font-bold text-lg text-zinc-900">Dinoyo<span className="text-zinc-500">Craft</span> Mitra</span>
-        <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-zinc-900">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMobileMenuOpen((prev) => !prev);
+          }}
+          className="p-2 text-zinc-900 cursor-pointer"
+          aria-label="Toggle menu sidebar"
+        >
           {mobileMenuOpen ? <X size={24} /> : <List size={24} />}
         </button>
       </div>
@@ -186,7 +197,10 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
         fixed md:static inset-y-0 left-0 z-50 h-full flex transform transition-transform duration-300 ease-in-out
         ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
       `}>
-        <MitraSidebar />
+        <MitraSidebar
+          isMobileOpen={mobileMenuOpen}
+          onCloseMobile={() => setMobileMenuOpen(false)}
+        />
       </div>
 
       {/* Main Content */}

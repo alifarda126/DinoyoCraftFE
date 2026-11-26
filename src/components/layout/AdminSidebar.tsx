@@ -46,10 +46,17 @@ function NavBadge({ count }: { count: number }) {
   );
 }
 
-export default function AdminSidebar() {
+export default function AdminSidebar({
+  isMobileOpen = false,
+  onCloseMobile,
+}: {
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
+} = {}) {
   const pathname = usePathname();
   const router = useRouter();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
 
   // Badge dinamis mengikuti jumlah data riil yang membutuhkan tindakan
   const [badges, setBadges] = useState<Record<string, number>>({
@@ -234,6 +241,12 @@ export default function AdminSidebar() {
   useEffect(() => {
     function handleZoomAndResize() {
       if (typeof window === "undefined") return;
+      const mobile = window.innerWidth < 768;
+      setIsMobileViewport(mobile);
+      if (mobile) {
+        setIsCollapsed(false);
+        return;
+      }
       const ratio = window.outerWidth && window.innerWidth ? window.outerWidth / window.innerWidth : 1;
       
       // Patokan: jika zoom > 100% (ambang batas 1.04 untuk 110% ke atas) -> otomatis menutup (collapsed)
@@ -276,9 +289,20 @@ export default function AdminSidebar() {
     { href: "/admin/logs", icon: TerminalWindow, label: "System Logs" },
   ];
 
+  const isDrawerMode = isMobileOpen || isMobileViewport;
+  const effectiveCollapsed = isDrawerMode ? false : isCollapsed;
+
+  const handleToggleSidebar = () => {
+    if (onCloseMobile && (isMobileOpen || (typeof window !== "undefined" && window.innerWidth < 768))) {
+      onCloseMobile();
+      return;
+    }
+    setIsCollapsed((prev) => !prev);
+  };
+
   return (
     <aside style={{
-      width: isCollapsed ? "80px" : "280px", 
+      width: effectiveCollapsed ? "80px" : "280px", 
       background: "var(--surface-dark)", 
       borderRight: "1px solid var(--line)",
       display: "flex", flexDirection: "column", padding: "1.5rem 1rem", flexShrink: 0, 
@@ -286,8 +310,8 @@ export default function AdminSidebar() {
       transition: "width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       height: "100%",
     }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: isCollapsed ? "center" : "space-between", marginBottom: "2rem" }}>
-        {!isCollapsed && (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: effectiveCollapsed ? "center" : "space-between", marginBottom: "2rem" }}>
+        {!effectiveCollapsed && (
           <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", textDecoration: "none" }}>
             <ArrowLeft size={16} color="rgba(255,255,255,0.6)" />
             <span style={{ fontWeight: 800, fontSize: "1.1rem", color: "#ffffff", whiteSpace: "nowrap" }}>
@@ -296,7 +320,8 @@ export default function AdminSidebar() {
           </Link>
         )}
         <button 
-          onClick={() => setIsCollapsed(!isCollapsed)}
+          type="button"
+          onClick={handleToggleSidebar}
           style={{ background: "transparent", border: "none", cursor: "pointer", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", padding: "0.25rem", flexShrink: 0 }}
         >
           <List size={24} weight="bold" />
@@ -308,19 +333,26 @@ export default function AdminSidebar() {
           const isActive = pathname === item.href;
           const badge = badges[item.href] ?? 0;
           return (
-            <Link key={item.href} href={item.href} style={{
-              display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: isCollapsed ? "center" : "flex-start",
-              padding: isCollapsed ? "0.75rem 0" : "0.75rem 1rem", borderRadius: "0.5rem",
-              textDecoration: "none", position: "relative",
-              background: isActive ? "rgba(255,255,255,0.1)" : "transparent",
-              color: isActive ? "#ffffff" : "rgba(255,255,255,0.8)",
-              fontWeight: isActive ? 700 : 500,
-              transition: "background 0.2s",
-            }}>
+            <Link
+              key={item.href}
+              href={item.href}
+              onClick={() => {
+                if (isDrawerMode && onCloseMobile) onCloseMobile();
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: effectiveCollapsed ? "center" : "flex-start",
+                padding: effectiveCollapsed ? "0.75rem 0" : "0.75rem 1rem", borderRadius: "0.5rem",
+                textDecoration: "none", position: "relative",
+                background: isActive ? "rgba(255,255,255,0.1)" : "transparent",
+                color: isActive ? "#ffffff" : "rgba(255,255,255,0.8)",
+                fontWeight: isActive ? 700 : 500,
+                transition: "background 0.2s",
+              }}
+            >
               <item.icon size={20} weight={isActive ? "bold" : "regular"} style={{ flexShrink: 0 }} />
-              {!isCollapsed && <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.label}>{item.label}</span>}
-              {!isCollapsed && <NavBadge count={badge} />}
-              {isCollapsed && badge > 0 && (
+              {!effectiveCollapsed && <span style={{ flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={item.label}>{item.label}</span>}
+              {!effectiveCollapsed && <NavBadge count={badge} />}
+              {effectiveCollapsed && badge > 0 && (
                 <div style={{ position: "absolute", top: 4, right: 12, width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
               )}
             </Link>
@@ -329,14 +361,14 @@ export default function AdminSidebar() {
       </nav>
 
       <button onClick={handleSignOut} style={{
-        display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: isCollapsed ? "center" : "flex-start",
-        padding: isCollapsed ? "0.75rem 0" : "0.75rem 1rem", borderRadius: "0.5rem",
+        display: "flex", alignItems: "center", gap: "0.75rem", justifyContent: effectiveCollapsed ? "center" : "flex-start",
+        padding: effectiveCollapsed ? "0.75rem 0" : "0.75rem 1rem", borderRadius: "0.5rem",
         border: "none", background: "transparent", color: "#ef4444",
         fontWeight: 600, cursor: "pointer", textAlign: "left",
         fontFamily: "var(--font-outfit), sans-serif",
       }}>
         <SignOut size={20} style={{ flexShrink: 0 }} />
-        {!isCollapsed && <span style={{ whiteSpace: "nowrap" }}>Keluar</span>}
+        {!effectiveCollapsed && <span style={{ whiteSpace: "nowrap" }}>Keluar</span>}
       </button>
     </aside>
   );

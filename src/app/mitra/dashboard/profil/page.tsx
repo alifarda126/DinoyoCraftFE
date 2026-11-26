@@ -213,6 +213,7 @@ export default function SellerProfilPage() {
             ...parsedUser,
             name: d.name || profile.ownerName,
             store_name: d.store_name || profile.storeName,
+            avatar_url: d.avatar_url || (parsedUser as any).avatar_url,
             is_verified: d.is_verified,
             rejection_reason: reason,
           };
@@ -263,6 +264,7 @@ export default function SellerProfilPage() {
             ...parsedUser,
             name: d.name || parsedUser.name,
             store_name: d.store_name || parsedUser.store_name,
+            avatar_url: d.avatar_url || parsedUser.avatar_url,
             is_verified: d.is_verified,
             rejection_reason: reason,
           };

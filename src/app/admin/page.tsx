@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
-import { Storefront, Receipt, Users, CurrencyCircleDollar, WarningCircle } from "@phosphor-icons/react";
+import { Storefront, Receipt, Users, CurrencyCircleDollar, WarningCircle, Robot, ArrowRight } from "@phosphor-icons/react";
 import { adminService } from "@/services/admin.service";
+import api from "@/lib/axios";
 import Pusher from "pusher-js";
 
 interface DashboardStats {
@@ -21,10 +22,37 @@ export default function AdminDashboardHome() {
   const [loading, setLoading] = useState(true);
   const [adminName, setAdminName] = useState("Admin DinoyoCraft");
   const [statsData, setStatsData] = useState<DashboardStats | null>(null);
+  const [aiInsightLoading, setAiInsightLoading] = useState(true);
+  const [aiInsightData, setAiInsightData] = useState<{
+    configured: boolean;
+    insight: string | null;
+    status_message?: string;
+    provider_label?: string | null;
+  } | null>(null);
   const isFetchingRef = useRef(false);
   const hasLoadedRef = useRef(false);
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCountRef = useRef(0);
+
+  const fetchDailyAiInsight = useCallback(async () => {
+    try {
+      const res = await api.get("/ai/daily-insight?scope=admin");
+      if (res.data?.success && res.data?.data) {
+        setAiInsightData(res.data.data);
+      }
+    } catch {
+      setAiInsightData((prev) =>
+        prev ?? {
+          configured: false,
+          insight: null,
+          status_message:
+            "API Key Asisten AI belum dipasang pada sistem. Silakan atur API Key di menu Pengaturan AI untuk mengaktifkan analisis platform harian otomatis.",
+        }
+      );
+    } finally {
+      setAiInsightLoading(false);
+    }
+  }, []);
 
   const fetchDashboardData = useCallback(async (isInitial = false) => {
     if (isFetchingRef.current) return;
@@ -83,6 +111,7 @@ export default function AdminDashboardHome() {
     }
 
     fetchDashboardData(true);
+    fetchDailyAiInsight();
 
     const onFocusOrVisible = () => {
       if (typeof document === "undefined" || document.visibilityState === "visible") {
@@ -135,7 +164,7 @@ export default function AdminDashboardHome() {
         } catch {}
       }
     };
-  }, [router, fetchDashboardData]);
+  }, [router, fetchDashboardData, fetchDailyAiInsight]);
 
   const isDataLoading = loading && !statsData;
 
@@ -260,6 +289,29 @@ export default function AdminDashboardHome() {
               width: "100%"
             }}>
               Tinjau Sekarang
+            </button>
+          </div>
+
+          <div style={{ background: "linear-gradient(145deg, var(--clay), #a05a3b)", borderRadius: "1rem", padding: "1.5rem", color: "#fff" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+              <Robot size={24} weight="bold" />
+              <h2 style={{ fontSize: "1.1rem", fontWeight: 700 }}>Analisis AI Hari Ini</h2>
+            </div>
+            <p style={{ fontSize: "0.9rem", lineHeight: 1.6, opacity: 0.92, marginBottom: "1.5rem" }}>
+              {aiInsightLoading
+                ? "Memuat analisis operasional AI hari ini..."
+                : aiInsightData?.configured && aiInsightData?.insight
+                  ? aiInsightData.insight
+                  : aiInsightData?.status_message ||
+                    "API Key Asisten AI belum dipasang pada sistem. Silakan atur API Key di menu Pengaturan AI untuk mengaktifkan analisis platform harian otomatis."}
+            </p>
+            <button onClick={() => router.push("/admin/pengaturan-ai")} style={{
+              background: "#fff", color: "var(--clay)", border: "none",
+              padding: "0.6rem 1rem", borderRadius: "9999px",
+              fontWeight: 700, fontSize: "0.85rem", cursor: "pointer",
+              width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem"
+            }}>
+              {aiInsightData?.configured ? "Pengaturan AI" : "Pasang API Key AI"} <ArrowRight size={14} weight="bold" />
             </button>
           </div>
         </div>

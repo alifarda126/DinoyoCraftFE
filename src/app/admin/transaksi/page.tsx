@@ -6,6 +6,7 @@ import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
 import { Receipt, MagnifyingGlass, DownloadSimple, ClockCounterClockwise } from "@phosphor-icons/react";
 import { EarthySelect } from "@/components/ui/EarthySelect";
+import { TablePagination } from "@/components/ui/TablePagination";
 import { PaymentMethodBadge, formatPaymentLabel as formatMethodLabel } from "@/components/ui/PaymentMethodBadge";
 import { adminService } from "@/services/admin.service";
 import { toast } from "sonner";
@@ -44,6 +45,8 @@ export default function AdminTransaksiPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("semua");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [isDownloadingCsv, setIsDownloadingCsv] = useState(false);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
@@ -162,6 +165,17 @@ export default function AdminTransaksiPage() {
     const matchStatus = filterStatus === "semua" || t.status === filterStatus;
     return matchSearch && matchStatus;
   });
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / itemsPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedTransactions = filtered.slice(
+    (safeCurrentPage - 1) * itemsPerPage,
+    safeCurrentPage * itemsPerPage
+  );
 
   function exportCSV() {
     setIsDownloadingCsv(true);
@@ -389,7 +403,7 @@ export default function AdminTransaksiPage() {
         doc.setFontSize(8);
         doc.setTextColor(113, 113, 122);
         doc.text(
-          "DinoyoCraft Admin â€” Laporan Transaksi Lintas Toko",
+          "DinoyoCraft Admin — Laporan Transaksi Lintas Toko",
           marginX,
           pageHeight - 8
         );
@@ -420,7 +434,7 @@ export default function AdminTransaksiPage() {
           <h1 className="text-2xl font-bold text-zinc-900  mb-1">Transaksi Lintas Toko</h1>
           <p className="text-zinc-500 text-sm">Pantau perputaran uang dari seluruh Mitra Pengrajin.</p>
         </div>
-        {/* Tombol Ekspor â€” CSV (outline) + PDF (clay primary) */}
+        {/* Tombol Ekspor — CSV (outline) + PDF (clay primary) */}
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
           {/* CSV */}
           <button
@@ -533,7 +547,7 @@ export default function AdminTransaksiPage() {
                   </td>
                 </tr>
               ) : (
-                filtered.map((trx) => (
+                paginatedTransactions.map((trx) => (
                   <tr key={trx.id} className="border-b border-zinc-200  hover:bg-zinc-50 :bg-zinc-900/50 transition-colors">
                     <td className="p-4 font-medium text-zinc-900 ">{trx.id}</td>
                     <td className="p-4 text-sm text-zinc-600 ">{trx.store}</td>
@@ -560,6 +574,16 @@ export default function AdminTransaksiPage() {
             </tbody>
           </table>
         </div>
+        {filtered.length > 0 && (
+          <TablePagination
+            totalItems={filtered.length}
+            currentPage={safeCurrentPage}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={setItemsPerPage}
+            itemLabel="transaksi"
+          />
+        )}
       </div>
     </div>
   );

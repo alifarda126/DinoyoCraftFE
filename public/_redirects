@@ -2,3 +2,7 @@
 /auth/register /register 301
 /auth/lupa-kata-sandi /lupa-kata-sandi 301
 /auth /login 301
+/product/* /#download-aplikasi 302
+/produk/* /#download-aplikasi 302
+/store/* /#download-aplikasi 302
+/toko/* /#download-aplikasi 302
