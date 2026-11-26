@@ -1042,23 +1042,24 @@ export default function Home() {
           {/* Showcase Mockup 3 Smartphone */}
           <div
             style={{
-              marginTop: "2.75rem",
-              maxWidth: "1020px",
+              marginTop: "2.5rem",
+              maxWidth: "960px",
               marginLeft: "auto",
               marginRight: "auto",
-              borderRadius: "1.75rem",
-              overflow: "hidden",
-              border: "1.5px solid var(--line)",
-              background: "#FAF6F1",
-              boxShadow: "0 16px 48px rgba(61,43,31,0.1)",
             }}
           >
-            <Image
-              src="/images/ScreenDinoyocraftApp.png"
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/images/ScreenDinoyocraftApp.png?v=2"
               alt="Tampilan Aplikasi Mobile DinoyoCraft"
-              width={1376}
-              height={768}
+              width={2400}
+              height={1800}
+              loading="lazy"
+              decoding="async"
               className="w-full h-auto block"
+              style={{
+                filter: "drop-shadow(0 20px 40px rgba(61,43,31,0.12))",
+              }}
             />
           </div>
 
