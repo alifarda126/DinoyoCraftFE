@@ -275,7 +275,7 @@ export default function AdminModerasiPage() {
       </div>
 
       {/* Tab Switch */}
-      <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1.5rem" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1.5rem" }}>
         {([
           { id: "laporan", label: "Laporan Pelanggaran", count: pendingCount, icon: ShieldWarning },
           { id: "hapus-akun", label: "Pengajuan Hapus Akun", count: deleteCount, icon: UserMinus },
@@ -318,14 +318,14 @@ export default function AdminModerasiPage() {
                 <span className="text-xs font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{pendingCount} pending</span>
               )}
             </h2>
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap w-full sm:w-auto">
               {/* Search */}
-              <div className="relative">
+              <div className="relative flex-1 sm:flex-initial min-w-[160px]">
                 <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                 <input
                   type="text" value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Cari laporan..."
-                  className="pl-8 pr-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 w-44"
+                  className="pl-8 pr-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 w-full sm:w-44"
                 />
               </div>
               <EarthySelect
@@ -351,7 +351,7 @@ export default function AdminModerasiPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[680px] text-left border-collapse">
               <thead>
                 <tr className="bg-zinc-50 border-b border-zinc-200 text-sm text-zinc-500">
                   <th className="p-4 font-medium">Tanggal</th>
@@ -478,14 +478,14 @@ export default function AdminModerasiPage() {
                 <span className="text-xs font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{deleteCount} menunggu</span>
               )}
             </h2>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap w-full sm:w-auto">
               {/* Search */}
-              <div className="relative">
+              <div className="relative flex-1 sm:flex-initial min-w-[160px]">
                 <MagnifyingGlass size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
                 <input
                   type="text" value={deleteSearch} onChange={e => setDeleteSearch(e.target.value)}
                   placeholder="Cari nama atau email..."
-                  className="pl-8 pr-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 w-52"
+                  className="pl-8 pr-3 py-1.5 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 w-full sm:w-52"
                 />
               </div>
               <EarthySelect
@@ -502,7 +502,7 @@ export default function AdminModerasiPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full min-w-[680px] text-left border-collapse">
               <thead>
                 <tr className="bg-zinc-50 border-b border-zinc-200 text-sm text-zinc-500">
                   <th className="p-4 font-medium">Tanggal</th>

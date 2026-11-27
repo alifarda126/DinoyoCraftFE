@@ -158,8 +158,8 @@ function ColorVariantSection({
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.65rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.65rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
           <Palette size={16} color="var(--clay)" weight="fill" />
           <span style={{ fontSize: "0.85rem", fontWeight: 700, color: "var(--bark)" }}>Varian Warna &amp; Stok</span>
           <span style={{ fontSize: "0.72rem", color: "var(--bark-muted)", fontWeight: 500 }}>(opsional)</span>
@@ -173,6 +173,7 @@ function ColorVariantSection({
             padding: "0.2rem 0.65rem",
             borderRadius: "999px",
             border: "1px solid rgba(184,92,60,0.18)",
+            whiteSpace: "nowrap",
           }}>
             Total Stok Varian: {totalVariantStock} Unit
           </span>
@@ -201,9 +202,8 @@ function ColorVariantSection({
       </div>
 
       {/* Custom color row */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "44px 1.2fr 1fr 85px auto", gap: "0.5rem",
-        alignItems: "flex-end", background: "var(--surface)", borderRadius: "0.6rem",
+      <div className="katalog-variant-custom-grid" style={{
+        background: "var(--surface)", borderRadius: "0.6rem",
         padding: "0.75rem", border: "1px solid var(--line)", marginBottom: "0.75rem",
       }}>
         <div>
@@ -661,17 +661,18 @@ export default function SellerCatalogPage() {
 
   return (
     <div>
-      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "2rem" }}>
-        <div>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.85rem", marginBottom: "1.75rem" }}>
+        <div style={{ minWidth: 0 }}>
           <h1 style={{ fontSize: "1.75rem", fontWeight: 800, color: "var(--bark)", marginBottom: "0.25rem" }}>Katalog Produk</h1>
           <p style={{ color: "var(--bark-muted)", fontSize: "0.95rem" }}>Kelola karya keramik yang dijual di tokomu.</p>
         </div>
         <button
           onClick={() => { setShowForm(!showForm); setEditingId(null); }}
           style={{
-            display: "flex", alignItems: "center", gap: "0.5rem",
+            display: "inline-flex", alignItems: "center", gap: "0.5rem",
             padding: "0.75rem 1.25rem", borderRadius: "0.75rem",
             background: "var(--clay)", color: "#fff", fontWeight: 700, border: "none", cursor: "pointer",
+            whiteSpace: "nowrap", flexShrink: 0,
           }}>
           {showForm ? "Batal" : <><Plus size={18} weight="bold" /> Tambah Produk</>}
         </button>
@@ -679,10 +680,9 @@ export default function SellerCatalogPage() {
 
       {/* ── Add Form ──────────────────────────────────────────────────── */}
       {showForm && (
-        <form onSubmit={handleSubmit} style={{
+        <form onSubmit={handleSubmit} className="katalog-form-grid katalog-form-card" style={{
           background: "#fff", padding: "1.75rem", borderRadius: "1rem",
           border: "1px solid var(--line)", marginBottom: "2rem",
-          display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.25rem",
         }}>
           <h2 style={{ gridColumn: "1 / -1", fontSize: "1.1rem", fontWeight: 700, color: "var(--bark)", margin: 0 }}>
             Tambah Produk Baru
@@ -863,15 +863,15 @@ export default function SellerCatalogPage() {
           {paginatedArtworks.map(item => (
           <div key={item.id} style={{ display: "flex", flexDirection: "column" }}>
             {/* Card */}
-            <div style={{
+            <div className="katalog-product-card" style={{
               background: "#fff",
               borderRadius: editingId === item.id ? "1rem 1rem 0 0" : "1rem",
-              border: "1px solid var(--line)", display: "flex", overflow: "hidden",
+              border: "1px solid var(--line)", overflow: "hidden",
             }}>
-              <div style={{ width: 160, background: `url(${item.image_url}) center/cover no-repeat`, borderRight: "1px solid var(--line)", flexShrink: 0 }} />
+              <div className="katalog-product-thumb" style={{ background: `url(${item.image_url}) center/cover no-repeat` }} />
 
-              <div style={{ padding: "1.5rem", flex: 1, display: "flex", justifyContent: "space-between" }}>
-                <div>
+              <div className="katalog-product-body" style={{ padding: "1.5rem", flex: 1, minWidth: 0, display: "flex", justifyContent: "space-between", gap: "0.75rem" }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
                   <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--clay)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     {item.category}
                   </span>
@@ -979,10 +979,10 @@ export default function SellerCatalogPage() {
 
             {/* Inline edit form */}
             {editingId === item.id && (
-              <form onSubmit={handleEditSave} style={{
+              <form onSubmit={handleEditSave} className="katalog-form-grid katalog-form-card" style={{
                 background: "var(--surface)", borderRadius: "0 0 1rem 1rem",
                 border: "1px solid var(--line)", borderTop: "none",
-                padding: "1.25rem 1.5rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem",
+                padding: "1.25rem 1.5rem", gap: "1rem",
               }}>
                 <div style={{ gridColumn: "1 / -1" }}>
                   <label style={labelStyle}>Nama Produk</label>

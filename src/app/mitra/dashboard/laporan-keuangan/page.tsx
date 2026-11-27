@@ -703,7 +703,7 @@ export default function LaporanKeuanganPage() {
       </header>
 
       {/* Stats Grid */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", gap: "1.25rem", marginBottom: "2.5rem" }}>
         {stats.map((stat, i) => (
           <div key={i} style={{
             background: "#fff", padding: "1.5rem", borderRadius: "1rem",
@@ -869,7 +869,7 @@ export default function LaporanKeuanganPage() {
           </div>
         </div>
         <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left" }}>
+          <table style={{ width: "100%", minWidth: 580, borderCollapse: "collapse", textAlign: "left" }}>
             <thead>
               <tr style={{ background: "var(--surface)", borderBottom: "1px solid var(--line-light)" }}>
                 <th style={{ padding: "1rem 1.5rem", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark-muted)" }}>ID Transaksi</th>

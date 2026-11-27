@@ -360,7 +360,7 @@ export default function TokoSaya() {
         : productDetail.stock;
 
     return (
-      <div className="flex-1 p-4 sm:p-6 md:p-8 bg-[#fafafa] min-h-screen">
+      <div className="flex-1 p-0 sm:p-4 md:p-6 bg-[#fafafa] min-h-screen">
         <div className="max-w-5xl mx-auto">
           {/* Top Bar Navigasi Mitra */}
           <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -376,7 +376,7 @@ export default function TokoSaya() {
               Kembali ke Toko Saya
             </button>
 
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center flex-wrap gap-2.5">
               <button
                 type="button"
                 onClick={() => handleShareProduct(productDetail)}
@@ -462,7 +462,7 @@ export default function TokoSaya() {
                   </p>
 
                   {/* Baris Statistik: Rating • Ulasan • Terjual • Stok */}
-                  <div className="grid grid-cols-3 gap-3 p-3.5 rounded-2xl bg-stone-50 border border-stone-200/70 mb-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3.5 rounded-2xl bg-stone-50 border border-stone-200/70 mb-6">
                     <div>
                       <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Rating</p>
                       <p className="text-sm font-bold text-gray-900 flex items-center gap-1 mt-0.5">
@@ -473,13 +473,13 @@ export default function TokoSaya() {
                         </span>
                       </p>
                     </div>
-                    <div className="border-l border-stone-200 pl-3">
+                    <div className="border-t sm:border-t-0 sm:border-l border-stone-200 pt-2.5 sm:pt-0 sm:pl-3">
                       <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Terjual</p>
                       <p className="text-sm font-bold text-gray-900 mt-0.5">
                         {productDetail.sold_count} pcs
                       </p>
                     </div>
-                    <div className="border-l border-stone-200 pl-3">
+                    <div className="border-t sm:border-t-0 sm:border-l border-stone-200 pt-2.5 sm:pt-0 sm:pl-3">
                       <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Stok Tersedia</p>
                       <p className="text-sm font-bold text-gray-900 flex items-center gap-1 mt-0.5">
                         <Package size={15} className="text-stone-500" />
@@ -752,7 +752,7 @@ export default function TokoSaya() {
   }
 
   return (
-    <div className="flex-1 p-6 md:p-8 bg-[#fafafa] min-h-screen">
+    <div className="flex-1 p-0 sm:p-4 md:p-6 bg-[#fafafa] min-h-screen">
       <div className="max-w-6xl mx-auto">
         {/* Header Profile Section */}
         <div className="bg-white rounded-3xl shadow-xs border border-gray-100 mb-8 overflow-hidden">

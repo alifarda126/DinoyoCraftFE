@@ -665,8 +665,8 @@ export default function PesananSellerPage() {
           <h1 className="text-2xl font-bold text-zinc-900 mb-1">Manajemen Pesanan</h1>
           <p className="text-zinc-500 text-sm">Pantau dan kelola pesanan masuk dari pelanggan Anda.</p>
         </div>
-        <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-          <div className="relative">
+        <div className="flex gap-2 items-center flex-wrap w-full sm:w-auto">
+          <div className="relative flex-1 sm:flex-initial min-w-[180px]">
             <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input
               type="text"
@@ -676,8 +676,7 @@ export default function PesananSellerPage() {
                 if (!e.target.value.trim()) setHighlightOrderId(null);
               }}
               placeholder="Cari ID, #DNC, resi, customer..."
-              className="pl-9 pr-8 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none"
-              style={{ width: 250 }}
+              className="w-full sm:w-[250px] pl-9 pr-8 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none"
             />
             {searchPesanan && (
               <button
@@ -742,7 +741,7 @@ export default function PesananSellerPage() {
                 return (
                 <div
                   key={order.id}
-                  className={`p-6 transition-colors ${
+                  className={`p-4 sm:p-6 transition-colors ${
                     isHighlighted
                       ? "bg-amber-50/40 ring-1 ring-inset ring-amber-300"
                       : "hover:bg-zinc-50/50"
@@ -970,8 +969,8 @@ export default function PesananSellerPage() {
             </div>
 
             {/* Pagination Footer */}
-            <div className="px-6 py-4 border-t border-zinc-200 bg-zinc-50/70 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center flex-wrap gap-3 text-xs text-zinc-600">
+            <div className="px-4 sm:px-6 py-4 border-t border-zinc-200 bg-zinc-50/70 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center justify-center sm:justify-start flex-wrap gap-3 text-xs text-zinc-600">
                 <span>
                   Menampilkan <strong className="text-zinc-900">{startIndex + 1}–{endIndex}</strong> dari{" "}
                   <strong className="text-zinc-900">{totalItems}</strong> pesanan
@@ -999,7 +998,7 @@ export default function PesananSellerPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center justify-center flex-wrap gap-1.5">
                 <button
                   type="button"
                   onClick={() => handlePageChange(safeCurrentPage - 1)}

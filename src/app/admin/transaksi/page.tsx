@@ -429,13 +429,13 @@ export default function AdminTransaksiPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-end mb-6">
+      <div className="flex justify-between items-end flex-wrap gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900  mb-1">Transaksi Lintas Toko</h1>
           <p className="text-zinc-500 text-sm">Pantau perputaran uang dari seluruh Mitra Pengrajin.</p>
         </div>
         {/* Tombol Ekspor — CSV (outline) + PDF (clay primary) */}
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center", flexWrap: "wrap" }}>
           {/* CSV */}
           <button
             onClick={exportCSV}
@@ -491,20 +491,20 @@ export default function AdminTransaksiPage() {
       </div>
 
       <div className="bg-white  border border-zinc-200  rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-zinc-200  flex justify-between items-center bg-zinc-50 ">
+        <div className="p-4 border-b border-zinc-200 flex flex-wrap gap-3 justify-between items-center bg-zinc-50">
           <h2 className="font-semibold text-lg flex items-center gap-2">
             <Receipt size={24} weight="duotone" className="text-zinc-500" />
             Daftar Transaksi
           </h2>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial min-w-[180px]">
               <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Cari invoice atau nama..."
-                className="pl-9 pr-4 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                className="w-full pl-9 pr-4 py-2 rounded-lg border border-zinc-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
               />
             </div>
             <EarthySelect
@@ -521,7 +521,7 @@ export default function AdminTransaksiPage() {
         </div>
         
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[680px] text-left border-collapse">
             <thead>
               <tr className="bg-zinc-50  border-b border-zinc-200  text-sm text-zinc-500 ">
                 <th className="p-4 font-medium">Invoice</th>

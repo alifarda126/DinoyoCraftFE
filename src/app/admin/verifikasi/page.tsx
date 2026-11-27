@@ -295,20 +295,20 @@ export default function AdminVerifikasiPage() {
       </div>
 
       <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
-        <div className="p-4 border-b border-zinc-200 flex justify-between items-center bg-zinc-50">
+        <div className="p-4 border-b border-zinc-200 flex flex-wrap gap-3 justify-between items-center bg-zinc-50">
           <h2 className="font-semibold text-lg flex items-center gap-2">
             <Storefront size={24} weight="duotone" className="text-zinc-500" />
             Daftar Pengajuan ({loading && registrations.length === 0 ? "..." : filtered.length})
           </h2>
-          <div className="flex items-center gap-2 flex-wrap">
-            <div className="relative">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+            <div className="relative flex-1 sm:flex-initial min-w-[180px]">
               <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Cari toko atau pemilik..."
-                className="pl-9 pr-4 py-1.5 border border-zinc-200 rounded-lg text-sm bg-white focus:outline-none focus:border-zinc-400 placeholder-zinc-400 text-zinc-800"
+                className="w-full pl-9 pr-4 py-1.5 border border-zinc-200 rounded-lg text-sm bg-white focus:outline-none focus:border-zinc-400 placeholder-zinc-400 text-zinc-800"
               />
             </div>
             <EarthySelect
@@ -334,7 +334,7 @@ export default function AdminVerifikasiPage() {
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[680px] text-left border-collapse">
             <thead>
               <tr className="bg-zinc-50 border-b border-zinc-200 text-sm text-zinc-500">
                 <th className="p-4 font-medium">Toko & Pemilik</th>
@@ -659,7 +659,7 @@ export default function AdminVerifikasiPage() {
                 background: "#fafaf9", border: "1px solid #e7e5e4", borderRadius: "0.75rem",
                 padding: "1rem", marginBottom: "1.25rem",
               }}>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem", fontSize: "0.82rem" }}>
+                <div className="resp-grid-2col" style={{ gap: "0.75rem", fontSize: "0.82rem", wordBreak: "break-word" }}>
                   <div>
                     <span style={{ color: "#78716c", display: "block", fontSize: "0.72rem", marginBottom: "0.15rem" }}>PEMILIK USAHA</span>
                     <strong style={{ color: "var(--bark)" }}>{selectedReg.owner_name}</strong>
@@ -713,7 +713,7 @@ export default function AdminVerifikasiPage() {
                     <div
                       key={doc.key}
                       style={{
-                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem",
                         padding: "0.75rem 1rem", borderRadius: "0.6rem",
                         background: ok ? "rgba(22,163,74,0.06)" : "rgba(220,38,38,0.06)",
                         border: `1px solid ${ok ? "rgba(22,163,74,0.2)" : "rgba(220,38,38,0.2)"}`,
@@ -786,7 +786,7 @@ export default function AdminVerifikasiPage() {
             {selectedReg.status === "pending" && (
               <div style={{
                 padding: "1.25rem 1.5rem", borderTop: "1px solid #e5e7eb",
-                display: "flex", gap: "0.75rem", flexShrink: 0,
+                display: "flex", flexWrap: "wrap", gap: "0.75rem", flexShrink: 0,
               }}>
                 <button
                   onClick={() => {

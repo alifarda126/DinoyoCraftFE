@@ -233,9 +233,9 @@ export default function AdminDashboardHome() {
       </div>
 
       {/* Quick Actions & Alerts */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem" }}>
-        <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", padding: "1.5rem" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.25rem" }}>
+      <div className="resp-grid-2-1">
+        <div style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", padding: "1.5rem", minWidth: 0 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem", marginBottom: "1.25rem" }}>
             <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--bark)" }}>Aktivitas Transaksi Terbaru</h2>
             <button onClick={() => router.push("/admin/transaksi")} style={{ background: "none", border: "none", color: "var(--clay)", fontWeight: 600, cursor: "pointer", fontSize: "0.85rem" }}>Lihat Semua</button>
           </div>
@@ -245,7 +245,7 @@ export default function AdminDashboardHome() {
             ) : statsData?.transaksiTerbaru && statsData.transaksiTerbaru.length > 0 ? (
               statsData.transaksiTerbaru.map((trx, index) => (
                 <div key={index} style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.5rem",
                   padding: "1rem", border: "1px solid var(--line-light)", borderRadius: "0.5rem"
                 }}>
                   <div>

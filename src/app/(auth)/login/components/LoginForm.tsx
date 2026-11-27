@@ -329,6 +329,7 @@ function LoginFormContent() {
       {/* RIGHT: Login Card */}
       <div style={{ flexShrink: 0, width: "100%", maxWidth: 420 }}>
         <div
+          className="login-card-inner"
           style={{
             background: "rgba(255,255,255,0.96)",
             backdropFilter: "blur(20px)",
@@ -596,6 +597,9 @@ function LoginFormContent() {
           .login-hero { display: none !important; }
           .login-main-layout { padding: 1.5rem 1rem !important; gap: 0 !important; }
           .login-main-layout > div:last-child { max-width: 100% !important; }
+        }
+        @media (max-width: 480px) {
+          .login-card-inner { padding: 1.5rem 1.25rem !important; }
         }
       `}</style>
     </main>

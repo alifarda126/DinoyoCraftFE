@@ -376,8 +376,8 @@ export default function SellerDashboardHome() {
       </div>
 
       {/* Quick Actions & Recent Orders */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem" }}>
-        <div className="card-shadow" style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", padding: "1.5rem" }}>
+      <div className="resp-grid-2-1">
+        <div className="card-shadow" style={{ background: "#fff", borderRadius: "1rem", border: "1px solid var(--line)", padding: "1.5rem", minWidth: 0 }}>
           <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--bark)", marginBottom: "1.25rem" }}>Pesanan Terbaru</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
             {isDataLoading ? (
@@ -385,19 +385,19 @@ export default function SellerDashboardHome() {
             ) : recentOrdersList.length > 0 ? (
               recentOrdersList.map((order) => (
                 <div key={order.id} onClick={() => router.push("/mitra/dashboard/pesanan")} style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem",
                   padding: "1rem", border: "1px solid var(--line-light)", borderRadius: "0.5rem",
                   cursor: "pointer", transition: "background 0.2s",
                 }}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--surface)"}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
                 >
-                  <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: "0.85rem", alignItems: "center", minWidth: 0, flex: 1 }}>
                     <div style={{ width: 48, height: 48, background: "var(--surface)", borderRadius: "0.5rem", overflow: "hidden", flexShrink: 0 }}>
                       <Image src={order.img} alt="" width={48} height={48} style={{ objectFit: "cover", width: "100%", height: "100%" }} unoptimized />
                     </div>
-                    <div>
-                      <p style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--bark)" }}>{order.id}</p>
+                    <div style={{ minWidth: 0 }}>
+                      <p style={{ fontWeight: 600, fontSize: "0.9rem", color: "var(--bark)", wordBreak: "break-word" }}>{order.id}</p>
                       <p style={{ fontSize: "0.8rem", color: "var(--bark-muted)" }}>{order.items} • {order.buyer}</p>
                     </div>
                   </div>
@@ -475,7 +475,7 @@ export default function SellerDashboardHome() {
                 <p style={{ fontSize: "0.75rem", color: "var(--bark-muted)", marginTop: "0.35rem", marginBottom: 0 }}>Minimal penarikan Rp 50.000</p>
               </div>
 
-              <div style={{ display: "flex", gap: "1rem" }}>
+              <div className="resp-flex-stack" style={{ display: "flex", gap: "1rem" }}>
                 <div style={{ flex: 1.2, position: "relative" }}>
                   <label style={{ display: "block", fontSize: "0.85rem", fontWeight: 600, color: "var(--bark)", marginBottom: "0.4rem" }}>Metode Tujuan</label>
                   <EarthySelect

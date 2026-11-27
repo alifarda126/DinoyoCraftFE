@@ -538,6 +538,7 @@ function RegisterFormContent() {
       {/* RIGHT: Register Card */}
       <div style={{ flexShrink: 0, width: "100%", maxWidth: 480 }}>
         <div
+          className="reg-card-inner"
           style={{
             background: "rgba(255,255,255,0.96)",
             backdropFilter: "blur(20px)",
@@ -1355,6 +1356,9 @@ function RegisterFormContent() {
           .reg-hero { display: none !important; }
           .reg-main-layout { padding: 1.5rem 1rem !important; gap: 0 !important; align-items: flex-start !important; }
           .reg-main-layout > div:last-child { max-width: 100% !important; }
+        }
+        @media (max-width: 480px) {
+          .reg-card-inner { padding: 1.5rem 1.25rem !important; }
         }
         
         .file-input {

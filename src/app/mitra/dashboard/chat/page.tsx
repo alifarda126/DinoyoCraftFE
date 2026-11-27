@@ -5,7 +5,7 @@ import Pusher from "pusher-js";
 import api from "@/lib/axios";
 import { getDemoSession } from "@/lib/utils/demo";
 import { useRouter } from "next/navigation";
-import { Storefront, ChatCircle, MagnifyingGlass, Headset } from "@phosphor-icons/react";
+import { Storefront, ChatCircle, MagnifyingGlass, Headset, ArrowLeft } from "@phosphor-icons/react";
 import { useAuthStore } from "@/store/useAuthStore";
 import {
   ChatComposerContextBanner,
@@ -89,6 +89,7 @@ export default function SellerChatPage() {
   const [loading, setLoading] = useState(true);
   const [chatTab, setChatTab] = useState<"cs" | "customer">("cs");
   const [activeContact, setActiveContact] = useState<number | null>(null);
+  const [mobileShowChat, setMobileShowChat] = useState(false);
   const [chatContacts, setChatContacts] = useState<Record<"cs" | "customer", ChatContact[]>>({
     cs: [],
     customer: [],
@@ -681,9 +682,9 @@ export default function SellerChatPage() {
   }, [messages]);
 
   return (
-    <div className="h-[calc(100vh-6rem)] flex flex-col">
+    <div className="h-[calc(100dvh-5.5rem)] md:h-[calc(100vh-6rem)] flex flex-col">
       {/* Page Header */}
-      <div className="mb-6 flex items-end justify-between flex-wrap gap-3">
+      <div className="mb-4 md:mb-6 flex items-end justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900 mb-1">Live Chat</h1>
           <p className="text-zinc-500 text-sm">Balas pesan dari Customer Service maupun customer toko Anda.</p>
@@ -699,7 +700,10 @@ export default function SellerChatPage() {
             return (
               <button
                 key={tab}
-                onClick={() => handleTabSwitch(tab)}
+                onClick={() => {
+                  setMobileShowChat(false);
+                  handleTabSwitch(tab);
+                }}
                 style={{
                   display: "flex", alignItems: "center", gap: "0.4rem",
                   padding: "0.45rem 1rem", borderRadius: "0.5rem",
@@ -727,9 +731,9 @@ export default function SellerChatPage() {
       </div>
 
       {/* Chat Panel */}
-      <div className="flex-1 bg-white border border-zinc-200 rounded-xl overflow-hidden flex flex-col md:flex-row">
+      <div className="flex-1 min-h-0 bg-white border border-zinc-200 rounded-xl overflow-hidden flex flex-col md:flex-row">
         {/* Sidebar kontak */}
-        <div className="w-full md:w-80 h-1/3 md:h-auto min-h-[160px] md:min-h-0 border-b md:border-b-0 md:border-r border-zinc-200 flex flex-col bg-zinc-50/50 shrink-0">
+        <div className={`${mobileShowChat ? "hidden md:flex" : "flex"} w-full md:w-80 flex-1 md:flex-initial border-b md:border-b-0 md:border-r border-zinc-200 flex-col bg-zinc-50/50 shrink-0 min-h-0`}>
           <div className="p-4 border-b border-zinc-200">
             <div className="relative">
               <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
@@ -755,6 +759,7 @@ export default function SellerChatPage() {
                 onClick={() => {
                   targetCustomerRef.current = null;
                   setActiveContact(contact.id);
+                  setMobileShowChat(true);
                 }}
                 className={`p-4 border-b border-zinc-100 cursor-pointer transition-colors ${activeContact === contact.id ? "bg-zinc-100" : "hover:bg-zinc-100/50"
                   }`}
@@ -812,10 +817,18 @@ export default function SellerChatPage() {
 
         {/* Area Chat */}
         {activeChatData ? (
-          <div className="flex-1 min-w-0 flex flex-col bg-white overflow-hidden">
+          <div className={`${mobileShowChat ? "flex" : "hidden md:flex"} flex-1 min-w-0 min-h-0 flex-col bg-white overflow-hidden`}>
             {/* Header chat */}
-            <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="p-3.5 md:p-4 border-b border-zinc-200 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 md:gap-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setMobileShowChat(false)}
+                  className="md:hidden p-1.5 -ml-1 rounded-lg text-zinc-700 hover:bg-zinc-100 transition cursor-pointer shrink-0"
+                  aria-label="Kembali ke daftar percakapan"
+                >
+                  <ArrowLeft size={18} weight="bold" />
+                </button>
                 <div className="relative shrink-0">
                   <div style={{
                     width: 40, height: 40, borderRadius: "50%",
@@ -968,7 +981,7 @@ export default function SellerChatPage() {
             />
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-zinc-400">
+          <div className="hidden md:flex flex-1 items-center justify-center text-zinc-400">
             <div className="text-center">
               <ChatCircle size={48} className="mx-auto mb-3 opacity-30" />
               <p className="text-sm">Pilih percakapan untuk mulai membalas</p>

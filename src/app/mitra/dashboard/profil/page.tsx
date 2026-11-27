@@ -557,7 +557,7 @@ export default function SellerProfilPage() {
           <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
             {/* Data Pribadi */}
             <Section title="Data Pribadi" icon={<User size={18} color="var(--clay)" />}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="resp-grid-2col">
                 <Field label="Nama Lengkap" required>
                   <input
                     type="text" required value={profile.ownerName}
@@ -581,7 +581,7 @@ export default function SellerProfilPage() {
 
             {/* Data Toko */}
             <Section title="Data Toko / Workshop" icon={<Storefront size={18} color="var(--clay)" />}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="resp-grid-2col">
                 <Field label="Nama Toko" required>
                   <input
                     type="text" required value={profile.storeName}
@@ -957,7 +957,7 @@ export default function SellerProfilPage() {
       )}
 
       <form onSubmit={handleSave}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "1.5rem", alignItems: "start" }}>
+        <div className="resp-grid-1-2">
 
           {/* ── Kolom Kiri: Foto & Pratinjau ── */}
           <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
@@ -1144,7 +1144,7 @@ export default function SellerProfilPage() {
 
             {/* Seksi: Informasi Pemilik */}
             <Section title="Informasi Pemilik" icon={<User size={18} color="var(--clay)" />}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="resp-grid-2col">
                 <Field label="Nama Pemilik" required>
                   <input
                     type="text" required value={profile.ownerName}
@@ -1189,7 +1189,7 @@ export default function SellerProfilPage() {
 
             {/* Seksi: Informasi Toko */}
             <Section title="Informasi Toko" icon={<Storefront size={18} color="var(--clay)" />}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="resp-grid-2col">
                 <Field label="Nama Toko" required>
                   <input
                     type="text" required value={profile.storeName}
@@ -1256,7 +1256,7 @@ export default function SellerProfilPage() {
 
             {/* Seksi: Media Sosial */}
             <Section title="Media Sosial & Website" icon={<Globe size={18} color="var(--clay)" />}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <div className="resp-grid-2col">
                 <Field label="Website">
                   <div style={{ position: "relative" }}>
                     <Globe size={15} style={{ position: "absolute", left: "0.75rem", top: "50%", transform: "translateY(-50%)", color: "var(--bark-muted)" }} />
@@ -1453,7 +1453,7 @@ export default function SellerProfilPage() {
             {/* Footer Modal */}
             <div style={{
               padding: "1rem 1.5rem", borderTop: "1px solid #e5e7eb",
-              display: "flex", gap: "0.75rem", justifyContent: "flex-end", background: "#fafafa"
+              display: "flex", flexWrap: "wrap", gap: "0.75rem", justifyContent: "flex-end", background: "#fafafa"
             }}>
               <button
                 type="button"

@@ -54,8 +54,8 @@ export function TablePagination({
   };
 
   return (
-    <div className="px-6 py-4 border-t border-zinc-200 bg-zinc-50/70 flex flex-col sm:flex-row items-center justify-between gap-3">
-      <div className="flex items-center flex-wrap gap-3 text-xs text-zinc-600">
+    <div className="px-4 sm:px-6 py-4 border-t border-zinc-200 bg-zinc-50/70 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="flex items-center justify-center sm:justify-start flex-wrap gap-3 text-xs text-zinc-600">
         <span>
           Menampilkan{" "}
           <strong className="text-zinc-900">
@@ -89,7 +89,7 @@ export function TablePagination({
         </div>
       </div>
 
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-center flex-wrap gap-1.5">
         <button
           type="button"
           onClick={() => handlePageChange(safeCurrentPage - 1)}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { User, SignOut, ArrowRight } from "@phosphor-icons/react";
+import { User, SignOut, ArrowRight, List, X } from "@phosphor-icons/react";
 import { getDemoSession, clearDemoSession, DemoSession } from "@/lib/utils/demo";
 
 const navLinks = [
@@ -18,6 +18,7 @@ export default function Navbar() {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [session, setSession] = useState<DemoSession | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     setSession(getDemoSession());
@@ -140,15 +141,16 @@ export default function Navbar() {
               id="navbar-masuk-btn"
               style={{
                 display: "inline-flex", alignItems: "center", gap: "0.4rem",
-                padding: "0.45rem 1.25rem",
+                padding: "0.45rem 1rem",
                 borderRadius: "0.5rem",
                 background: "var(--clay)",
                 color: "#fff",
-                fontWeight: 600, fontSize: "0.875rem",
+                fontWeight: 600, fontSize: "0.85rem",
                 textDecoration: "none", flexShrink: 0,
                 letterSpacing: "-0.01em",
                 transition: "background 0.2s, transform 0.15s",
                 boxShadow: "0 2px 8px rgba(184,92,60,0.22)",
+                whiteSpace: "nowrap",
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLElement).style.background = "var(--clay-dark)";
@@ -163,6 +165,32 @@ export default function Navbar() {
               <ArrowRight size={14} weight="bold" />
             </Link>
           )}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            className="lg:hidden p-2 -mr-1 rounded-lg text-zinc-800 hover:bg-zinc-100 transition cursor-pointer"
+            aria-label="Toggle menu navigasi"
+            aria-expanded={mobileMenuOpen}
+          >
+            {mobileMenuOpen ? <X size={22} weight="bold" /> : <List size={22} weight="bold" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Dropdown Menu (< 1024px) */}
+      <div className={`lg:hidden nav-drawer ${mobileMenuOpen ? "open" : ""}`}>
+        <div className="px-5 pb-4 pt-1 border-t border-zinc-100 flex flex-col gap-1 bg-white/95">
+          {navLinks.map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              onClick={() => setMobileMenuOpen(false)}
+              className="py-2.5 px-3 rounded-lg text-sm font-semibold text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 transition"
+              style={{ textDecoration: "none" }}
+            >
+              {label}
+            </Link>
+          ))}
         </div>
       </div>
     </nav>
