@@ -17,13 +17,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1.0,
     },
     {
+      url: `${SITE_URL}/login`,
+      lastModified,
+      changeFrequency: "monthly",
+      priority: 0.9,
+    },
+    {
       url: `${SITE_URL}/register`,
       lastModified,
       changeFrequency: "monthly",
-      priority: 0.8,
+      priority: 0.9,
     },
     {
-      url: `${SITE_URL}/login`,
+      url: `${SITE_URL}/lupa-kata-sandi`,
       lastModified,
       changeFrequency: "monthly",
       priority: 0.6,
@@ -32,13 +38,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${SITE_URL}/syarat-ketentuan`,
       lastModified,
       changeFrequency: "yearly",
-      priority: 0.4,
+      priority: 0.5,
     },
     {
       url: `${SITE_URL}/kebijakan-privasi`,
       lastModified,
       changeFrequency: "yearly",
-      priority: 0.4,
+      priority: 0.5,
     },
   ];
 }

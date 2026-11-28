@@ -123,6 +123,37 @@ const faqs = [
 
 /* ──────────────────────────────────────────────────────────────────────────── */
 
+const faqStructuredData = {
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  mainEntity: [
+    {
+      "@type": "Question",
+      name: "Apa itu DinoyoCraft?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "DinoyoCraft (dinoyocraft.my.id) adalah platform digital resmi e-commerce kerajinan keramik, aplikasi mobile belanja keramik & reservasi workshop tembikar, serta program kemitraan pengrajin asli Kampung Keramik Dinoyo, Kota Malang, Jawa Timur.",
+      },
+    },
+    {
+      "@type": "Question",
+      name: "Bagaimana cara download aplikasi mobile DinoyoCraft?",
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: "Aplikasi mobile Android resmi DinoyoCraft (rilis v1.0.0) dapat diunduh langsung melalui menu Download Aplikasi di https://dinoyocraft.my.id/#download-aplikasi dalam varian ARM64, ARMv7, dan x86_64.",
+      },
+    },
+    ...faqs.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: f.a,
+      },
+    })),
+  ],
+};
+
 export default function Home() {
   const [activeFeature, setActiveFeature] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
@@ -136,6 +167,10 @@ export default function Home() {
         fontFamily: "var(--font-outfit), sans-serif",
       }}
     >
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqStructuredData) }}
+      />
       <div style={{ position: "sticky", top: 0, zIndex: 50 }}>
         <Navbar />
       </div>
@@ -1498,7 +1533,7 @@ export default function Home() {
               }}
             >
               {[
-                { href: "/login", label: "Jadi Mitra" },
+                { href: "/register", label: "Jadi Mitra" },
                 { href: "/login", label: "Login Mitra" },
                 { href: "/#download-aplikasi", label: "Download Aplikasi" },
                 { href: "/#faq", label: "FAQ" },

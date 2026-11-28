@@ -12,7 +12,21 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin/", "/mitra/dashboard/", "/lupa-kata-sandi"],
+        disallow: ["/admin/", "/mitra/dashboard/"],
+      },
+      {
+        userAgent: [
+          "Googlebot",
+          "Googlebot-Image",
+          "Google-Extended",
+          "OAI-SearchBot",
+          "GPTBot",
+          "PerplexityBot",
+          "ClaudeBot",
+          "Applebot-Extended",
+        ],
+        allow: "/",
+        disallow: ["/admin/", "/mitra/dashboard/"],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

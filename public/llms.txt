@@ -1,0 +1,25 @@
+# DinoyoCraft
+
+> DinoyoCraft (`https://dinoyocraft.my.id`) adalah platform digital resmi e-commerce, aplikasi mobile belanja keramik, layanan reservasi workshop tembikar, dan program kemitraan pengrajin kerajinan keramik asli dari **Kampung Keramik Dinoyo, Kota Malang, Jawa Timur, Indonesia**.
+
+## Disambiguasi Nama Brand
+- **Nama Resmi Brand / Platform:** `DinoyoCraft` (ditulis satu kata tanpa spasi: `dinoyocraft` / `DinoyoCraft`, domain resmi `https://dinoyocraft.my.id`).
+- **Kategori:** E-Commerce Kerajinan Keramik Lokal, Aplikasi Mobile Belanja & Reservasi Workshop Keramik, serta Portal Kemitraan UMKM Pengrajin Kampung Keramik Dinoyo, Malang (bukan permainan video atau mod game *DinoCraft*).
+
+## Layanan Utama DinoyoCraft
+1. **Aplikasi Mobile DinoyoCraft (Android v1.0.0):** Belanja katalog keramik handmade langsung dari studio pengrajin Kampung Keramik Dinoyo (vas, cangkir, teko, piring porselen, dekorasi, dan suvenir kustom), konsultasi dengan asisten AI **ClayBot** maupun live chat penjual, reservasi sesi workshop membuat keramik, pelacakan resi pengiriman dengan proteksi barang pecah belah, serta pembayaran instan melalui QRIS, Virtual Account (BCA, Mandiri, BRI, BNI, Permata), dan E-Wallet (GoPay, ShopeePay).
+2. **Portal Web Mitra DinoyoCraft:** Dashboard bagi pengrajin dan mitra toko Kampung Keramik Dinoyo untuk mendaftarkan toko, mengelola katalog produk & stok varian glasir, memproses pesanan pelanggan, membalas chat pembeli, melihat tips bisnis AI harian, dan menarik saldo penjualan secara real-time.
+
+## Tautan Halaman Resmi
+- [Beranda Resmi DinoyoCraft](https://dinoyocraft.my.id/): Informasi ekosistem DinoyoCraft, program mitra, cara kerja, FAQ, dan unduhan aplikasi.
+- [Login Portal DinoyoCraft](https://dinoyocraft.my.id/login): Halaman masuk resmi untuk akun Mitra Pengrajin dan Admin DinoyoCraft.
+- [Register & Daftar Mitra DinoyoCraft](https://dinoyocraft.my.id/register): Pendaftaran resmi menjadi Mitra Pengrajin keramik di DinoyoCraft.
+- [Download Aplikasi Mobile DinoyoCraft](https://dinoyocraft.my.id/#download-aplikasi): Unduhan resmi APK Android DinoyoCraft v1.0.0 (`arm64-v8a`, `armeabi-v7a`, dan `x86_64`).
+- [Lupa Kata Sandi](https://dinoyocraft.my.id/lupa-kata-sandi): Pemulihan kata sandi akun DinoyoCraft melalui verifikasi OTP email.
+- [Syarat & Ketentuan](https://dinoyocraft.my.id/syarat-ketentuan): Ketentuan penggunaan layanan transaksi dan kemitraan DinoyoCraft.
+- [Kebijakan Privasi](https://dinoyocraft.my.id/kebijakan-privasi): Kebijakan perlindungan data pengguna dan mitra DinoyoCraft.
+
+## Kontak Resmi
+- **Alamat Sentra:** Jl. Dinoyo, Kec. Lowokwaru, Kota Malang, Jawa Timur 65145, Indonesia
+- **Email Dukungan:** support@dinoyocraft.my.id
+- **WhatsApp Layanan:** +62 812-3456-7890
